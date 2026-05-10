@@ -629,18 +629,19 @@ agentCmd
 
 agentCmd
   .command("create [name]")
-  .description("Create a universal memory interactively")
+  .description("Create a universal memory (interactive)")
   .option("-d, --description <desc>", "Description for the memory")
   .option("-s, --scope <scope>", "Scope: global or workspace")
   .option("--skill", "Create skill for agents")
-  .option("--agents <agents>", "Comma-separated list of agent IDs (windsurf,cursor,opencode,claude-code,github-copilot)")
+  .option("--agents <agents>", "Comma-separated agent IDs")
   .action(async (nameArg?: string, opts: {
     description?: string;
     scope?: string;
     skill?: boolean;
     agents?: string;
   }) => {
-    console.log("\n" + LOGO + "\n");
+    console.clear();
+    console.log("\n" + c.bold("  ═══ Crear Nueva Memoria ═══\n"));
 
     let name = nameArg;
     let description = opts.description || "";
@@ -648,91 +649,140 @@ agentCmd
     const createSkill = !!opts.skill;
     const selectedAgents = opts.agents ? opts.agents.split(",") : [];
 
-    // If not all options provided, go interactive
-    if (!name || !selectedAgents.length) {
+    // Step 1: Name
+    if (!name) {
+      name = await askQuestion("  Nombre de la memoria: ");
       if (!name) {
-        name = await askQuestion("  Nombre de la memoria: ");
-        if (!name) {
-          console.log(c.error("  Error: El nombre es obligatorio\n"));
-          process.exit(1);
-        }
-      }
-
-      if (!description) {
-        description = await askQuestion("  Descripcion (opcional): ");
-      }
-
-      if (!opts.scope) {
-        scope = await askScope();
-      }
-
-      if (!opts.agents && !opts.skill) {
-        const createSkillAnswer = await askYesNo("  Crear skill para los agentes?");
-        if (!opts.agents) {
-          const agentsFromPrompt = await selectAgents();
-          selectedAgents.push(...agentsFromPrompt);
-        }
+        console.log(c.error("  Error: El nombre es obligatorio\n"));
+        process.exit(1);
       }
     }
 
+    // Step 2: Description
+    description = await askQuestion("  Descripción (opcional): ");
+
+    // Step 3: Scope
+    console.log();
+    console.log(c.dim("  Alcance:"));
+    console.log(c.dim("    (g) Global    - disponible en todos los proyectos"));
+    console.log(c.dim("    (w) Workspace - solo en el proyecto actual"));
+    const scopeAnswer = await askQuestion("  [g/w]: ");
+    scope = (scopeAnswer.toLowerCase() === "w" || scopeAnswer.toLowerCase() === "workspace") 
+      ? "workspace" 
+      : "global";
+
+    // Step 4: Select agents
+    console.log();
+    const configureAgents = await askYesNo("  ¿Configurar agentes ahora?");
+    let finalSelectedAgents: string[] = [];
+
+    if (configureAgents) {
+      console.log();
+      console.log(c.dim("  Selecciona agentes (Enter para confirmar):"));
+      console.log();
+      
+      // Get supported agents
+      const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
+      
+      const agentSelections: boolean[] = new Array(agents.length).fill(false);
+      
+      // Simple selection - ask for each agent
+      for (let i = 0; i < agents.length; i++) {
+        const answer = await askYesNo(`    ${agents[i].name}?`, true);
+        agentSelections[i] = answer;
+      }
+      
+      // Collect selected agents
+      finalSelectedAgents = agents
+        .filter((_, i) => agentSelections[i])
+        .map((a) => a.id);
+    }
+
+    // Step 5: Create skill
+    const wantsSkill = finalSelectedAgents.length > 0 
+      ? await askYesNo("  ¿Generar skill para los agentes?")
+      : false;
+
+    // Show summary and confirm
+    console.clear();
+    console.log("\n" + c.bold("  ═══ Resumen ═══\n"));
+    console.log(`  ${c.bold("Nombre:")}      ${c.text(name)}`);
+    console.log(`  ${c.bold("Descripción:")} ${c.text(description || "(sin descripción)")}`);
+    console.log(`  ${c.bold("Alcance:")}     ${c.text(scope)}`);
+    if (finalSelectedAgents.length > 0) {
+      console.log(`  ${c.bold("Agentes:")}     ${c.success(finalSelectedAgents.join(", "))}`);
+      console.log(`  ${c.bold("Skill:")}      ${wantsSkill ? c.success("Sí") : c.dim("No")}`);
+    } else {
+      console.log(c.dim("  Agentes:      (ninguno)"));
+    }
+    console.log();
+
+    const confirm = await askYesNo("  ¿Crear memoria?", true);
+    if (!confirm) {
+      console.log(c.dim("  Cancelado.\n"));
+      return;
+    }
+
     // Create the memory
-    const spinner = ora("Creando memoria...").start();
+    const spinner = ora("Creando...").start();
 
     try {
       const memory = createUniversalMemory(name);
-      spinner.succeed(c.success("Memoria creada exitosamente!\n"));
+      spinner.succeed(c.success("  ¡Memoria creada!\n"));
 
       const config = loadConfig();
       const host = config.serverHost ?? DEFAULT_HOST;
       const port = config.serverPort ?? DEFAULT_PORT;
 
-      console.log(c.bold(`  Memoria: ${memory.memoryName}`));
-      console.log(`  ${c.bold("ID:")}    ${c.dim(memory.memoryId)}`);
-      console.log(`  ${c.bold("Token:")} ${c.warning(memory.token)}`);
-      console.log();
+      console.log(c.bold("  ┌─────────────────────────────────────────┐"));
+      console.log(c.bold("  │ ") + c.success("Nueva Memoria") + c.bold("                           │"));
+      console.log(c.bold("  ├─────────────────────────────────────────┤"));
+      console.log(c.bold("  │ ") + c.dim("Nombre:     ") + c.text(memory.memoryName) + c.dim(" ".repeat(30 - memory.memoryName.length)) + "│");
+      console.log(c.bold("  │ ") + c.dim("ID:         ") + c.dim(memory.memoryId) + c.dim(" ".repeat(30 - memory.memoryId.length)) + "│");
+      console.log(c.bold("  │ ") + c.dim("MCP URL:    ") + c.text(`http://${host}:${port}/mcp?mem_id=${memory.memoryId}`) + c.dim(" ".repeat(10)) + "│");
+      console.log(c.bold("  └─────────────────────────────────────────┘\n"));
 
-      // Scaffold MCP configs and skills for selected agents
-      if (selectedAgents.length > 0) {
+      // Scaffold MCP configs and skills
+      if (finalSelectedAgents.length > 0) {
         console.log(c.dim("  Configurando agentes...\n"));
 
-        for (const agentId of selectedAgents) {
+        for (const agentId of finalSelectedAgents) {
           const agent = getAgentConfig(agentId.trim());
           if (!agent) continue;
 
-          console.log(c.dim(`    -> ${agent.name}`));
-
           // MCP config
           const mcpOk = scaffoldMcpConfig(agent, scope, memory.memoryId, host, port);
-          console.log(mcpOk ? c.success("      MCP OK") : c.warning("      MCP skip"));
+          console.log(c.dim(`    → ${agent.name}`));
+          console.log(mcpOk ? c.success("      ✓ MCP") : c.warning("      ✗ MCP"));
 
           // Skill
-          if (createSkill && agent.hasSkill) {
+          if (wantsSkill && agent.hasSkill) {
             const skillOk = scaffoldSkill(agent, scope, memory.memoryId, memory.memoryName, description);
-            console.log(skillOk ? c.success("      Skill OK") : c.warning("      Skill skip"));
+            console.log(skillOk ? c.success("      ✓ Skill") : c.warning("      ✗ Skill"));
           }
+          console.log();
         }
 
         // AGENTS.md
         const agentsMdOk = scaffoldAgentsMd(scope, memory.memoryId, memory.memoryName, host, port);
         if (agentsMdOk) {
-          console.log(c.success("      AGENTS.md OK"));
+          console.log(c.success("  ✓ AGENTS.md\n"));
         }
       }
-
-      console.log();
-      console.log(c.success("  Configuracion completada!"));
-      console.log(c.dim(`\n  Iniciar servidor: ${c.text("memlink serve")}`));
-      console.log(c.dim(`  Ver memorias: ${c.text("memlink memory list")}`));
-      console.log(c.dim(`  Revocar: ${c.text("memlink memory revoke " + memory.memoryId)}\n`));
 
       // Update config with linked agents
       config.universalMemories = config.universalMemories.map((m) => {
         if (m.memoryId === memory.memoryId) {
-          return { ...m, linkedAgents: selectedAgents };
+          return { ...m, linkedAgents: finalSelectedAgents };
         }
         return m;
       });
       saveConfig(config);
+
+      console.log(c.bold("  ═══ Siguientes pasos ═══\n"));
+      console.log(c.dim("    1. Iniciar servidor: ") + c.text("memlink serve"));
+      console.log(c.dim("    2. Ver memorias:     ") + c.text("memlink memory list"));
+      console.log(c.dim("    3. Ver contenido:    ") + c.text(`memlink memory show ${memory.memoryId}\n`));
 
     } catch (err) {
       spinner.fail(c.error("Error al crear la memoria"));
