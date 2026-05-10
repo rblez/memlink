@@ -718,24 +718,45 @@ export function createApp(): express.Application {
     });
   });
 
-  // MCP endpoint — auth via query string only (?mem_id=xxx)
+  // MCP endpoint — auth via query string (?mem_id=xxx) or Bearer header (legacy)
   app.all("/mcp", async (req: Request, res: Response) => {
-    // Extract memory ID from query string (?mem_id=xxx)
+    let memoryId: string;
+    let memoryName: string;
+
+    // Try query string first (?mem_id=xxx)
     const memIdFromQuery = extractMemoryIdFromQuery(req);
-    if (!memIdFromQuery) {
-      res.status(401).json({ error: "Missing query parameter. Use: /mcp?mem_id=<memoryId>" });
+    
+    // Fallback to Bearer header for legacy configs
+    const auth = req.headers["authorization"];
+    const bearerToken = auth && typeof auth === "string" && auth.startsWith("Bearer ") 
+      ? auth.slice(7) 
+      : null;
+
+    if (memIdFromQuery) {
+      // Query string auth
+      const memoryInfo = getMemoryById(memIdFromQuery);
+      if (!memoryInfo) {
+        res.status(403).json({ error: "Invalid memory ID. Memory not found." });
+        return;
+      }
+      memoryId = memoryInfo.memoryId;
+      memoryName = memoryInfo.memoryName;
+    } else if (bearerToken) {
+      // Bearer header auth (legacy fallback)
+      const universalMemory = getUniversalMemoryByToken(bearerToken);
+      const agent = getAgentByToken(bearerToken);
+      
+      if (!universalMemory && !agent) {
+        res.status(403).json({ error: "Invalid or revoked token." });
+        return;
+      }
+      
+      memoryId = universalMemory?.memoryId ?? agent!.agentId;
+      memoryName = universalMemory?.memoryName ?? agent!.agentName;
+    } else {
+      res.status(401).json({ error: "Missing authentication. Use ?mem_id=<id> or Authorization: Bearer <token>" });
       return;
     }
-
-    // Get memory info by ID
-    const memoryInfo = getMemoryById(memIdFromQuery);
-    if (!memoryInfo) {
-      res.status(403).json({ error: "Invalid memory ID. Memory not found." });
-      return;
-    }
-
-    const memoryId = memoryInfo.memoryId;
-    const memoryName = memoryInfo.memoryName;
 
     // Log the request if logging is enabled
     if (req.body && req.body.method) {

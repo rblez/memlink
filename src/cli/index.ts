@@ -658,44 +658,54 @@ agentCmd
       }
     }
 
-    // Step 2: Description
-    description = await askQuestion("  Descripción (opcional): ");
+    // Step 2: Description (only ask if not provided via CLI)
+    if (!opts.description) {
+      description = await askQuestion("  Descripción (opcional): ");
+    }
 
-    // Step 3: Scope
-    console.log();
-    console.log(c.dim("  Alcance:"));
-    console.log(c.dim("    (g) Global    - disponible en todos los proyectos"));
-    console.log(c.dim("    (w) Workspace - solo en el proyecto actual"));
-    const scopeAnswer = await askQuestion("  [g/w]: ");
-    scope = (scopeAnswer.toLowerCase() === "w" || scopeAnswer.toLowerCase() === "workspace") 
-      ? "workspace" 
-      : "global";
+    // Step 3: Scope (only ask if not provided via CLI)
+    if (!opts.scope) {
+      console.log();
+      console.log(c.dim("  Alcance:"));
+      console.log(c.dim("    (g) Global    - disponible en todos los proyectos"));
+      console.log(c.dim("    (w) Workspace - solo en el proyecto actual"));
+      const scopeAnswer = await askQuestion("  [g/w]: ");
+      scope = (scopeAnswer.toLowerCase() === "w" || scopeAnswer.toLowerCase() === "workspace") 
+        ? "workspace" 
+        : "global";
+    }
 
-    // Step 4: Select agents
-    console.log();
-    const configureAgents = await askYesNo("  ¿Configurar agentes ahora?");
+    // Step 4: Select agents (only ask if not provided via CLI)
     let finalSelectedAgents: string[] = [];
+    
+    if (opts.agents) {
+      // Use agents from CLI flag
+      finalSelectedAgents = opts.agents.split(",").map(a => a.trim());
+    } else {
+      console.log();
+      const configureAgents = await askYesNo("  ¿Configurar agentes ahora?");
 
-    if (configureAgents) {
-      console.log();
-      console.log(c.dim("  Selecciona agentes (Enter para confirmar):"));
-      console.log();
-      
-      // Get supported agents
-      const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
-      
-      const agentSelections: boolean[] = new Array(agents.length).fill(false);
-      
-      // Simple selection - ask for each agent
-      for (let i = 0; i < agents.length; i++) {
-        const answer = await askYesNo(`    ${agents[i].name}?`, true);
-        agentSelections[i] = answer;
+      if (configureAgents) {
+        console.log();
+        console.log(c.dim("  Selecciona agentes (Enter para confirmar):"));
+        console.log();
+        
+        // Get supported agents
+        const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
+        
+        const agentSelections: boolean[] = new Array(agents.length).fill(false);
+        
+        // Simple selection - ask for each agent
+        for (let i = 0; i < agents.length; i++) {
+          const answer = await askYesNo(`    ${agents[i].name}?`, true);
+          agentSelections[i] = answer;
+        }
+        
+        // Collect selected agents
+        finalSelectedAgents = agents
+          .filter((_, i) => agentSelections[i])
+          .map((a) => a.id);
       }
-      
-      // Collect selected agents
-      finalSelectedAgents = agents
-        .filter((_, i) => agentSelections[i])
-        .map((a) => a.id);
     }
 
     // Step 5: Create skill
@@ -734,11 +744,13 @@ agentCmd
       const host = config.serverHost ?? DEFAULT_HOST;
       const port = config.serverPort ?? DEFAULT_PORT;
 
+      const namePadding = Math.max(0, 30 - memory.memoryName.length);
+      const idPadding = Math.max(0, 30 - memory.memoryId.length);
       console.log(c.bold("  ┌─────────────────────────────────────────┐"));
       console.log(c.bold("  │ ") + c.success("Nueva Memoria") + c.bold("                           │"));
       console.log(c.bold("  ├─────────────────────────────────────────┤"));
-      console.log(c.bold("  │ ") + c.dim("Nombre:     ") + c.text(memory.memoryName) + c.dim(" ".repeat(30 - memory.memoryName.length)) + "│");
-      console.log(c.bold("  │ ") + c.dim("ID:         ") + c.dim(memory.memoryId) + c.dim(" ".repeat(30 - memory.memoryId.length)) + "│");
+      console.log(c.bold("  │ ") + c.dim("Nombre:     ") + c.text(memory.memoryName) + c.dim(" ".repeat(namePadding)) + "│");
+      console.log(c.bold("  │ ") + c.dim("ID:         ") + c.dim(memory.memoryId) + c.dim(" ".repeat(idPadding)) + "│");
       console.log(c.bold("  │ ") + c.dim("MCP URL:    ") + c.text(`http://${host}:${port}/mcp?mem_id=${memory.memoryId}`) + c.dim(" ".repeat(10)) + "│");
       console.log(c.bold("  └─────────────────────────────────────────┘\n"));
 
