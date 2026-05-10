@@ -13,6 +13,13 @@ import {
   syncMemory,
   parseMemoryFile,
   searchMemory,
+  bulkDeleteMemories,
+  bulkDeleteMemoriesByTags,
+  bulkDeleteMemoriesByPattern,
+  saveBackup,
+  restoreBackup,
+  listBackups,
+  cleanupOldBackups,
 } from "../core/memory.ts";
 import { loadConfig } from "../core/memory.ts";
 import { DEFAULT_PORT, DEFAULT_HOST } from "../core/types.ts";
