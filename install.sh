@@ -51,6 +51,12 @@ show_progress() {
   local total=$2
   local prefix="${3:-Descargando}"
   
+  # Prevent division by zero
+  if [ "$total" -le 0 ] 2>/dev/null; then
+    printf "\r  %s [....................]   0%%" "$prefix"
+    return
+  fi
+  
   local percent=$((current * 100 / total))
   local width=50
   local filled=$((percent * width / 100))
@@ -161,7 +167,8 @@ download_binary() {
   # Check file size first
   CONTENT_LENGTH=$(curl -sI "$DOWNLOAD_URL" 2>/dev/null | grep -i "content-length" | awk '{print $2}' | tr -d '\r')
   
-  if [ -n "$CONTENT_LENGTH" ]; then
+  # Validate content length is numeric and > 0
+  if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
     BYTES_TOTAL=$CONTENT_LENGTH
     BYTES_DOWNLOADED=0
     
@@ -179,7 +186,7 @@ download_binary() {
     
     wait $CURL_PID
   else
-    # Fallback: simple download
+    # Fallback: simple download (no progress bar when size unknown)
     print_info "Descargando..."
     curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"
   fi
