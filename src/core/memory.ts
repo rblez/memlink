@@ -822,7 +822,7 @@ export function createBackup(
   const totalSize = JSON.stringify(filteredEntries).length;
   
   // Create checksum
-  const checksum = generateId(); // Simple checksum for now
+  const checksum = nanoid(16);
   
   const metadata: BackupMetadata = {
     version: '1.0.0',
