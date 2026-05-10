@@ -629,18 +629,19 @@ agentCmd
 
 agentCmd
   .command("create [name]")
-  .description("Create a universal memory interactively")
+  .description("Create a universal memory (interactive)")
   .option("-d, --description <desc>", "Description for the memory")
   .option("-s, --scope <scope>", "Scope: global or workspace")
   .option("--skill", "Create skill for agents")
-  .option("--agents <agents>", "Comma-separated list of agent IDs (windsurf,cursor,opencode,claude-code,github-copilot)")
+  .option("--agents <agents>", "Comma-separated agent IDs")
   .action(async (nameArg?: string, opts: {
     description?: string;
     scope?: string;
     skill?: boolean;
     agents?: string;
   }) => {
-    console.log("\n" + LOGO + "\n");
+    console.clear();
+    console.log("\n" + c.bold("  ═══ Crear Nueva Memoria ═══\n"));
 
     let name = nameArg;
     let description = opts.description || "";
@@ -648,91 +649,152 @@ agentCmd
     const createSkill = !!opts.skill;
     const selectedAgents = opts.agents ? opts.agents.split(",") : [];
 
-    // If not all options provided, go interactive
-    if (!name || !selectedAgents.length) {
+    // Step 1: Name
+    if (!name) {
+      name = await askQuestion("  Nombre de la memoria: ");
       if (!name) {
-        name = await askQuestion("  Nombre de la memoria: ");
-        if (!name) {
-          console.log(c.error("  Error: El nombre es obligatorio\n"));
-          process.exit(1);
-        }
-      }
-
-      if (!description) {
-        description = await askQuestion("  Descripcion (opcional): ");
-      }
-
-      if (!opts.scope) {
-        scope = await askScope();
-      }
-
-      if (!opts.agents && !opts.skill) {
-        const createSkillAnswer = await askYesNo("  Crear skill para los agentes?");
-        if (!opts.agents) {
-          const agentsFromPrompt = await selectAgents();
-          selectedAgents.push(...agentsFromPrompt);
-        }
+        console.log(c.error("  Error: El nombre es obligatorio\n"));
+        process.exit(1);
       }
     }
 
+    // Step 2: Description (only ask if not provided via CLI)
+    if (!opts.description) {
+      description = await askQuestion("  Descripción (opcional): ");
+    }
+
+    // Step 3: Scope (only ask if not provided via CLI)
+    if (!opts.scope) {
+      console.log();
+      console.log(c.dim("  Alcance:"));
+      console.log(c.dim("    (g) Global    - disponible en todos los proyectos"));
+      console.log(c.dim("    (w) Workspace - solo en el proyecto actual"));
+      const scopeAnswer = await askQuestion("  [g/w]: ");
+      scope = (scopeAnswer.toLowerCase() === "w" || scopeAnswer.toLowerCase() === "workspace") 
+        ? "workspace" 
+        : "global";
+    }
+
+    // Step 4: Select agents (only ask if not provided via CLI)
+    let finalSelectedAgents: string[] = [];
+    
+    if (opts.agents) {
+      // Use agents from CLI flag
+      finalSelectedAgents = opts.agents.split(",").map(a => a.trim());
+    } else {
+      console.log();
+      const configureAgents = await askYesNo("  ¿Configurar agentes ahora?");
+
+      if (configureAgents) {
+        console.log();
+        console.log(c.dim("  Selecciona agentes (Enter para confirmar):"));
+        console.log();
+        
+        // Get supported agents
+        const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
+        
+        const agentSelections: boolean[] = new Array(agents.length).fill(false);
+        
+        // Simple selection - ask for each agent
+        for (let i = 0; i < agents.length; i++) {
+          const answer = await askYesNo(`    ${agents[i].name}?`, true);
+          agentSelections[i] = answer;
+        }
+        
+        // Collect selected agents
+        finalSelectedAgents = agents
+          .filter((_, i) => agentSelections[i])
+          .map((a) => a.id);
+      }
+    }
+
+    // Step 5: Create skill
+    const wantsSkill = finalSelectedAgents.length > 0 
+      ? await askYesNo("  ¿Generar skill para los agentes?")
+      : false;
+
+    // Show summary and confirm
+    console.clear();
+    console.log("\n" + c.bold("  ═══ Resumen ═══\n"));
+    console.log(`  ${c.bold("Nombre:")}      ${c.text(name)}`);
+    console.log(`  ${c.bold("Descripción:")} ${c.text(description || "(sin descripción)")}`);
+    console.log(`  ${c.bold("Alcance:")}     ${c.text(scope)}`);
+    if (finalSelectedAgents.length > 0) {
+      console.log(`  ${c.bold("Agentes:")}     ${c.success(finalSelectedAgents.join(", "))}`);
+      console.log(`  ${c.bold("Skill:")}      ${wantsSkill ? c.success("Sí") : c.dim("No")}`);
+    } else {
+      console.log(c.dim("  Agentes:      (ninguno)"));
+    }
+    console.log();
+
+    const confirm = await askYesNo("  ¿Crear memoria?", true);
+    if (!confirm) {
+      console.log(c.dim("  Cancelado.\n"));
+      return;
+    }
+
     // Create the memory
-    const spinner = ora("Creando memoria...").start();
+    const spinner = ora("Creando...").start();
 
     try {
       const memory = createUniversalMemory(name);
-      spinner.succeed(c.success("Memoria creada exitosamente!\n"));
+      spinner.succeed(c.success("  ¡Memoria creada!\n"));
 
       const config = loadConfig();
       const host = config.serverHost ?? DEFAULT_HOST;
       const port = config.serverPort ?? DEFAULT_PORT;
 
-      console.log(c.bold(`  Memoria: ${memory.memoryName}`));
-      console.log(`  ${c.bold("ID:")}    ${c.dim(memory.memoryId)}`);
-      console.log(`  ${c.bold("Token:")} ${c.warning(memory.token)}`);
-      console.log();
+      const namePadding = Math.max(0, 30 - memory.memoryName.length);
+      const idPadding = Math.max(0, 30 - memory.memoryId.length);
+      console.log(c.bold("  ┌─────────────────────────────────────────┐"));
+      console.log(c.bold("  │ ") + c.success("Nueva Memoria") + c.bold("                           │"));
+      console.log(c.bold("  ├─────────────────────────────────────────┤"));
+      console.log(c.bold("  │ ") + c.dim("Nombre:     ") + c.text(memory.memoryName) + c.dim(" ".repeat(namePadding)) + "│");
+      console.log(c.bold("  │ ") + c.dim("ID:         ") + c.dim(memory.memoryId) + c.dim(" ".repeat(idPadding)) + "│");
+      console.log(c.bold("  │ ") + c.dim("MCP URL:    ") + c.text(`http://${host}:${port}/mcp?mem_id=${memory.memoryId}`) + c.dim(" ".repeat(10)) + "│");
+      console.log(c.bold("  └─────────────────────────────────────────┘\n"));
 
-      // Scaffold MCP configs and skills for selected agents
-      if (selectedAgents.length > 0) {
+      // Scaffold MCP configs and skills
+      if (finalSelectedAgents.length > 0) {
         console.log(c.dim("  Configurando agentes...\n"));
 
-        for (const agentId of selectedAgents) {
+        for (const agentId of finalSelectedAgents) {
           const agent = getAgentConfig(agentId.trim());
           if (!agent) continue;
 
-          console.log(c.dim(`    -> ${agent.name}`));
-
           // MCP config
           const mcpOk = scaffoldMcpConfig(agent, scope, memory.memoryId, host, port);
-          console.log(mcpOk ? c.success("      MCP OK") : c.warning("      MCP skip"));
+          console.log(c.dim(`    → ${agent.name}`));
+          console.log(mcpOk ? c.success("      ✓ MCP") : c.warning("      ✗ MCP"));
 
           // Skill
-          if (createSkill && agent.hasSkill) {
+          if (wantsSkill && agent.hasSkill) {
             const skillOk = scaffoldSkill(agent, scope, memory.memoryId, memory.memoryName, description);
-            console.log(skillOk ? c.success("      Skill OK") : c.warning("      Skill skip"));
+            console.log(skillOk ? c.success("      ✓ Skill") : c.warning("      ✗ Skill"));
           }
+          console.log();
         }
 
         // AGENTS.md
         const agentsMdOk = scaffoldAgentsMd(scope, memory.memoryId, memory.memoryName, host, port);
         if (agentsMdOk) {
-          console.log(c.success("      AGENTS.md OK"));
+          console.log(c.success("  ✓ AGENTS.md\n"));
         }
       }
-
-      console.log();
-      console.log(c.success("  Configuracion completada!"));
-      console.log(c.dim(`\n  Iniciar servidor: ${c.text("memlink serve")}`));
-      console.log(c.dim(`  Ver memorias: ${c.text("memlink memory list")}`));
-      console.log(c.dim(`  Revocar: ${c.text("memlink memory revoke " + memory.memoryId)}\n`));
 
       // Update config with linked agents
       config.universalMemories = config.universalMemories.map((m) => {
         if (m.memoryId === memory.memoryId) {
-          return { ...m, linkedAgents: selectedAgents };
+          return { ...m, linkedAgents: finalSelectedAgents };
         }
         return m;
       });
       saveConfig(config);
+
+      console.log(c.bold("  ═══ Siguientes pasos ═══\n"));
+      console.log(c.dim("    1. Iniciar servidor: ") + c.text("memlink serve"));
+      console.log(c.dim("    2. Ver memorias:     ") + c.text("memlink memory list"));
+      console.log(c.dim("    3. Ver contenido:    ") + c.text(`memlink memory show ${memory.memoryId}\n`));
 
     } catch (err) {
       spinner.fail(c.error("Error al crear la memoria"));
@@ -744,10 +806,16 @@ agentCmd
   });
 
 agentCmd
-  .command("show <memoryId>")
-  .description("Show full memory for an agent or universal memory")
+  .command("show [memoryId]")
+  .description("Show memory (interactivo si no se especifica ID)")
   .option("-t, --title <title>", "Show only a specific entry")
-  .action((memoryId: string, opts) => {
+  .action(async (memoryId: string | undefined, opts) => {
+    // If no memoryId provided, show interactive TUI
+    if (!memoryId) {
+      await showMemorySelector();
+      return;
+    }
+
     const config = loadConfig();
     
     // Try to find agent first, then universal memory
@@ -963,46 +1031,6 @@ agentCmd
     } catch (err) {
       spinner.fail(c.error("Rotation failed"));
       console.error(c.error(`  ${err}\n`));
-      process.exit(1);
-    }
-  });
-
-// ─── memlink skill ──────────────────────────────────────────────────────────────
-
-const skillCmd = program
-  .command("skill")
-  .description("Manage agent skills");
-
-skillCmd
-  .command("install <agentType>")
-  .description("Install Memlink skill for an agent type")
-  .action(async (agentType: string) => {
-    console.log("\n" + LOGO_SMALL + "\n");
-
-    const location = await promptSkillLocation(agentType);
-    const skillPath = writeSkillScaffold(location, agentType);
-
-    if (skillPath) {
-      console.log(c.success(`  Skill installed at ${skillPath}\n`));
-    } else {
-      console.log(c.warning("  Skill installation skipped.\n"));
-    }
-  });
-
-skillCmd
-  .command("update <agentType>")
-  .description("Update Memlink skill for an agent type")
-  .action(async (agentType: string) => {
-    console.log("\n" + LOGO_SMALL + "\n");
-    const spinner = ora("Updating skill...").start();
-
-    // Force global installation for update
-    const skillPath = writeSkillScaffold("global", agentType);
-
-    if (skillPath) {
-      spinner.succeed(c.success(`Skill updated at ${skillPath}\n`));
-    } else {
-      spinner.fail(c.error("Failed to update skill\n"));
       process.exit(1);
     }
   });
@@ -2113,5 +2141,203 @@ program
       process.exit(1);
     }
   });
+
+// ─── Memory Selector TUI ─────────────────────────────────────────────────────────
+
+interface MemoryOption {
+  id: string;
+  name: string;
+  type: "memory" | "agent";
+  entries: number;
+  updatedAt: string;
+}
+
+async function showMemorySelector(): Promise<void> {
+  const config = loadConfig();
+  
+  // Build list of all memories and agents
+  const options: MemoryOption[] = [];
+  
+  // Add universal memories
+  for (const mem of config.universalMemories) {
+    try {
+      const entries = readMemory(mem.memoryId);
+      options.push({
+        id: mem.memoryId,
+        name: mem.memoryName,
+        type: "memory",
+        entries: entries.length,
+        updatedAt: mem.lastSeen || mem.createdAt,
+      });
+    } catch {
+      options.push({
+        id: mem.memoryId,
+        name: mem.memoryName,
+        type: "memory",
+        entries: 0,
+        updatedAt: mem.createdAt,
+      });
+    }
+  }
+  
+  // Add agents
+  for (const agent of config.agents) {
+    try {
+      const entries = readMemory(agent.agentId);
+      options.push({
+        id: agent.agentId,
+        name: agent.agentName,
+        type: "agent",
+        entries: entries.length,
+        updatedAt: agent.lastSeen || agent.createdAt,
+      });
+    } catch {
+      options.push({
+        id: agent.agentId,
+        name: agent.agentName,
+        type: "agent",
+        entries: 0,
+        updatedAt: agent.createdAt,
+      });
+    }
+  }
+  
+  if (options.length === 0) {
+    console.log("\n" + LOGO_SMALL + "\n");
+    console.log(c.warning("  No memories found.\n"));
+    console.log(c.dim("  Create one with: memlink memory create\n"));
+    return;
+  }
+  
+  // Interactive selection
+  let selectedIndex = 0;
+  let searchQuery = "";
+  
+  console.clear();
+  
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  
+  // Enable raw mode for arrow key handling
+  process.stdin.setRawMode(true);
+  
+  const filteredOptions = () => {
+    if (!searchQuery) return options;
+    const q = searchQuery.toLowerCase();
+    return options.filter(opt => 
+      opt.name.toLowerCase().includes(q) ||
+      opt.id.toLowerCase().includes(q) ||
+      opt.type.toLowerCase().includes(q)
+    );
+  };
+  
+  const render = () => {
+    const opts = filteredOptions();
+    const displayOpts = opts.slice(0, 10); // Show max 10
+    
+    console.clear();
+    console.log(c.bold("\n  Seleccionar Memoria\n"));
+    console.log(c.dim("  Escribe para buscar, flechas para navegar, Enter para seleccionar, q para salir\n"));
+    
+    console.log(c.dim("  Búsqueda: ") + c.text(searchQuery || "(todas)"));
+    console.log();
+    
+    displayOpts.forEach((opt, i) => {
+      const isSelected = opts[selectedIndex]?.id === opt.id;
+      const prefix = isSelected ? c.success("  ▶ ") : c.dim("    ");
+      const typeLabel = opt.type === "memory" ? c.info("Memoria") : c.warning("Agente");
+      const entryLabel = opt.entries === 1 ? "entrada" : "entradas";
+      
+      console.log(`${prefix}${c.bold(opt.name)} ${c.dim(`[${typeLabel} · ${opt.entries} ${entryLabel}]`)}`);
+      console.log(c.dim(`      ID: ${opt.id}`));
+      console.log();
+    });
+    
+    if (opts.length > 10) {
+      console.log(c.dim(`  ... y ${opts.length - 10} más`));
+    }
+  };
+  
+  render();
+  
+  const keyHandler = (chunk: Buffer) => {
+    const key = chunk.toString();
+    
+    if (key === '\u0003') { // Ctrl+C
+      process.exit(0);
+    }
+    
+    if (key === 'q') {
+      process.stdin.setRawMode(false);
+      rl.close();
+      console.clear();
+      return;
+    }
+    
+    if (key === '\r') { // Enter
+      const opts = filteredOptions();
+      if (opts[selectedIndex]) {
+        process.stdin.setRawMode(false);
+        rl.close();
+        showMemoryContent(opts[selectedIndex].id, opts[selectedIndex].name);
+        return;
+      }
+    }
+    
+    if (key === '\u001b[A') { // Arrow up
+      const opts = filteredOptions();
+      selectedIndex = Math.max(0, selectedIndex - 1);
+    } else if (key === '\u001b[B') { // Arrow down
+      const opts = filteredOptions();
+      selectedIndex = Math.min(opts.length - 1, selectedIndex + 1);
+    } else if (key === '\u007f') { // Backspace
+      searchQuery = searchQuery.slice(0, -1);
+      selectedIndex = 0;
+    } else if (key.length === 1) {
+      searchQuery += key;
+      selectedIndex = 0;
+    }
+    
+    render();
+  };
+  
+  process.stdin.on('data', keyHandler);
+}
+
+function showMemoryContent(memoryId: string, memoryName: string): void {
+  console.clear();
+  console.log(c.bold(`\n  ${memoryName}\n`));
+  console.log(c.dim(`  ID: ${memoryId}\n`));
+  
+  try {
+    const entries = readMemory(memoryId);
+    
+    if (entries.length === 0) {
+      console.log(c.warning("  Esta memoria está vacía.\n"));
+      return;
+    }
+    
+    console.log(c.bold("  Entradas:\n"));
+    
+    entries.forEach((entry, i) => {
+      console.log(c.dim(`  ${i + 1}. `) + c.bold(entry.title));
+      console.log(c.dim(`     Tags: ${entry.tags?.join(", ") || "sin tags"}`));
+      const preview = entry.content.substring(0, 80).replace(/\n/g, " ");
+      console.log(c.dim(`     ${preview}${entry.content.length > 80 ? "..." : ""}`));
+      console.log();
+    });
+    
+    console.log(c.dim("  Presiona cualquier tecla para salir..."));
+    
+    process.stdin.setRawMode(true);
+    process.stdin.once('data', () => {
+      process.stdin.setRawMode(false);
+    });
+  } catch (err) {
+    console.error(c.error(`  Error al leer memoria: ${err}\n`));
+  }
+}
 
 program.parse(process.argv);

@@ -403,6 +403,33 @@ All `node`, `npm`, and `npx` commands are aliased to use Bun automatically.
 
 ---
 
+## Contributing
+
+### Workflow
+
+1. **Issues**: Create an issue for bugs or features
+2. **Branch**: Create a branch from `beta` (e.g., `feature/name`)
+3. **Commit**: Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
+4. **PR**: Create PR to `beta` for review
+5. **Merge**: After review, merge to `beta`
+6. **Release**: PR `beta` → `main` to trigger release
+
+### Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable, release-ready |
+| `beta` | Development, tested |
+| `feature/*` | New features |
+
+### GitHub Actions
+
+- Push to `beta` → Runs tests
+- Push tag `v*` → Builds binaries and creates release
+- Only `main` branch generates releases
+
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
