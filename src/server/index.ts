@@ -34,10 +34,11 @@ function logRequest(req: Request, memoryName: string, method?: string, params?: 
   
   requestCount++;
   const timestamp = new Date().toISOString();
-  const universalMemory = getUniversalMemoryByToken(extractToken(req) || "") || getAgentByToken(extractToken(req) || "");
+  const memId = req.query.mem_id as string | undefined;
+  const memoryType = memId && memId.length === 12 ? "Universal Memory" : "Agent";
   
   console.log(`\n[*] [${timestamp}] Request #${requestCount}`);
-  console.log(`   Memory: ${memoryName} (${universalMemory ? 'Universal Memory' : 'Agent'})`);
+  console.log(`   Memory: ${memoryName} (${memoryType})`);
   if (method) {
     console.log(`   Method: ${method}`);
     if (params) {
@@ -59,28 +60,6 @@ function logResponse(result: unknown, method?: string) {
 }
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
-
-function extractToken(req: Request): string | null {
-  const auth = req.headers["authorization"];
-  if (!auth) return null;
-
-  // Validate authorization header format
-  if (typeof auth !== "string") return null;
-
-  const parts = auth.split(" ");
-  if (parts.length !== 2) return null;
-
-  if (parts[0].toLowerCase() !== "bearer") return null;
-
-  const token = parts[1].trim();
-
-  // Validate token format (memlink_ + 32 character nanoid)
-  if (!token.match(/^memlink_[a-zA-Z0-9_-]{32,}$/)) {
-    return null;
-  }
-
-  return token;
-}
 
 // Extract memory ID from query string (?mem_id=xxx)
 function extractMemoryIdFromQuery(req: Request): string | null {
@@ -739,45 +718,24 @@ export function createApp(): express.Application {
     });
   });
 
-  // MCP endpoint — auth per request (header or query string)
+  // MCP endpoint — auth via query string only (?mem_id=xxx)
   app.all("/mcp", async (req: Request, res: Response) => {
-    // Try header auth first (Bearer token)
-    let token = extractToken(req);
-    let memoryId: string;
-    let memoryName: string;
-
-    // If no header, try query string auth (?mem_id=xxx)
-    if (!token) {
-      const memIdFromQuery = extractMemoryIdFromQuery(req);
-      if (!memIdFromQuery) {
-        res.status(401).json({ error: "Missing Authorization header (Bearer <token>) or query parameter (?mem_id=<memoryId>)" });
-        return;
-      }
-
-      // Get memory info by ID
-      const memoryInfo = getMemoryById(memIdFromQuery);
-      if (!memoryInfo) {
-        res.status(403).json({ error: "Invalid memory ID. Memory not found." });
-        return;
-      }
-
-      // Use the memory's token for internal lookup
-      token = memoryInfo.token;
-      memoryId = memoryInfo.memoryId;
-      memoryName = memoryInfo.memoryName;
-    } else {
-      // Header auth - look up by token
-      const universalMemory = getUniversalMemoryByToken(token);
-      const agent = getAgentByToken(token);
-
-      if (!universalMemory && !agent) {
-        res.status(403).json({ error: "Invalid or revoked token." });
-        return;
-      }
-
-      memoryId = universalMemory?.memoryId ?? agent!.agentId;
-      memoryName = universalMemory?.memoryName ?? agent!.agentName;
+    // Extract memory ID from query string (?mem_id=xxx)
+    const memIdFromQuery = extractMemoryIdFromQuery(req);
+    if (!memIdFromQuery) {
+      res.status(401).json({ error: "Missing query parameter. Use: /mcp?mem_id=<memoryId>" });
+      return;
     }
+
+    // Get memory info by ID
+    const memoryInfo = getMemoryById(memIdFromQuery);
+    if (!memoryInfo) {
+      res.status(403).json({ error: "Invalid memory ID. Memory not found." });
+      return;
+    }
+
+    const memoryId = memoryInfo.memoryId;
+    const memoryName = memoryInfo.memoryName;
 
     // Log the request if logging is enabled
     if (req.body && req.body.method) {
