@@ -744,10 +744,16 @@ agentCmd
   });
 
 agentCmd
-  .command("show <memoryId>")
-  .description("Show full memory for an agent or universal memory")
+  .command("show [memoryId]")
+  .description("Show memory (interactivo si no se especifica ID)")
   .option("-t, --title <title>", "Show only a specific entry")
-  .action((memoryId: string, opts) => {
+  .action(async (memoryId: string | undefined, opts) => {
+    // If no memoryId provided, show interactive TUI
+    if (!memoryId) {
+      await showMemorySelector();
+      return;
+    }
+
     const config = loadConfig();
     
     // Try to find agent first, then universal memory
@@ -963,46 +969,6 @@ agentCmd
     } catch (err) {
       spinner.fail(c.error("Rotation failed"));
       console.error(c.error(`  ${err}\n`));
-      process.exit(1);
-    }
-  });
-
-// ─── memlink skill ──────────────────────────────────────────────────────────────
-
-const skillCmd = program
-  .command("skill")
-  .description("Manage agent skills");
-
-skillCmd
-  .command("install <agentType>")
-  .description("Install Memlink skill for an agent type")
-  .action(async (agentType: string) => {
-    console.log("\n" + LOGO_SMALL + "\n");
-
-    const location = await promptSkillLocation(agentType);
-    const skillPath = writeSkillScaffold(location, agentType);
-
-    if (skillPath) {
-      console.log(c.success(`  Skill installed at ${skillPath}\n`));
-    } else {
-      console.log(c.warning("  Skill installation skipped.\n"));
-    }
-  });
-
-skillCmd
-  .command("update <agentType>")
-  .description("Update Memlink skill for an agent type")
-  .action(async (agentType: string) => {
-    console.log("\n" + LOGO_SMALL + "\n");
-    const spinner = ora("Updating skill...").start();
-
-    // Force global installation for update
-    const skillPath = writeSkillScaffold("global", agentType);
-
-    if (skillPath) {
-      spinner.succeed(c.success(`Skill updated at ${skillPath}\n`));
-    } else {
-      spinner.fail(c.error("Failed to update skill\n"));
       process.exit(1);
     }
   });
@@ -2113,5 +2079,203 @@ program
       process.exit(1);
     }
   });
+
+// ─── Memory Selector TUI ─────────────────────────────────────────────────────────
+
+interface MemoryOption {
+  id: string;
+  name: string;
+  type: "memory" | "agent";
+  entries: number;
+  updatedAt: string;
+}
+
+async function showMemorySelector(): Promise<void> {
+  const config = loadConfig();
+  
+  // Build list of all memories and agents
+  const options: MemoryOption[] = [];
+  
+  // Add universal memories
+  for (const mem of config.universalMemories) {
+    try {
+      const entries = readMemory(mem.memoryId);
+      options.push({
+        id: mem.memoryId,
+        name: mem.memoryName,
+        type: "memory",
+        entries: entries.length,
+        updatedAt: mem.lastSeen || mem.createdAt,
+      });
+    } catch {
+      options.push({
+        id: mem.memoryId,
+        name: mem.memoryName,
+        type: "memory",
+        entries: 0,
+        updatedAt: mem.createdAt,
+      });
+    }
+  }
+  
+  // Add agents
+  for (const agent of config.agents) {
+    try {
+      const entries = readMemory(agent.agentId);
+      options.push({
+        id: agent.agentId,
+        name: agent.agentName,
+        type: "agent",
+        entries: entries.length,
+        updatedAt: agent.lastSeen || agent.createdAt,
+      });
+    } catch {
+      options.push({
+        id: agent.agentId,
+        name: agent.agentName,
+        type: "agent",
+        entries: 0,
+        updatedAt: agent.createdAt,
+      });
+    }
+  }
+  
+  if (options.length === 0) {
+    console.log("\n" + LOGO_SMALL + "\n");
+    console.log(c.warning("  No memories found.\n"));
+    console.log(c.dim("  Create one with: memlink memory create\n"));
+    return;
+  }
+  
+  // Interactive selection
+  let selectedIndex = 0;
+  let searchQuery = "";
+  
+  console.clear();
+  
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  
+  // Enable raw mode for arrow key handling
+  process.stdin.setRawMode(true);
+  
+  const filteredOptions = () => {
+    if (!searchQuery) return options;
+    const q = searchQuery.toLowerCase();
+    return options.filter(opt => 
+      opt.name.toLowerCase().includes(q) ||
+      opt.id.toLowerCase().includes(q) ||
+      opt.type.toLowerCase().includes(q)
+    );
+  };
+  
+  const render = () => {
+    const opts = filteredOptions();
+    const displayOpts = opts.slice(0, 10); // Show max 10
+    
+    console.clear();
+    console.log(c.bold("\n  Seleccionar Memoria\n"));
+    console.log(c.dim("  Escribe para buscar, flechas para navegar, Enter para seleccionar, q para salir\n"));
+    
+    console.log(c.dim("  Búsqueda: ") + c.text(searchQuery || "(todas)"));
+    console.log();
+    
+    displayOpts.forEach((opt, i) => {
+      const isSelected = opts[selectedIndex]?.id === opt.id;
+      const prefix = isSelected ? c.success("  ▶ ") : c.dim("    ");
+      const typeLabel = opt.type === "memory" ? c.info("Memoria") : c.warning("Agente");
+      const entryLabel = opt.entries === 1 ? "entrada" : "entradas";
+      
+      console.log(`${prefix}${c.bold(opt.name)} ${c.dim(`[${typeLabel} · ${opt.entries} ${entryLabel}]`)}`);
+      console.log(c.dim(`      ID: ${opt.id}`));
+      console.log();
+    });
+    
+    if (opts.length > 10) {
+      console.log(c.dim(`  ... y ${opts.length - 10} más`));
+    }
+  };
+  
+  render();
+  
+  const keyHandler = (chunk: Buffer) => {
+    const key = chunk.toString();
+    
+    if (key === '\u0003') { // Ctrl+C
+      process.exit(0);
+    }
+    
+    if (key === 'q') {
+      process.stdin.setRawMode(false);
+      rl.close();
+      console.clear();
+      return;
+    }
+    
+    if (key === '\r') { // Enter
+      const opts = filteredOptions();
+      if (opts[selectedIndex]) {
+        process.stdin.setRawMode(false);
+        rl.close();
+        showMemoryContent(opts[selectedIndex].id, opts[selectedIndex].name);
+        return;
+      }
+    }
+    
+    if (key === '\u001b[A') { // Arrow up
+      const opts = filteredOptions();
+      selectedIndex = Math.max(0, selectedIndex - 1);
+    } else if (key === '\u001b[B') { // Arrow down
+      const opts = filteredOptions();
+      selectedIndex = Math.min(opts.length - 1, selectedIndex + 1);
+    } else if (key === '\u007f') { // Backspace
+      searchQuery = searchQuery.slice(0, -1);
+      selectedIndex = 0;
+    } else if (key.length === 1) {
+      searchQuery += key;
+      selectedIndex = 0;
+    }
+    
+    render();
+  };
+  
+  process.stdin.on('data', keyHandler);
+}
+
+function showMemoryContent(memoryId: string, memoryName: string): void {
+  console.clear();
+  console.log(c.bold(`\n  ${memoryName}\n`));
+  console.log(c.dim(`  ID: ${memoryId}\n`));
+  
+  try {
+    const entries = readMemory(memoryId);
+    
+    if (entries.length === 0) {
+      console.log(c.warning("  Esta memoria está vacía.\n"));
+      return;
+    }
+    
+    console.log(c.bold("  Entradas:\n"));
+    
+    entries.forEach((entry, i) => {
+      console.log(c.dim(`  ${i + 1}. `) + c.bold(entry.title));
+      console.log(c.dim(`     Tags: ${entry.tags?.join(", ") || "sin tags"}`));
+      const preview = entry.content.substring(0, 80).replace(/\n/g, " ");
+      console.log(c.dim(`     ${preview}${entry.content.length > 80 ? "..." : ""}`));
+      console.log();
+    });
+    
+    console.log(c.dim("  Presiona cualquier tecla para salir..."));
+    
+    process.stdin.setRawMode(true);
+    process.stdin.once('data', () => {
+      process.stdin.setRawMode(false);
+    });
+  } catch (err) {
+    console.error(c.error(`  Error al leer memoria: ${err}\n`));
+  }
+}
 
 program.parse(process.argv);
