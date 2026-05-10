@@ -1,0 +1,42 @@
+{
+  "name": "memlink",
+  "version": "2.0.0",
+  "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rblez/memlink.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rblez/memlink/issues"
+  },
+  "homepage": "https://rblez.com/memlink",
+  "scripts": {
+    "build": "bun build src/cli/index.ts --outdir dist/cli --target node && bun build src/server/index.ts --outdir dist/server --target node",
+    "build:binaries": "bun run scripts/build.ts",
+    "dev:server": "bun --watch src/server/index.ts",
+    "dev:cli": "bun src/cli/index.ts",
+    "start": "node dist/server/index.js",
+    "cli": "bun src/cli/index.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.5.1",
+    "nanoid": "^5.0.7",
+    "ora": "^8.1.1",
+    "table": "^6.8.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.10.7",
+    "typescript": "^5.7.3"
+  }
+}
