@@ -244,3 +244,30 @@ Este proyecto usa Memlink para memoria persistente.
 - Documentación de MCP por agente: ver búsquedas web en esta sesión
 - Formato SKILL.md: estándar Agent Skills de Anthropic
 - AGENTS.md: estándar abierto reconocido por Windsurf, OpenCode, Claude Code, GitHub Copilot
+
+---
+
+## 11. Workflow de Desarrollo
+
+### Ramas
+- `main` - Rama estable, solo se fusiona via PR
+- `beta` - Rama de desarrollo activo
+- `feature/*` - Ramas para nuevas funcionalidades
+
+### Proceso de Trabajo
+
+1. **Crear Issue**: Describir el problema o feature en GitHub Issues
+2. **Crear Rama**: Desde `beta`, crear rama `feature/nombre`
+3. **Desarrollar**: Trabajar en la rama feature
+4. **Crear PR**: PR de `feature/*` hacia `beta`
+5. **Code Review**: Reviewer approves y mergea
+6. **Fusionar a Main**: PR de `beta` hacia `main` para release
+
+### Commits
+- Usar mensajes descriptivos: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
+- Ejemplo: `fix: handle missing Content-Length in install.sh`
+
+### Workflow en GitHub Actions
+- Push a `beta` activa el workflow de test
+- Push de tag `v*` activa workflow de release
+- Solo `main` genera releases
