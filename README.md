@@ -49,16 +49,16 @@ Memlink provides **MCP-powered memory**, which means:
 └── xyz789ghi012.memory.md   # Another universal memory
 ```
 
-Each `.memory.md` file has a clean indexed format:
+Each `.memory.md` file has a clean book-style format:
 
 ```
-# INDEX
-# Memlink Memory — ID: abc123def456
-# Created: 2024-01-15T10:00:00.000Z
-# Updated: 2024-01-15T10:06:00.000Z
-ProjectContext | 1-4 | project,stack
-UserPreferences | 6-8 | preferences
-# END_INDEX
+# Memoria: mi-proyecto
+
+## Indice
+1. ProjectContext - project, stack
+2. UserPreferences - preferences
+
+---
 
 1: Building a SaaS app with Next.js 14 and Supabase.
 2: The project is called "TaskFlow" and targets freelancers.
@@ -69,6 +69,12 @@ UserPreferences | 6-8 | preferences
 7: Uses TypeScript strict mode always
 8: Tabs, not spaces
 ```
+
+**Format Features:**
+- Clean book-style layout with index and content sections
+- Automatic migration from old format (`# INDEX` / `# END_INDEX`)
+- Numbered entries for easy reference
+- Tag support in index for organization
 
 ---
 

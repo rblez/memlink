@@ -5,7 +5,31 @@ set -e
 # Interactive installer with progress bar and configuration
 
 REPO="rblez/memlink"
-VERSION="${1:-latest}"
+VERSION="latest"
+FORCE=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -r|--reinstall)
+      FORCE=true
+      ;;
+    -v|--version)
+      VERSION="$2"
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [-r|--reinstall] [-v|--version VERSION]"
+      echo "  -r, --reinstall    Force reinstall (overwrite existing)"
+      echo "  -v, --version      Specific version to install (default: latest)"
+      exit 0
+      ;;
+    *)
+      VERSION="$1"
+      ;;
+  esac
+  shift
+done
 
 # Colors
 RED='\033[0;31m'
@@ -89,11 +113,15 @@ check_curl() {
 # Check if already installed
 check_installed() {
   if command -v memlink &> /dev/null; then
-    print_warn "Memlink ya está instalado en: $(which memlink)"
-    read -p "  ¿Sobrescribir? (s/N): " overwrite
-    if [ "${overwrite^}" != "S" ]; then
-      print_info "Instalación cancelada."
-      exit 0
+    if [ "$FORCE" = true ]; then
+      print_info "Memlink ya está instalado en: $(which memlink) - reinstalando..."
+    else
+      print_warn "Memlink ya está instalado en: $(which memlink)"
+      read -p "  ¿Sobrescribir? (s/N): " overwrite
+      if [ "${overwrite^}" != "S" ]; then
+        print_info "Instalación cancelada."
+        exit 0
+      fi
     fi
   fi
 }

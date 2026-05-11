@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { 
   upsertMemoryEntry, 
   readMemory, 
@@ -7,11 +7,11 @@ import {
   createUniversalMemory,
   initMemoryFile,
   getMemoryPath
-} from "../src/core/memory.ts";
-import { unlinkSync, existsSync } from "fs";
-import { nanoid } from "nanoid";
+} from '../src/core/memory.ts';
+import { unlinkSync, existsSync } from 'fs';
+import { nanoid } from 'nanoid';
 
-describe("Memory Core Functions", () => {
+describe('Memory Core Functions', () => {
   let memoryId: string;
   let memoryName: string;
 
@@ -34,11 +34,11 @@ describe("Memory Core Functions", () => {
     }
   });
 
-  describe("upsertMemoryEntry", () => {
-it("should create a new memory entry", () => {
-    const title = "TestEntry";
-    const content = "This is a test entry content.";
-    const tags = ["test", "example"];
+  describe('upsertMemoryEntry', () => {
+it('should create a new memory entry', () => {
+    const title = 'TestEntry';
+    const content = 'This is a test entry content.';
+    const tags = ['test', 'example'];
 
     upsertMemoryEntry(memoryId, title, content, tags);
 
@@ -49,10 +49,10 @@ it("should create a new memory entry", () => {
     expect(entries[0].tags).toEqual(tags);
   });
 
-    it("should update an existing memory entry", () => {
-      const title = "UpdateTest";
-      const initialContent = "Initial content";
-      const updatedContent = "Updated content";
+    it('should update an existing memory entry', () => {
+      const title = 'UpdateTest';
+      const initialContent = 'Initial content';
+      const updatedContent = 'Updated content';
 
 // Create initial entry
     upsertMemoryEntry(memoryId, title, initialContent);
@@ -65,9 +65,9 @@ it("should create a new memory entry", () => {
       expect(entries[0].content).toBe(updatedContent);
     });
 
-    it("should handle multiline content correctly", () => {
-      const title = "MultilineTest";
-      const content = "Line 1\nLine 2\nLine 3";
+    it('should handle multiline content correctly', () => {
+      const title = 'MultilineTest';
+      const content = 'Line 1\nLine 2\nLine 3';
 
       upsertMemoryEntry(memoryId, title, content);
 
@@ -76,66 +76,66 @@ it("should create a new memory entry", () => {
     });
   });
 
-  describe("readMemory", () => {
-    it("should return empty array for new memory", () => {
+  describe('readMemory', () => {
+    it('should return empty array for new memory', () => {
       const entries = readMemory(memoryId);
       expect(entries).toHaveLength(0);
     });
 
-    it("should read multiple entries correctly", () => {
-upsertMemoryEntry(memoryId, "Entry1", "Content 1");
-    upsertMemoryEntry(memoryId, "Entry2", "Content 2");
-      upsertMemoryEntry(memoryId, "Entry3", "Content 3");
+    it('should read multiple entries correctly', () => {
+upsertMemoryEntry(memoryId, 'Entry1', 'Content 1');
+    upsertMemoryEntry(memoryId, 'Entry2', 'Content 2');
+      upsertMemoryEntry(memoryId, 'Entry3', 'Content 3');
 
       const entries = readMemory(memoryId);
       expect(entries).toHaveLength(3);
-      expect(entries.map(e => e.title)).toEqual(["Entry1", "Entry2", "Entry3"]);
+      expect(entries.map(e => e.title)).toEqual(['Entry1', 'Entry2', 'Entry3']);
     });
   });
 
-  describe("searchMemory", () => {
+  describe('searchMemory', () => {
     beforeEach(() => {
       // Setup test data
-      upsertMemoryEntry(memoryId, "Project", "Building a React app with TypeScript");
-      upsertMemoryEntry(memoryId, "Config", "Database configuration for PostgreSQL");
-      upsertMemoryEntry(memoryId, "Notes", "Remember to update dependencies");
+      upsertMemoryEntry(memoryId, 'Project', 'Building a React app with TypeScript');
+      upsertMemoryEntry(memoryId, 'Config', 'Database configuration for PostgreSQL');
+      upsertMemoryEntry(memoryId, 'Notes', 'Remember to update dependencies');
     });
 
-    it("should find entries by content search", () => {
-      const results = searchMemory(memoryId, "React");
+    it('should find entries by content search', () => {
+      const results = searchMemory(memoryId, 'React');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe("Project");
+      expect(results[0].title).toBe('Project');
     });
 
-    it("should find entries by title search", () => {
-      const results = searchMemory(memoryId, "Config");
+    it('should find entries by title search', () => {
+      const results = searchMemory(memoryId, 'Config');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe("Config");
+      expect(results[0].title).toBe('Config');
     });
 
-    it("should return empty array for no matches", () => {
-      const results = searchMemory(memoryId, "NonExistent");
+    it('should return empty array for no matches', () => {
+      const results = searchMemory(memoryId, 'NonExistent');
       expect(results).toHaveLength(0);
     });
 
-    it("should be case insensitive", () => {
-      const results = searchMemory(memoryId, "react");
+    it('should be case insensitive', () => {
+      const results = searchMemory(memoryId, 'react');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe("Project");
+      expect(results[0].title).toBe('Project');
     });
   });
 
-  describe("deleteMemoryEntry", () => {
-    it("should delete an existing entry", () => {
-      const title = "ToDelete";
-      upsertMemoryEntry(memoryId, memoryName, title, "Content to delete");
+  describe('deleteMemoryEntry', () => {
+    it('should delete an existing entry', () => {
+      const title = 'ToDelete';
+      upsertMemoryEntry(memoryId, title, 'Content to delete');
 
       // Verify entry exists
       let entries = readMemory(memoryId);
       expect(entries).toHaveLength(1);
 
       // Delete entry
-      const deleted = deleteMemoryEntry(memoryId, memoryName, title);
+      const deleted = deleteMemoryEntry(memoryId, title);
       expect(deleted).toBe(true);
 
       // Verify entry is gone
@@ -143,8 +143,8 @@ upsertMemoryEntry(memoryId, "Entry1", "Content 1");
       expect(entries).toHaveLength(0);
     });
 
-    it("should return false for non-existent entry", () => {
-      const deleted = deleteMemoryEntry(memoryId, memoryName, "NonExistent");
+    it('should return false for non-existent entry', () => {
+      const deleted = deleteMemoryEntry(memoryId, memoryName, 'NonExistent');
       expect(deleted).toBe(false);
     });
   });
