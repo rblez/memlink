@@ -128,14 +128,14 @@ upsertMemoryEntry(memoryId, "Entry1", "Content 1");
   describe("deleteMemoryEntry", () => {
     it("should delete an existing entry", () => {
       const title = "ToDelete";
-      upsertMemoryEntry(memoryId, memoryName, title, "Content to delete");
+      upsertMemoryEntry(memoryId, title, "Content to delete");
 
       // Verify entry exists
       let entries = readMemory(memoryId);
       expect(entries).toHaveLength(1);
 
       // Delete entry
-      const deleted = deleteMemoryEntry(memoryId, memoryName, title);
+      const deleted = deleteMemoryEntry(memoryId, title);
       expect(deleted).toBe(true);
 
       // Verify entry is gone

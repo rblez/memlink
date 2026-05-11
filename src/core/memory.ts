@@ -233,17 +233,17 @@ export function listUniversalMemories(): UniversalMemory[] {
 const INDEX_START = "# INDEX";
 const INDEX_END = "# END_INDEX";
 
-export function initMemoryFile(memoryId: string): void {
+export function initMemoryFile(memoryId: string, memoryName?: string): void {
   const memPath = getMemoryPath(memoryId);
   if (!fs.existsSync(memPath)) {
-    const now = new Date().toISOString();
+    const displayName = memoryName || memoryId;
     const content = [
-      INDEX_START,
-      `# Memlink Memory — ID: ${memoryId}`,
-      `# Created: ${now}`,
-      `# Updated: ${now}`,
-      INDEX_END,
+      `# Memoria: ${displayName}`,
       "",
+      "## Indice",
+      "",
+      "---",
+      ""
     ].join("\n");
     fs.writeFileSync(memPath, content, "utf-8");
   }
@@ -261,7 +261,21 @@ export function parseMemoryFile(memoryId: string): {
   const raw = fs.readFileSync(memPath, "utf-8");
   const lines = raw.split("\n");
 
-  // Parse INDEX section
+  // Detect format
+  const isOldFormat = lines.some(line => line.trim() === "# INDEX");
+  
+  if (isOldFormat) {
+    return parseOldFormat(memoryId, lines);
+  } else {
+    return parseBookFormat(memoryId, lines);
+  }
+}
+
+// Parse old format (# INDEX / # END_INDEX)
+function parseOldFormat(memoryId: string, lines: string[]): {
+  index: MemoryIndex;
+  entries: MemoryEntry[];
+} {
   const index: MemoryIndex = {
     version: MEMLINK_VERSION,
     memoryId,
@@ -314,7 +328,6 @@ export function parseMemoryFile(memoryId: string): {
   // Parse entries with numbered lines
   const entries: MemoryEntry[] = [];
   for (const idxEntry of index.entries) {
-    // Adjust line numbers to be relative to content start
     const absoluteStart = contentStartLine + idxEntry.startLine;
     const absoluteEnd = contentStartLine + idxEntry.endLine + 1;
     const contentLines = lines.slice(absoluteStart, absoluteEnd);
@@ -338,54 +351,197 @@ export function parseMemoryFile(memoryId: string): {
   return { index, entries };
 }
 
+// Parse new book format (# Memoria: nombre)
+function parseBookFormat(memoryId: string, lines: string[]): {
+  index: MemoryIndex;
+  entries: MemoryEntry[];
+} {
+  const index: MemoryIndex = {
+    version: MEMLINK_VERSION,
+    memoryId,
+    memoryName: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    entries: [],
+  };
+
+  const entries: MemoryEntry[] = [];
+  let memoryName = "";
+  let inIndex = false;
+  let inContent = false;
+  let currentEntry: Partial<MemoryEntry> | null = null;
+  let contentLines: string[] = [];
+  let lineNumber = 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Extract memory name from header
+    if (trimmed.startsWith("# Memoria:")) {
+      memoryName = trimmed.replace("# Memoria:", "").trim();
+      continue;
+    }
+
+    // Detect index section
+    if (trimmed === "## Indice") {
+      inIndex = true;
+      continue;
+    }
+
+    // End of index, start of content
+    if (trimmed === "---" && inIndex) {
+      inIndex = false;
+      inContent = true;
+      continue;
+    }
+
+    // Parse index entries
+    if (inIndex && trimmed && /^\d+\./.test(trimmed)) {
+      const matchWithTags = trimmed.match(/^(\d+)\.\s+(.+?)\s*-\s*(.+)$/);
+      const matchWithoutTags = trimmed.match(/^(\d+)\.\s+(.+)$/);
+      
+      if (matchWithTags) {
+        const [, numStr, title, tags] = matchWithTags;
+        const lineNumber = parseInt(numStr);
+        index.entries.push({
+          title,
+          startLine: lineNumber,
+          endLine: lineNumber,
+          tags: tags ? tags.split(",").map(t => t.trim()) : undefined,
+          updatedAt: index.updatedAt,
+        });
+      } else if (matchWithoutTags) {
+        const [, numStr, title] = matchWithoutTags;
+        const lineNumber = parseInt(numStr);
+        index.entries.push({
+          title,
+          startLine: lineNumber,
+          endLine: lineNumber,
+          tags: undefined,
+          updatedAt: index.updatedAt,
+        });
+      }
+      continue;
+    }
+
+    // Parse content entries
+    if (inContent) {
+      // Check for numbered line (start of new entry)
+      const numberedMatch = line.match(/^(\d+):\s*(.*)$/);
+      if (numberedMatch) {
+        // Save previous entry if exists
+        if (currentEntry && currentEntry.title) {
+          entries.push({
+            ...currentEntry as MemoryEntry,
+            content: contentLines.join("\n"),
+          });
+          contentLines = [];
+        }
+
+        // Start new entry
+        const entryNumber = parseInt(numberedMatch[1]);
+        const indexEntry = index.entries.find(e => e.startLine === entryNumber);
+        
+        currentEntry = {
+          title: indexEntry?.title || `Entry ${entryNumber}`,
+          content: "",
+          startLine: entryNumber,
+          endLine: entryNumber,
+          tags: indexEntry?.tags,
+          updatedAt: index.updatedAt,
+        };
+
+        if (numberedMatch[2]) {
+          contentLines.push(numberedMatch[2]);
+        }
+      } else if (currentEntry) {
+        // Continue current entry content
+        contentLines.push(line);
+      }
+    }
+  }
+
+  // Save last entry
+  if (currentEntry && currentEntry.title) {
+    entries.push({
+      ...currentEntry as MemoryEntry,
+      content: contentLines.join("\n"),
+    });
+  }
+
+  index.memoryName = memoryName || memoryId;
+  return { index, entries };
+}
+
 export function writeMemoryFile(
   memoryId: string,
-  entries: MemoryEntry[]
+  entries: MemoryEntry[],
+  memoryName?: string
 ): void {
   const memPath = getMemoryPath(memoryId);
   const now = new Date().toISOString();
 
-  const lines: string[] = [];
-
-  // INDEX section
-  lines.push(INDEX_START);
-  lines.push(`# Memlink Memory — ID: ${memoryId}`);
-  lines.push(`# Created: ${now}`);
-  lines.push(`# Updated: ${now}`);
-
-  // Build content with numbered lines
-  const contentLines: string[] = [];
-  const indexEntryLines: string[] = [];
-  let currentLine = 1;
-
-  for (const entry of entries) {
-    const startLine = currentLine;
-    const entryContentLines = entry.content.split("\n");
-    
-    // Add numbered lines for this entry
-    for (const contentLine of entryContentLines) {
-      contentLines.push(`${currentLine}: ${contentLine}`);
-      currentLine++;
-    }
-    
-    const endLine = currentLine - 1;
-    const tags = Array.isArray(entry.tags) ? entry.tags.join(",") : "";
-    entry.updatedAt = entry.updatedAt || now;
-    
-    indexEntryLines.push(`${entry.title} | ${startLine}-${endLine} | ${tags}`);
-    
-    // Add blank line between entries
-    contentLines.push("");
-    currentLine++;
+  // Get memory name from config or parameter
+  if (!memoryName) {
+    const config = loadConfig();
+    const memory = config.universalMemories?.find(m => m.memoryId === memoryId);
+    memoryName = memory?.memoryName || memoryId;
   }
 
-    // Add index entries to lines
-  lines.push(...indexEntryLines);
-  lines.push(INDEX_END);
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`# Memoria: ${memoryName}`);
   lines.push("");
-  
-  // Add content lines
-  lines.push(...contentLines);
+
+  // Index section
+  lines.push("## Indice");
+  lines.push("");
+
+  // Build index entries
+  let lineNumber = 1;
+  for (const entry of entries) {
+    const tags = Array.isArray(entry.tags) && entry.tags.length > 0 
+      ? entry.tags.join(", ") 
+      : "";
+    
+    if (tags) {
+      lines.push(`${lineNumber}. ${entry.title} - ${tags}`);
+    } else {
+      lines.push(`${lineNumber}. ${entry.title}`);
+    }
+    lineNumber++;
+  }
+
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+
+  // Content section with numbered lines
+  lineNumber = 1;
+  for (const entry of entries) {
+    const entryContentLines = entry.content.split("\n");
+    
+    // First line with number
+    if (entryContentLines.length > 0) {
+      lines.push(`${lineNumber}: ${entryContentLines[0]}`);
+    } else {
+      lines.push(`${lineNumber}:`);
+    }
+    
+    // Remaining lines without numbers
+    for (let i = 1; i < entryContentLines.length; i++) {
+      lines.push(entryContentLines[i]);
+    }
+    
+    lineNumber++;
+    
+    // Add blank line between entries (except for last one)
+    if (lineNumber <= entries.length) {
+      lines.push("");
+    }
+  }
 
   fs.writeFileSync(memPath, lines.join("\n"), "utf-8");
 }
@@ -395,6 +551,28 @@ export function writeMemoryFile(
 export function readMemory(memoryId: string): MemoryEntry[] {
   const { entries } = parseMemoryFile(memoryId);
   return entries;
+}
+
+// Migrate old format to new format automatically
+function migrateMemoryFormat(memoryId: string): void {
+  const memPath = getMemoryPath(memoryId);
+  if (!fs.existsSync(memPath)) return;
+
+  const raw = fs.readFileSync(memPath, "utf-8");
+  const lines = raw.split("\n");
+  const isOldFormat = lines.some(line => line.trim() === "# INDEX");
+  
+  if (isOldFormat) {
+    // Parse old format
+    const { entries } = parseOldFormat(memoryId, lines);
+    
+    // Get memory name from config
+    const config = loadConfig();
+    const memory = config.universalMemories?.find(m => m.memoryId === memoryId);
+    
+    // Write in new format
+    writeMemoryFile(memoryId, entries, memory?.memoryName);
+  }
 }
 
 export function readMemoryEntry(memoryId: string, title: string): MemoryEntry | undefined {
@@ -408,6 +586,9 @@ export function upsertMemoryEntry(
   content: string,
   tags?: string[]
 ): MemoryEntry {
+  // Auto-migrate if needed
+  migrateMemoryFormat(memoryId);
+  
   const entries = readMemory(memoryId);
   const now = new Date().toISOString();
   const existing = entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
@@ -433,6 +614,9 @@ export function upsertMemoryEntry(
 }
 
 export function deleteMemoryEntry(memoryId: string, title: string): boolean {
+  // Auto-migrate if needed
+  migrateMemoryFormat(memoryId);
+  
   const entries = readMemory(memoryId);
   const idx = entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
   if (idx === -1) return false;

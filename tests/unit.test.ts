@@ -17,7 +17,7 @@ describe("Unit Tests - Core Functions", () => {
       expect(memory).toHaveProperty('memoryId');
       expect(memory).toHaveProperty('memoryName', memoryName);
       expect(memory).toHaveProperty('token');
-      expect(memory.memoryId).toMatch(/^[a-zA-Z0-9_]{12}$/);
+      expect(memory.memoryId).toMatch(/^[a-zA-Z0-9_-]{12}$/);
       expect(memory.token).toMatch(/^memlink_[a-zA-Z0-9_-]{32}$/);
     });
 
