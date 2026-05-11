@@ -1,7 +1,7 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { nanoid } from "nanoid";
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { nanoid } from 'nanoid';
 import {
   MemlinkConfig,
   UniversalMemory,
@@ -10,14 +10,14 @@ import {
   KNOWN_AGENTS,
   KnownAgent,
   AgentToken,
-} from "./types.ts";
+} from './types.ts';
 import {
   MEMLINK_VERSION,
   CONFIG_DIR,
   CONFIG_FILE,
   DEFAULT_PORT,
   DEFAULT_HOST,
-} from "./types.ts";
+} from './types.ts';
 
 // ─── Additional Types (defined here to avoid circular imports) ───────────────────────
 
@@ -83,12 +83,12 @@ export function loadConfig(): MemlinkConfig {
     return defaultConfig;
   }
 
-  return JSON.parse(fs.readFileSync(configPath, "utf-8")) as MemlinkConfig;
+  return JSON.parse(fs.readFileSync(configPath, 'utf-8')) as MemlinkConfig;
 }
 
 export function saveConfig(config: MemlinkConfig): void {
   ensureMemlinkDir();
-  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), "utf-8");
+  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
 }
 
 // ─── Token management ────────────────────────────────────────────────────────
@@ -230,8 +230,8 @@ export function listUniversalMemories(): UniversalMemory[] {
 //
 // ────────────────────────────────────────────────────────────────────────────
 
-const INDEX_START = "# INDEX";
-const INDEX_END = "# END_INDEX";
+const INDEX_START = '# INDEX';
+const INDEX_END = '# END_INDEX';
 
 export function initMemoryFile(memoryId: string, memoryName?: string): void {
   const memPath = getMemoryPath(memoryId);
@@ -239,13 +239,13 @@ export function initMemoryFile(memoryId: string, memoryName?: string): void {
     const displayName = memoryName || memoryId;
     const content = [
       `# Memoria: ${displayName}`,
-      "",
-      "## Indice",
-      "",
-      "---",
-      ""
-    ].join("\n");
-    fs.writeFileSync(memPath, content, "utf-8");
+      '',
+      '## Indice',
+      '',
+      '---',
+      ''
+    ].join('\n');
+    fs.writeFileSync(memPath, content, 'utf-8');
   }
 }
 
@@ -258,11 +258,11 @@ export function parseMemoryFile(memoryId: string): {
     throw new Error(`Memory file not found: ${memoryId}`);
   }
 
-  const raw = fs.readFileSync(memPath, "utf-8");
-  const lines = raw.split("\n");
+  const raw = fs.readFileSync(memPath, 'utf-8');
+  const lines = raw.split('\n');
 
   // Detect format
-  const isOldFormat = lines.some(line => line.trim() === "# INDEX");
+  const isOldFormat = lines.some(line => line.trim() === '# INDEX');
   
   if (isOldFormat) {
     return parseOldFormat(memoryId, lines);
@@ -279,9 +279,9 @@ function parseOldFormat(memoryId: string, lines: string[]): {
   const index: MemoryIndex = {
     version: MEMLINK_VERSION,
     memoryId,
-    memoryName: "",
-    createdAt: "",
-    updatedAt: "",
+    memoryName: '',
+    createdAt: '',
+    updatedAt: '',
     entries: [],
   };
 
@@ -290,35 +290,35 @@ function parseOldFormat(memoryId: string, lines: string[]): {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line === "# INDEX") {
+    if (line === '# INDEX') {
       inIndex = true;
       continue;
     }
-    if (line === "# END_INDEX") {
+    if (line === '# END_INDEX') {
       contentStartLine = i + 1;
       break;
     }
     if (!inIndex) continue;
 
-    if (line.startsWith("# Memlink Memory")) {
+    if (line.startsWith('# Memlink Memory')) {
       const match = line.match(/ID: ([^)]+)/);
       if (match) {
         index.memoryId = match[1].trim();
       }
-    } else if (line.startsWith("# Created:")) {
-      index.createdAt = line.replace("# Created:", "").trim();
-    } else if (line.startsWith("# Updated:")) {
-      index.updatedAt = line.replace("# Updated:", "").trim();
-    } else if (line && !line.startsWith("#") && line.includes("|")) {
-      const parts = line.split("|").map((p) => p.trim());
+    } else if (line.startsWith('# Created:')) {
+      index.createdAt = line.replace('# Created:', '').trim();
+    } else if (line.startsWith('# Updated:')) {
+      index.updatedAt = line.replace('# Updated:', '').trim();
+    } else if (line && !line.startsWith('#') && line.includes('|')) {
+      const parts = line.split('|').map((p) => p.trim());
       if (parts.length >= 3) {
         const [title, lineRange, tags] = parts;
-        const [start, end] = lineRange.split("-").map(Number);
+        const [start, end] = lineRange.split('-').map(Number);
         index.entries.push({
           title,
           startLine: start,
           endLine: end,
-          tags: tags ? tags.split(",").map((t) => t.trim()) : undefined,
+          tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
           updatedAt: index.updatedAt,
         });
       }
@@ -336,7 +336,7 @@ function parseOldFormat(memoryId: string, lines: string[]): {
         const match = line.match(/^\d+:\s*(.*)$/);
         return match ? match[1] : line;
       })
-      .join("\n");
+      .join('\n');
     
     entries.push({
       title: idxEntry.title,
@@ -359,14 +359,14 @@ function parseBookFormat(memoryId: string, lines: string[]): {
   const index: MemoryIndex = {
     version: MEMLINK_VERSION,
     memoryId,
-    memoryName: "",
+    memoryName: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     entries: [],
   };
 
   const entries: MemoryEntry[] = [];
-  let memoryName = "";
+  let memoryName = '';
   let inIndex = false;
   let inContent = false;
   let currentEntry: Partial<MemoryEntry> | null = null;
@@ -378,19 +378,19 @@ function parseBookFormat(memoryId: string, lines: string[]): {
     const trimmed = line.trim();
 
     // Extract memory name from header
-    if (trimmed.startsWith("# Memoria:")) {
-      memoryName = trimmed.replace("# Memoria:", "").trim();
+    if (trimmed.startsWith('# Memoria:')) {
+      memoryName = trimmed.replace('# Memoria:', '').trim();
       continue;
     }
 
     // Detect index section
-    if (trimmed === "## Indice") {
+    if (trimmed === '## Indice') {
       inIndex = true;
       continue;
     }
 
     // End of index, start of content
-    if (trimmed === "---" && inIndex) {
+    if (trimmed === '---' && inIndex) {
       inIndex = false;
       inContent = true;
       continue;
@@ -408,7 +408,7 @@ function parseBookFormat(memoryId: string, lines: string[]): {
           title,
           startLine: lineNumber,
           endLine: lineNumber,
-          tags: tags ? tags.split(",").map(t => t.trim()) : undefined,
+          tags: tags ? tags.split(',').map(t => t.trim()) : undefined,
           updatedAt: index.updatedAt,
         });
       } else if (matchWithoutTags) {
@@ -434,7 +434,7 @@ function parseBookFormat(memoryId: string, lines: string[]): {
         if (currentEntry && currentEntry.title) {
           entries.push({
             ...currentEntry as MemoryEntry,
-            content: contentLines.join("\n"),
+            content: contentLines.join('\n'),
           });
           contentLines = [];
         }
@@ -445,7 +445,7 @@ function parseBookFormat(memoryId: string, lines: string[]): {
         
         currentEntry = {
           title: indexEntry?.title || `Entry ${entryNumber}`,
-          content: "",
+          content: '',
           startLine: entryNumber,
           endLine: entryNumber,
           tags: indexEntry?.tags,
@@ -466,7 +466,7 @@ function parseBookFormat(memoryId: string, lines: string[]): {
   if (currentEntry && currentEntry.title) {
     entries.push({
       ...currentEntry as MemoryEntry,
-      content: contentLines.join("\n"),
+      content: contentLines.join('\n'),
     });
   }
 
@@ -493,18 +493,18 @@ export function writeMemoryFile(
 
   // Header
   lines.push(`# Memoria: ${memoryName}`);
-  lines.push("");
+  lines.push('');
 
   // Index section
-  lines.push("## Indice");
-  lines.push("");
+  lines.push('## Indice');
+  lines.push('');
 
   // Build index entries
   let lineNumber = 1;
   for (const entry of entries) {
     const tags = Array.isArray(entry.tags) && entry.tags.length > 0 
-      ? entry.tags.join(", ") 
-      : "";
+      ? entry.tags.join(', ') 
+      : '';
     
     if (tags) {
       lines.push(`${lineNumber}. ${entry.title} - ${tags}`);
@@ -514,14 +514,14 @@ export function writeMemoryFile(
     lineNumber++;
   }
 
-  lines.push("");
-  lines.push("---");
-  lines.push("");
+  lines.push('');
+  lines.push('---');
+  lines.push('');
 
   // Content section with numbered lines
   lineNumber = 1;
   for (const entry of entries) {
-    const entryContentLines = entry.content.split("\n");
+    const entryContentLines = entry.content.split('\n');
     
     // First line with number
     if (entryContentLines.length > 0) {
@@ -539,11 +539,11 @@ export function writeMemoryFile(
     
     // Add blank line between entries (except for last one)
     if (lineNumber <= entries.length) {
-      lines.push("");
+      lines.push('');
     }
   }
 
-  fs.writeFileSync(memPath, lines.join("\n"), "utf-8");
+  fs.writeFileSync(memPath, lines.join('\n'), 'utf-8');
 }
 
 // ─── CRUD operations ─────────────────────────────────────────────────────────
@@ -558,9 +558,9 @@ function migrateMemoryFormat(memoryId: string): void {
   const memPath = getMemoryPath(memoryId);
   if (!fs.existsSync(memPath)) return;
 
-  const raw = fs.readFileSync(memPath, "utf-8");
-  const lines = raw.split("\n");
-  const isOldFormat = lines.some(line => line.trim() === "# INDEX");
+  const raw = fs.readFileSync(memPath, 'utf-8');
+  const lines = raw.split('\n');
+  const isOldFormat = lines.some(line => line.trim() === '# INDEX');
   
   if (isOldFormat) {
     // Parse old format
@@ -628,7 +628,7 @@ export function deleteMemoryEntry(memoryId: string, title: string): boolean {
 
 export function syncMemory(memoryId: string): { entries: number; size: number } {
   const memPath = getMemoryPath(memoryId);
-  if (!fs.existsSync(memPath)) throw new Error("Memory file not found");
+  if (!fs.existsSync(memPath)) throw new Error('Memory file not found');
 
   const { entries } = parseMemoryFile(memoryId);
   const stats = fs.statSync(memPath);
@@ -1058,7 +1058,7 @@ export function restoreBackup(
   const memoryExists = fs.existsSync(`${getMemlinkDir()}/${memoryId}.memory.md`);
   
   if (memoryExists && !overwrite) {
-    throw new Error(`Memory "${memoryId}" already exists. Use overwrite=true to replace it.`);
+    throw new Error(`Memory '${memoryId}' already exists. Use overwrite=true to replace it.`);
   }
   
   // Initialize memory if it doesn't exist
