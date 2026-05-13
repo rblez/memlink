@@ -54,7 +54,7 @@ export interface MemlinkConfig {
   serverHost: string;
 }
 
-export type KnownAgent = "windsurf" | "cursor" | "claude" | "codex" | "goose" | "opencode" | "kimi" | "qwen" | "copilot" | "amp" | "custom";
+export type KnownAgent = "windsurf" | "cursor" | "claude" | "codex" | "opencode" | "devin";
 
 export interface AgentSkillPaths {
   projectLocal: string;
@@ -81,7 +81,7 @@ export const KNOWN_AGENTS: Record<KnownAgent, { name: string; description: strin
     },
   },
   claude: {
-    name: "Claude",
+    name: "Claude Code",
     description: "Anthropic Claude Code",
     color: "#CC785C",
     skillPaths: {
@@ -98,15 +98,6 @@ export const KNOWN_AGENTS: Record<KnownAgent, { name: string; description: strin
       global: ".codex/skills",
     },
   },
-  goose: {
-    name: "Goose",
-    description: "Block Goose AI Agent",
-    color: "#FFD700",
-    skillPaths: {
-      projectLocal: ".goose/skills",
-      global: ".config/goose/skills",
-    },
-  },
   opencode: {
     name: "OpenCode",
     description: "OpenCode AI Agent",
@@ -116,49 +107,13 @@ export const KNOWN_AGENTS: Record<KnownAgent, { name: string; description: strin
       global: ".config/opencode/skills",
     },
   },
-  kimi: {
-    name: "Kimi",
-    description: "Moonshot Kimi AI",
-    color: "#4ECDC4",
+  devin: {
+    name: "Devin",
+    description: "Devin AI Agent",
+    color: "#7C3AED",
     skillPaths: {
-      projectLocal: ".kimi/skills",
-      global: ".kimi/skills",
-    },
-  },
-  qwen: {
-    name: "Qwen",
-    description: "Alibaba Qwen AI",
-    color: "#FF6F61",
-    skillPaths: {
-      projectLocal: ".qwen/skills",
-      global: ".qwen/skills",
-    },
-  },
-  copilot: {
-    name: "Copilot",
-    description: "GitHub Copilot",
-    color: "#0078D4",
-    skillPaths: {
-      projectLocal: ".github/skills",
-      global: ".copilot/skills",
-    },
-  },
-  amp: {
-    name: "Amp",
-    description: "Amp AI Agent",
-    color: "#9B59B6",
-    skillPaths: {
-      projectLocal: ".agents/skills",
-      global: ".config/agents/skills",
-    },
-  },
-  custom: {
-    name: "Custom Agent",
-    description: "Custom AI Agent",
-    color: "#A8E6CF",
-    skillPaths: {
-      projectLocal: ".agents/skills",
-      global: ".agents/skills",
+      projectLocal: ".devin/skills",
+      global: ".devin/skills",
     },
   },
 };

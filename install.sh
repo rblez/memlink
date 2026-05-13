@@ -1,330 +1,179 @@
 #!/bin/bash
 set -e
 
-# Memlink Installation Script
-# Interactive installer with progress bar and configuration
+# Memlink Installer
+# Usage: curl -sL rblez.com/memlink/install.sh | bash
 
-REPO="rblez/memlink"
-VERSION="latest"
-FORCE=false
-
-# Parse options
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -r|--reinstall)
-      FORCE=true
-      ;;
-    -v|--version)
-      VERSION="$2"
-      shift
-      ;;
-    -h|--help)
-      echo "Usage: $0 [-r|--reinstall] [-v|--version VERSION]"
-      echo "  -r, --reinstall    Force reinstall (overwrite existing)"
-      echo "  -v, --version      Specific version to install (default: latest)"
-      exit 0
-      ;;
-    *)
-      VERSION="$1"
-      ;;
-  esac
-  shift
-done
+MEMLINK_VERSION="2.0.0"
+INSTALL_DIR="${HOME}/.local/bin"
+CONFIG_DIR="${HOME}/.memlink"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Icons
-ICON_OK="☑"
-ICON_WARN="⚠"
-ICON_ERR="🛈"
-ICON_EMPTY="□"
-ICON_FULL="■"
+log_info() { echo -e "${GREEN}[*]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+log_error() { echo -e "${RED}[X]${NC} $1"; }
 
-# Print functions
-print_header() {
-  echo -e "${WHITE}========================================${NC}"
-  echo -e "${WHITE}  Memlink Installation${NC}"
-  echo -e "${WHITE}========================================${NC}"
-  echo ""
+# Detect OS
+detect_os() {
+    case "$(uname -s)" in
+        Linux*)     echo "linux";;
+        Darwin*)    echo "macos";;
+        CYGWIN*|MINGW*|MSYS*) echo "windows";;
+        *)          echo "unknown";;
+    esac
 }
 
-print_ok() {
-  echo -e "${GREEN}${ICON_OK} $1${NC}"
+# Detect architecture
+detect_arch() {
+    case "$(uname -m)" in
+        x86_64)    echo "x64";;
+        aarch64|arm64) echo "arm64";;
+        *)         echo "x64";;
+    esac
 }
 
-print_warn() {
-  echo -e "${YELLOW}${ICON_WARN} $1${NC}"
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
-print_err() {
-  echo -e "${RED}[ERROR] $1${NC}"
-}
-
-print_info() {
-  echo -e "${WHITE}$1${NC}"
-}
-
-# Progress bar with squares
-show_progress() {
-  local current=$1
-  local total=$2
-  local prefix="${3:-Descargando}"
-  
-  # Prevent division by zero
-  if [ "$total" -le 0 ] 2>/dev/null; then
-    printf "\r  %s [....................]   0%%" "$prefix"
-    return
-  fi
-  
-  local percent=$((current * 100 / total))
-  local width=50
-  local filled=$((percent * width / 100))
-  local empty=$((width - filled))
-  
-  # Build bar string
-  local bar=""
-  for ((i=0; i<filled; i++)); do
-    bar="${bar}${GREEN}${ICON_FULL}${NC}"
-  done
-  for ((i=0; i<empty; i++)); do
-    bar="${bar}${WHITE}${ICON_EMPTY}${NC}"
-  done
-  
-  printf "\r  ${prefix} [${bar}] %3d%%" $percent
-  
-  if [ $percent -eq 100 ]; then
-    echo ""
-  fi
-}
-
-# Check for curl
-check_curl() {
-  if ! command -v curl &> /dev/null; then
-    print_err "curl no encontrado. Por favor instalalo primero."
-    exit 1
-  fi
-}
-
-# Check if already installed
-check_installed() {
-  if command -v memlink &> /dev/null; then
-    if [ "$FORCE" = true ]; then
-      print_info "Memlink ya está instalado en: $(which memlink) - reinstalando..."
-    else
-      print_warn "Memlink ya está instalado en: $(which memlink)"
-      read -p "  ¿Sobrescribir? (s/N): " overwrite
-      if [ "${overwrite^}" != "S" ]; then
-        print_info "Instalación cancelada."
-        exit 0
-      fi
+# Install Bun if needed
+install_bun() {
+    if command_exists bun; then
+        log_info "Bun already installed: $(bun --version)"
+        return 0
     fi
-  fi
+
+    log_info "Installing Bun..."
+
+    local os=$(detect_os)
+    local arch=$(detect_arch)
+
+    if [ "$os" = "windows" ]; then
+        log_warn "Windows detected. Using npm instead."
+        return 1
+    fi
+
+    # Install Bun via official installer
+    curl -fsSL https://bun.sh/install | bash
+
+    # Source bun in current shell
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+
+    if command_exists bun; then
+        log_info "Bun installed: $(bun --version)"
+        return 0
+    else
+        log_error "Failed to install Bun"
+        return 1
+    fi
 }
 
-# Detect OS and architecture
-detect_system() {
-  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-  ARCH=$(uname -m)
-  
-  print_info "Sistema detectado: ${OS}/${ARCH}"
-  
-  case $ARCH in
-    x86_64|amd64)
-      ARCH_SUFFIX="x64"
-      ;;
-    aarch64|arm64)
-      ARCH_SUFFIX="arm64"
-      ;;
-    *)
-      print_err "Arquitectura no soportada: ${ARCH}"
-      print_info "Soportado: x86_64, aarch64, arm64"
-      exit 1
-      ;;
-  esac
-  
-  case $OS in
-    linux)
-      OS_TARGET="linux"
-      ;;
-    darwin)
-      OS_TARGET="darwin"
-      ;;
-    msys*|mingw*|cygwin|windows)
-      OS_TARGET="windows"
-      print_warn "Windows detectado. Descarga el binario manualmente desde:"
-      print_info "  https://github.com/${REPO}/releases"
-      exit 0
-      ;;
-    *)
-      print_err "Sistema no soportado: ${OS}"
-      print_info "Soportado: Linux, macOS"
-      exit 1
-      ;;
-  esac
+# Ensure install directory exists
+ensure_dir() {
+    if [ ! -d "$INSTALL_DIR" ]; then
+        mkdir -p "$INSTALL_DIR"
+    fi
 }
 
-# Get download URL
-get_download_url() {
-  if [ "$VERSION" = "latest" ]; then
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${BINARY_NAME}"
-  else
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}"
-  fi
+# Create config directory
+ensure_config() {
+    if [ ! -d "$CONFIG_DIR" ]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
 }
 
-# Download with progress
-download_binary() {
-  BINARY_NAME="memlink-${OS_TARGET}-${ARCH_SUFFIX}"
-  if [ "$OS_TARGET" = "windows" ]; then
-    BINARY_NAME="${BINARY_NAME}.exe"
-  fi
-  
-  get_download_url
-  
-  TEMP_DIR=$(mktemp -d)
-  TEMP_FILE="${TEMP_DIR}/${BINARY_NAME}"
-  
-  print_info "URL: ${DOWNLOAD_URL}"
-  echo ""
-  
-  # Check file size first
-  CONTENT_LENGTH=$(curl -sI "$DOWNLOAD_URL" 2>/dev/null | grep -i "content-length" | awk '{print $2}' | tr -d '\r')
-  
-  # Validate content length is numeric and > 0
-  if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
-    BYTES_TOTAL=$CONTENT_LENGTH
-    BYTES_DOWNLOADED=0
-    
-    # Download with progress
-    curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL" 2>/dev/null &
-    CURL_PID=$!
-    
-    while kill -0 $CURL_PID 2>/dev/null; do
-      if [ -f "$TEMP_FILE" ]; then
-        BYTES_DOWNLOADED=$(stat -f%z "$TEMP_FILE" 2>/dev/null || stat -c%s "$TEMP_FILE" 2>/dev/null || echo 0)
-        show_progress $BYTES_DOWNLOADED $BYTES_TOTAL "Descargando"
-      fi
-      sleep 0.1
-    done
-    
-    wait $CURL_PID
-  else
-    # Fallback: simple download (no progress bar when size unknown)
-    print_info "Descargando..."
-    curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"
-  fi
-  
-  if [ ! -s "$TEMP_FILE" ]; then
-    print_err "Descarga falló o archivo vacío"
-    rm -rf "$TEMP_DIR"
-    exit 1
-  fi
-  
-  print_ok "Descarga completada"
+# Install Memlink via Bun
+install_via_bun() {
+    if command_exists bun; then
+        log_info "Installing Memlink via Bun..."
+        bun add -g memlink
+        return 0
+    fi
+    return 1
 }
 
-# Interactive configuration
-ask_config() {
-  echo ""
-  print_info "=== Configuración ==="
-  echo ""
-  
-  # Server port
-  read -p "  Puerto del servidor MCP [4444]: " INPUT_PORT
-  SERVER_PORT=${INPUT_PORT:-4444}
-  
-  # Install directory
-  read -p "  Directorio de instalación [/usr/local/bin]: " INPUT_DIR
-  INSTALL_DIR=${INPUT_DIR:-/usr/local/bin}
-  
-  # Auto start
-  read -p "  ¿Iniciar servidor automáticamente? (s/N): " INPUT_AUTO
-  AUTO_START=${INPUT_AUTO:-n}
-  
-  # Create memory
-  read -p "  ¿Crear memoria inicial? (s/N): " INPUT_MEMORY
-  CREATE_MEMORY=${INPUT_MEMORY:-n}
-  
-  echo ""
+# Install Memlink via npm
+install_via_npm() {
+    if command_exists npm; then
+        log_info "Installing Memlink via npm..."
+        npm install -g memlink
+        return 0
+    fi
+    return 1
 }
 
-# Install binary
-install_binary() {
-  print_info "Instalando en ${INSTALL_DIR}..."
-  
-  if [ ! -w "$INSTALL_DIR" ]; then
-    print_info "Necesitas permisos de administrador..."
-    sudo mkdir -p "$INSTALL_DIR"
-    sudo mv "$TEMP_DIR/$BINARY_NAME" "$INSTALL_DIR/memlink"
-  else
-    mv "$TEMP_DIR/$BINARY_NAME" "$INSTALL_DIR/memlink"
-  fi
-  
-  chmod +x "$INSTALL_DIR/memlink"
-  
-  # Cleanup temp
-  rm -rf "$TEMP_DIR"
-  
-  # Add to PATH if needed
-  if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    print_warn "${INSTALL_DIR} no está en tu PATH"
-    print_info "Agrega esta línea a tu ~/.bashrc o ~/.zshrc:"
-    echo "  export PATH=\"\$PATH:${INSTALL_DIR}\""
-  fi
-  
-  print_ok "Instalación completada"
-}
-
-# Run memlink init
-run_init() {
-  # Save config
-  CONFIG_DIR="$HOME/.memlink"
-  mkdir -p "$CONFIG_DIR"
-  
-  cat > "$CONFIG_DIR/config.json" << EOF
-{
-  "serverPort": ${SERVER_PORT},
-  "serverHost": "localhost",
-  "agents": [],
-  "universalMemories": []
-}
-EOF
-  
-  if [ "${AUTO_START^}" = "S" ]; then
-    print_info "Iniciando servidor MCP en puerto ${SERVER_PORT}..."
-    $INSTALL_DIR/memlink serve -p $SERVER_PORT &
-    sleep 2
-    print_ok "Servidor iniciado"
-  fi
-  
-  if [ "${CREATE_MEMORY^}" = "S" ]; then
-    print_info "Creando memoria inicial..."
-    $INSTALL_DIR/memlink memory create "Mi Memoria"
-  fi
+# Install Memlink via pnpm
+install_via_pnpm() {
+    if command_exists pnpm; then
+        log_info "Installing Memlink via pnpm..."
+        pnpm add -g memlink
+        return 0
+    fi
+    return 1
 }
 
 # Main
 main() {
-  print_header
-  
-  check_curl
-  check_installed
-  detect_system
-  download_binary
-  ask_config
-  install_binary
-  run_init
-  
-  echo ""
-  print_ok "¡Memlink instalado correctamente!"
-  echo ""
-  print_info "Ejecuta 'memlink --help' para ver los comandos disponibles"
-  echo ""
+    echo ""
+    echo "  ╔═══════════════════════════════════════════╗"
+    echo "  ║     Memlink Installer v${MEMLINK_VERSION}                 ║"
+    echo "  ║     Universal Memory for AI Agents       ║"
+    echo "  ╚═══════════════════════════════════════════╝"
+    echo ""
+
+    local installed=false
+
+    # Try Bun first
+    if install_bun; then
+        if install_via_bun; then
+            installed=true
+        fi
+    fi
+
+    # Fallback to npm
+    if [ "$installed" = false ]; then
+        if install_via_npm; then
+            installed=true
+        fi
+    fi
+
+    # Fallback to pnpm
+    if [ "$installed" = false ]; then
+        if install_via_pnpm; then
+            installed=true
+        fi
+    fi
+
+    if [ "$installed" = true ]; then
+        ensure_config
+
+        echo ""
+        log_info "Memlink installed successfully!"
+        echo ""
+        echo "  Next steps:"
+        echo "    1. Run: memlink init"
+        echo "    2. Run: memlink serve"
+        echo "    3. Create a memory: memlink memory create MyProject"
+        echo ""
+        echo "  Docs: https://rblez.com/memlink"
+        echo ""
+    else
+        log_error "Failed to install Memlink"
+        echo ""
+        echo "  Please install Bun, npm, or pnpm manually:"
+        echo "    - Bun: curl -fsSL https://bun.sh/install | bash"
+        echo "    - npm: npm install -g memlink"
+        echo "    - pnpm: pnpm add -g memlink"
+        echo ""
+        exit 1
+    fi
 }
 
 main "$@"
