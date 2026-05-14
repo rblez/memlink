@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
   "license": "MIT",
-  "private": true,
+  "private": false,
   "type": "module",
   "repository": {
     "type": "git",
@@ -13,6 +13,23 @@
     "url": "https://github.com/rblez/memlink/issues"
   },
   "homepage": "https://rblez.com/memlink",
+  "bin": {
+    "memlink": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/cli/index.ts",
+      "types": "./src/cli/index.ts"
+    },
+    "./server": {
+      "import": "./src/server/index.ts",
+      "types": "./src/server/index.ts"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  },
   "scripts": {
     "build": "bun build src/cli/index.ts --outdir dist/cli --target node && bun build src/server/index.ts --outdir dist/server --target node",
     "build:binaries": "bun run scripts/build.ts",

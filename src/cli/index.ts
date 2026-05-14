@@ -1352,7 +1352,7 @@ async function promptSkillLocation(agentType: string): Promise<SkillLocation> {
   console.log();
   console.log(`  ${c.text('1.')} Global     ${c.dim(`(${globalDisplay})`)}`);
   console.log(`  ${c.text('2.')} Workspace   ${c.dim(`(${workspaceDisplay})`)}`);
-  console.log(`  ${c.text('3.')} Skip        ${c.dim('(don't install skill)')}`);
+  console.log(`  ${c.text('3.')} Skip        ${c.dim("(don't install skill)")}`);
   console.log();
 
   return new Promise((resolve) => {
@@ -1819,7 +1819,7 @@ const restoreCmd = program
   .command('restore')
   .description('Restore memory from backup')
   .argument('<backup-path>', 'Path to backup file')
-  .option('--memory-id <id>', 'Target memory ID (optional, uses backup's memory ID)')
+  .option('--memory-id <id>', "Target memory ID (optional, uses backup's memory ID)")
   .option('--overwrite', 'Overwrite existing memory')
   .action(async (backupPath, options) => {
     try {
@@ -2124,7 +2124,7 @@ program
     spinner.info(`Update available: ${currentVersion} → ${latestVersion}`);
 
     if (options.check) {
-      console.log(c.dim('Run 'memlink update' to install the update.'));
+      console.log(c.dim("Run 'memlink update' to install the update."));
       return;
     }
 

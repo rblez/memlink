@@ -200,7 +200,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   // ── TOOL: memory_edit ─────────────────────────────────────────────────────
   server.tool(
     'memory_edit',
-    'Create or update a memory entry. Use this whenever the user says 'save X to my memory', 'remember that', 'store this', etc. Always keep memory organized and up to date.',
+    "Create or update a memory entry. Use this whenever the user says 'save X to my memory', 'remember that', 'store this', etc. Always keep memory organized and up to date.",
     {
       title: z
         .string()
@@ -208,7 +208,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
         .max(200, 'Title too long (max 200 characters)')
         .regex(/^[a-zA-Z0-9_\-\s]+$/, 'Title contains invalid characters')
         .describe(
-          'Short, descriptive title for this memory block. Use PascalCase or Title Case. E.g: 'ProjectContext', 'UserPreferences', 'TechStack''
+          "Short, descriptive title for this memory block. Use PascalCase or Title Case. E.g: 'ProjectContext', 'UserPreferences', 'TechStack'"
         ),
       content: z
         .string()
@@ -219,7 +219,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
         .array(z.string().min(1).max(50).regex(/^[a-zA-Z0-9_\-\s]+$/))
         .max(20, 'Too many tags (max 20)')
         .optional()
-        .describe('Optional tags for categorization. E.g: ['project', 'preferences']'),
+        .describe("Optional tags for categorization. E.g: ['project', 'preferences']"),
     },
     async ({ title, content, tags }) => {
       try {
@@ -241,7 +241,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   // ── TOOL: memory_delete ───────────────────────────────────────────────────
   server.tool(
     'memory_delete',
-    'Delete a memory entry by title. Use when the user says 'forget X', 'remove X from memory', 'delete X'.',
+    "Delete a memory entry by title. Use when the user says 'forget X', 'remove X from memory', 'delete X'.",
     {
       title: z.string().describe('Title of the memory entry to delete.'),
     },
@@ -691,7 +691,7 @@ export function createApp(): express.Application {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Content-Security-Policy', 'default-src 'self'');
+    res.setHeader('Content-Security-Policy', "default-src 'self'");
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     next();

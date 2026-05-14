@@ -132,7 +132,7 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     it('should handle special characters in content', () => {
-      const content = 'Special chars: !@#$%^&*()_+-=[]{}|;':\',./<>?';
+      const content = "Special chars: !@#$%^&*()_+-=[]{}|;':,./<>?";
       upsertMemoryEntry(memoryId, 'Special', content);
       
       const entries = readMemory(memoryId);
