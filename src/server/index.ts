@@ -669,12 +669,12 @@ export function createApp(): express.Express {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-export async function startServer(port?: number, host?: string, enableLogs = false) {
+export async function startServer(port?: number, host?: string) {
   const config = loadConfig();
   const p = port ?? config.serverPort ?? DEFAULT_PORT;
   const h = host ?? config.serverHost ?? DEFAULT_HOST;
 
-  loggingEnabled = enableLogs;
+  loggingEnabled = true;
 
   const app = createApp();
 
@@ -682,19 +682,6 @@ export async function startServer(port?: number, host?: string, enableLogs = fal
     app.listen(p, h, () => {
       console.log(`\n  ● memlink MCP Server running`);
       console.log(`  → http://${h}:${p}/mcp\n`);
-
-      if (enableLogs) {
-        console.log(`[*] Logging enabled - Press Ctrl+L to toggle\n`);
-
-        process.stdin.setRawMode(true);
-        process.stdin.resume();
-        process.stdin.on('data', (key) => {
-          if (key[0] === 12) {
-            loggingEnabled = !loggingEnabled;
-            console.log(`\n[*] Logging ${loggingEnabled ? 'ENABLED' : 'DISABLED'}\n`);
-          }
-        });
-      }
 
       resolve();
     });
