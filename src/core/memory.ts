@@ -15,6 +15,15 @@ import { MEMLINK_VERSION, CONFIG_DIR, CONFIG_FILE, DEFAULT_PORT, DEFAULT_HOST } 
 
 // ─── Additional Types (defined here to avoid circular imports) ───────────────────────
 
+export interface MemoryFileData {
+  version: string;
+  memoryId: string;
+  memoryName: string;
+  createdAt: string;
+  updatedAt: string;
+  entries: MemoryEntry[];
+}
+
 export interface MemoryExport {
   version: string;
   exportedAt: string;
@@ -44,6 +53,10 @@ export function getConfigPath(): string {
 }
 
 export function getMemoryPath(memoryId: string): string {
+  return path.join(getMemlinkDir(), `${memoryId}.memory.json`);
+}
+
+export function getLegacyMemoryPath(memoryId: string): string {
   return path.join(getMemlinkDir(), `${memoryId}.memory.md`);
 }
 
@@ -103,11 +116,10 @@ export function createAgent(agentType: KnownAgent | string, customName?: string)
     agentId,
     agentName,
     token,
-    memoryFile: `${agentId}.memory`,
+    memoryFile: `${agentId}.memory.json`,
     createdAt: new Date().toISOString(),
   };
 
-  // Initialize empty memory file
   initMemoryFile(agentId);
 
   config.agents.push(agent);
@@ -138,6 +150,10 @@ export function revokeAgent(agentId: string): boolean {
   const memPath = getMemoryPath(agentId);
   if (fs.existsSync(memPath)) fs.unlinkSync(memPath);
 
+  // Also clean legacy file if exists
+  const legacyPath = getLegacyMemoryPath(agentId);
+  if (fs.existsSync(legacyPath)) fs.unlinkSync(legacyPath);
+
   config.agents.splice(idx, 1);
   saveConfig(config);
   return true;
@@ -149,7 +165,6 @@ export function createUniversalMemory(memoryName: string): UniversalMemory {
   ensureMemlinkDir();
   const config = loadConfig();
 
-  // Ensure universalMemories array exists (for backward compatibility)
   if (!config.universalMemories) {
     config.universalMemories = [];
   }
@@ -159,14 +174,14 @@ export function createUniversalMemory(memoryName: string): UniversalMemory {
     memoryId,
     memoryName,
     token: generateToken(),
-    memoryFile: `${memoryId}.memory.md`,
+    memoryFile: `${memoryId}.memory.json`,
     createdAt: new Date().toISOString(),
   };
 
   config.universalMemories.push(memory);
   saveConfig(config);
 
-  initMemoryFile(memoryId);
+  initMemoryFile(memoryId, memoryName);
 
   return memory;
 }
@@ -198,6 +213,9 @@ export function revokeUniversalMemory(memoryId: string): boolean {
   const memPath = getMemoryPath(memoryId);
   if (fs.existsSync(memPath)) fs.unlinkSync(memPath);
 
+  const legacyPath = getLegacyMemoryPath(memoryId);
+  if (fs.existsSync(legacyPath)) fs.unlinkSync(legacyPath);
+
   config.universalMemories.splice(idx, 1);
   saveConfig(config);
   return true;
@@ -208,17 +226,27 @@ export function listUniversalMemories(): UniversalMemory[] {
   return config.universalMemories;
 }
 
-// ─── Memory file format ──────────────────────────────────────────────────────
+// ─── Memory file format (JSON) ──────────────────────────────────────────────
 //
-//  Line 1:  # INDEX
-//  Lines 2…N:  <title> | <startLine>-<endLine> | <tags> | <updatedAt>
-//  Line N+1: # END_INDEX
-//  Line N+2: (blank)
-//  Then each block:
-//    ## <TITLE>
-//    <content lines...>
-//    ## END_<TITLE>
-//    (blank)
+//  Stored as: ~/.memlink/<memoryId>.memory.json
+//
+//  {
+//    "version": "0.4.0",
+//    "memoryId": "abc123",
+//    "memoryName": "my-project",
+//    "createdAt": "2024-01-01T00:00:00.000Z",
+//    "updatedAt": "2024-01-01T00:00:00.000Z",
+//    "entries": [
+//      {
+//        "title": "ProjectContext",
+//        "content": "Building a SaaS app...",
+//        "tags": ["project"],
+//        "updatedAt": "2024-01-01T00:00:00.000Z"
+//      }
+//    ]
+//  }
+//
+//  Rendered in terminal as markdown via renderMemoryAsMarkdown()
 //
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -226,31 +254,105 @@ export function initMemoryFile(memoryId: string, memoryName?: string): void {
   const memPath = getMemoryPath(memoryId);
   if (!fs.existsSync(memPath)) {
     const displayName = memoryName || memoryId;
-    const content = [`# Memoria: ${displayName}`, '', '## Indice', '', '---', ''].join('\n');
-    fs.writeFileSync(memPath, content, 'utf-8');
+    const now = new Date().toISOString();
+    const data: MemoryFileData = {
+      version: MEMLINK_VERSION,
+      memoryId,
+      memoryName: displayName,
+      createdAt: now,
+      updatedAt: now,
+      entries: [],
+    };
+    fs.writeFileSync(memPath, JSON.stringify(data, null, 2), 'utf-8');
   }
 }
 
-export function parseMemoryFile(memoryId: string): {
-  index: MemoryIndex;
-  entries: MemoryEntry[];
-} {
+export function loadMemoryFile(memoryId: string): MemoryFileData {
   const memPath = getMemoryPath(memoryId);
+
   if (!fs.existsSync(memPath)) {
+    // Try migration from legacy .memory.md
+    const legacyPath = getLegacyMemoryPath(memoryId);
+    if (fs.existsSync(legacyPath)) {
+      migrateMemoryFormat(memoryId);
+      const newData = fs.readFileSync(getMemoryPath(memoryId), 'utf-8');
+      return JSON.parse(newData) as MemoryFileData;
+    }
     throw new Error(`Memory file not found: ${memoryId}`);
   }
 
   const raw = fs.readFileSync(memPath, 'utf-8');
+  return JSON.parse(raw) as MemoryFileData;
+}
+
+export function getMemoryIndex(memoryId: string): {
+  version: string;
+  memoryId: string;
+  memoryName: string;
+  createdAt: string;
+  updatedAt: string;
+  entries: MemoryIndexEntry[];
+} {
+  const data = loadMemoryFile(memoryId);
+  return {
+    version: data.version,
+    memoryId: data.memoryId,
+    memoryName: data.memoryName,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    entries: data.entries.map((e) => ({
+      title: e.title,
+      startLine: e.startLine,
+      endLine: e.endLine,
+      tags: e.tags,
+      updatedAt: e.updatedAt,
+    })),
+  };
+}
+
+export function saveMemoryFile(memoryId: string, data: MemoryFileData): void {
+  const memPath = getMemoryPath(memoryId);
+  data.updatedAt = new Date().toISOString();
+  fs.writeFileSync(memPath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+// ─── Migration: .memory.md → .memory.json ───────────────────────────────────
+
+function migrateMemoryFormat(memoryId: string): void {
+  const legacyPath = getLegacyMemoryPath(memoryId);
+  if (!fs.existsSync(legacyPath)) return;
+
+  const raw = fs.readFileSync(legacyPath, 'utf-8');
   const lines = raw.split('\n');
 
-  // Detect format
-  const isOldFormat = lines.some((line) => line.trim() === '# INDEX');
+  const isOldIndexFormat = lines.some((line) => line.trim() === '# INDEX');
+  const isBookFormat = lines.some((line) => line.trim().startsWith('# Memoria:'));
 
-  if (isOldFormat) {
-    return parseOldFormat(memoryId, lines);
-  } else {
-    return parseBookFormat(memoryId, lines);
+  let entries: MemoryEntry[] = [];
+  let memoryName = memoryId;
+
+  if (isOldIndexFormat) {
+    const result = parseOldFormat(memoryId, lines);
+    entries = result.entries;
+    memoryName = result.index.memoryName || memoryId;
+  } else if (isBookFormat) {
+    const result = parseBookFormat(memoryId, lines);
+    entries = result.entries;
+    memoryName = result.index.memoryName || memoryId;
   }
+
+  const now = new Date().toISOString();
+  const data: MemoryFileData = {
+    version: MEMLINK_VERSION,
+    memoryId,
+    memoryName,
+    createdAt: entries.length > 0 ? entries[0].updatedAt : now,
+    updatedAt: now,
+    entries,
+  };
+
+  fs.writeFileSync(getMemoryPath(memoryId), JSON.stringify(data, null, 2), 'utf-8');
+  fs.unlinkSync(legacyPath);
 }
 
 // Parse old format (# INDEX / # END_INDEX)
@@ -310,7 +412,6 @@ function parseOldFormat(
     }
   }
 
-  // Parse entries with numbered lines
   const entries: MemoryEntry[] = [];
   for (const idxEntry of index.entries) {
     const absoluteStart = contentStartLine + idxEntry.startLine;
@@ -336,7 +437,7 @@ function parseOldFormat(
   return { index, entries };
 }
 
-// Parse new book format (# Memoria: nombre)
+// Parse book format (# Memoria: nombre)
 function parseBookFormat(
   memoryId: string,
   lines: string[]
@@ -364,26 +465,22 @@ function parseBookFormat(
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Extract memory name from header
     if (trimmed.startsWith('# Memoria:')) {
       memoryName = trimmed.replace('# Memoria:', '').trim();
       continue;
     }
 
-    // Detect index section
     if (trimmed === '## Indice') {
       inIndex = true;
       continue;
     }
 
-    // End of index, start of content
     if (trimmed === '---' && inIndex) {
       inIndex = false;
       inContent = true;
       continue;
     }
 
-    // Parse index entries
     if (inIndex && trimmed && /^\d+\./.test(trimmed)) {
       const matchWithTags = trimmed.match(/^(\d+)\.\s+(.+?)\s*-\s*(.+)$/);
       const matchWithoutTags = trimmed.match(/^(\d+)\.\s+(.+)$/);
@@ -412,12 +509,9 @@ function parseBookFormat(
       continue;
     }
 
-    // Parse content entries
     if (inContent) {
-      // Check for numbered line (start of new entry)
       const numberedMatch = line.match(/^(\d+):\s*(.*)$/);
       if (numberedMatch) {
-        // Save previous entry if exists
         if (currentEntry && currentEntry.title) {
           entries.push({
             ...(currentEntry as MemoryEntry),
@@ -426,7 +520,6 @@ function parseBookFormat(
           contentLines = [];
         }
 
-        // Start new entry
         const entryNumber = parseInt(numberedMatch[1]);
         const indexEntry = index.entries.find((e) => e.startLine === entryNumber);
 
@@ -443,13 +536,11 @@ function parseBookFormat(
           contentLines.push(numberedMatch[2]);
         }
       } else if (currentEntry) {
-        // Continue current entry content
         contentLines.push(line);
       }
     }
   }
 
-  // Save last entry
   if (currentEntry && currentEntry.title) {
     entries.push({
       ...(currentEntry as MemoryEntry),
@@ -461,102 +552,76 @@ function parseBookFormat(
   return { index, entries };
 }
 
-export function writeMemoryFile(
-  memoryId: string,
-  entries: MemoryEntry[],
-  memoryName?: string
-): void {
-  const memPath = getMemoryPath(memoryId);
+// ─── Renderers: JSON → terminal output ──────────────────────────────────────
 
-  // Get memory name from config or parameter
-  if (!memoryName) {
-    const config = loadConfig();
-    const memory = config.universalMemories?.find((m) => m.memoryId === memoryId);
-    memoryName = memory?.memoryName || memoryId;
-  }
-
+export function renderMemoryAsMarkdown(memoryId: string): string {
+  const data = loadMemoryFile(memoryId);
   const lines: string[] = [];
 
-  // Header
-  lines.push(`# Memoria: ${memoryName}`);
+  lines.push(`# Memoria: ${data.memoryName}`);
   lines.push('');
-
-  // Index section
+  lines.push(
+    `> ID: ${data.memoryId} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}`
+  );
+  lines.push('');
   lines.push('## Indice');
   lines.push('');
 
-  // Build index entries
-  let lineNumber = 1;
-  for (const entry of entries) {
-    const tags = Array.isArray(entry.tags) && entry.tags.length > 0 ? entry.tags.join(', ') : '';
-
-    if (tags) {
-      lines.push(`${lineNumber}. ${entry.title} - ${tags}`);
-    } else {
-      lines.push(`${lineNumber}. ${entry.title}`);
-    }
-    lineNumber++;
-  }
+  data.entries.forEach((entry, i) => {
+    const tagStr = entry.tags && entry.tags.length > 0 ? ` _${entry.tags.join(', ')}_` : '';
+    lines.push(`${i + 1}. **${entry.title}**${tagStr}`);
+  });
 
   lines.push('');
   lines.push('---');
   lines.push('');
 
-  // Content section with numbered lines
-  lineNumber = 1;
-  for (const entry of entries) {
-    const entryContentLines = entry.content.split('\n');
+  data.entries.forEach((entry) => {
+    lines.push(`## ${entry.title}`);
+    lines.push('');
+    lines.push(entry.content);
+    lines.push('');
+  });
 
-    // First line with number
-    if (entryContentLines.length > 0) {
-      lines.push(`${lineNumber}: ${entryContentLines[0]}`);
-    } else {
-      lines.push(`${lineNumber}:`);
+  return lines.join('\n');
+}
+
+export function renderMemoryAsText(memoryId: string): string {
+  const data = loadMemoryFile(memoryId);
+  const lines: string[] = [];
+
+  lines.push(`Memoria: ${data.memoryName}`);
+  lines.push(`ID: ${data.memoryId} | Entries: ${data.entries.length}`);
+  lines.push('');
+
+  data.entries.forEach((entry, i) => {
+    lines.push(`[${i + 1}] ${entry.title}`);
+    if (entry.tags && entry.tags.length > 0) {
+      lines.push(`    Tags: ${entry.tags.join(', ')}`);
     }
+    lines.push(`    ${entry.content.replace(/\n/g, '\n    ')}`);
+    lines.push('');
+  });
 
-    // Remaining lines without numbers
-    for (let i = 1; i < entryContentLines.length; i++) {
-      lines.push(entryContentLines[i]);
-    }
+  return lines.join('\n');
+}
 
-    lineNumber++;
-
-    // Add blank line between entries (except for last one)
-    if (lineNumber <= entries.length) {
-      lines.push('');
-    }
+export function renderEntryAsMarkdown(entry: MemoryEntry): string {
+  const lines: string[] = [];
+  lines.push(`## ${entry.title}`);
+  if (entry.tags && entry.tags.length > 0) {
+    lines.push(`_Tags: ${entry.tags.join(', ')}_`);
+    lines.push('');
   }
-
-  fs.writeFileSync(memPath, lines.join('\n'), 'utf-8');
+  lines.push(entry.content);
+  return lines.join('\n');
 }
 
 // ─── CRUD operations ─────────────────────────────────────────────────────────
 
 export function readMemory(memoryId: string): MemoryEntry[] {
-  const { entries } = parseMemoryFile(memoryId);
-  return entries;
-}
-
-// Migrate old format to new format automatically
-function migrateMemoryFormat(memoryId: string): void {
-  const memPath = getMemoryPath(memoryId);
-  if (!fs.existsSync(memPath)) return;
-
-  const raw = fs.readFileSync(memPath, 'utf-8');
-  const lines = raw.split('\n');
-  const isOldFormat = lines.some((line) => line.trim() === '# INDEX');
-
-  if (isOldFormat) {
-    // Parse old format
-    const { entries } = parseOldFormat(memoryId, lines);
-
-    // Get memory name from config
-    const config = loadConfig();
-    const memory = config.universalMemories?.find((m) => m.memoryId === memoryId);
-
-    // Write in new format
-    writeMemoryFile(memoryId, entries, memory?.memoryName);
-  }
+  const data = loadMemoryFile(memoryId);
+  return data.entries;
 }
 
 export function readMemoryEntry(memoryId: string, title: string): MemoryEntry | undefined {
@@ -570,12 +635,9 @@ export function upsertMemoryEntry(
   content: string,
   tags?: string[]
 ): MemoryEntry {
-  // Auto-migrate if needed
-  migrateMemoryFormat(memoryId);
-
-  const entries = readMemory(memoryId);
+  const data = loadMemoryFile(memoryId);
   const now = new Date().toISOString();
-  const existing = entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
+  const existing = data.entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
 
   const entry: MemoryEntry = {
     title,
@@ -587,26 +649,23 @@ export function upsertMemoryEntry(
   };
 
   if (existing >= 0) {
-    entries[existing] = entry;
+    data.entries[existing] = entry;
   } else {
-    entries.push(entry);
+    data.entries.push(entry);
   }
 
-  writeMemoryFile(memoryId, entries);
+  saveMemoryFile(memoryId, data);
 
   return entry;
 }
 
 export function deleteMemoryEntry(memoryId: string, title: string): boolean {
-  // Auto-migrate if needed
-  migrateMemoryFormat(memoryId);
-
-  const entries = readMemory(memoryId);
-  const idx = entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
+  const data = loadMemoryFile(memoryId);
+  const idx = data.entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
   if (idx === -1) return false;
 
-  entries.splice(idx, 1);
-  writeMemoryFile(memoryId, entries);
+  data.entries.splice(idx, 1);
+  saveMemoryFile(memoryId, data);
   return true;
 }
 
@@ -614,11 +673,11 @@ export function syncMemory(memoryId: string): { entries: number; size: number } 
   const memPath = getMemoryPath(memoryId);
   if (!fs.existsSync(memPath)) throw new Error('Memory file not found');
 
-  const { entries } = parseMemoryFile(memoryId);
+  const data = loadMemoryFile(memoryId);
   const stats = fs.statSync(memPath);
 
   return {
-    entries: entries.length,
+    entries: data.entries.length,
     size: stats.size,
   };
 }
@@ -648,27 +707,19 @@ export interface MemoryIndex {
   entries: MemoryIndexEntry[];
 }
 
-export interface MemoryExport {
-  version: string;
-  exportedAt: string;
-  memoryId: string;
-  memoryName?: string;
-  entries: MemoryEntry[];
-}
-
 export function exportMemory(memoryId: string): MemoryExport {
   const config = loadConfig();
   const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
   if (!memory) throw new Error(`Memory not found: ${memoryId}`);
 
-  const { entries } = parseMemoryFile(memoryId);
+  const data = loadMemoryFile(memoryId);
 
   return {
     version: MEMLINK_VERSION,
     exportedAt: new Date().toISOString(),
     memoryId,
-    memoryName: memory.memoryName,
-    entries,
+    memoryName: data.memoryName,
+    entries: data.entries,
   };
 }
 
@@ -677,16 +728,13 @@ export function importMemory(memoryId: string, data: MemoryExport): number {
   const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
   if (!memory) throw new Error(`Memory not found: ${memoryId}`);
 
-  // Merge with existing entries
-  const existing = readMemory(memoryId);
+  const fileData = loadMemoryFile(memoryId);
   const merged = new Map<string, MemoryEntry>();
 
-  // Add existing entries first
-  for (const entry of existing) {
+  for (const entry of fileData.entries) {
     merged.set(entry.title.toLowerCase(), entry);
   }
 
-  // Add/overwrite with imported entries
   for (const entry of data.entries) {
     merged.set(entry.title.toLowerCase(), {
       ...entry,
@@ -694,7 +742,8 @@ export function importMemory(memoryId: string, data: MemoryExport): number {
     });
   }
 
-  writeMemoryFile(memoryId, Array.from(merged.values()));
+  fileData.entries = Array.from(merged.values());
+  saveMemoryFile(memoryId, fileData);
 
   return data.entries.length;
 }
@@ -718,14 +767,14 @@ export function getStats(memoryId: string): MemoryStats {
   const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
   if (!memory) throw new Error(`Memory not found: ${memoryId}`);
 
-  const { entries } = parseMemoryFile(memoryId);
+  const data = loadMemoryFile(memoryId);
   const stats = syncMemory(memoryId);
 
   const allTags = new Set<string>();
   let oldest: string | null = null;
   let newest: string | null = null;
 
-  for (const entry of entries) {
+  for (const entry of data.entries) {
     if (entry.tags) {
       for (const tag of entry.tags) allTags.add(tag);
     }
@@ -758,9 +807,9 @@ export interface DetailedMemoryStats extends MemoryStats {
 
 export function getDetailedStats(memoryId: string): DetailedMemoryStats {
   const basicStats = getStats(memoryId);
-  const { entries } = parseMemoryFile(memoryId);
+  const data = loadMemoryFile(memoryId);
+  const entries = data.entries;
 
-  // Tag distribution
   const tagMap = new Map<string, { count: number; size: number }>();
   for (const entry of entries) {
     if (entry.tags) {
@@ -779,7 +828,6 @@ export function getDetailedStats(memoryId: string): DetailedMemoryStats {
     .map(([tag, data]) => ({ tag, ...data }))
     .sort((a, b) => b.count - a.count);
 
-  // Entry size distribution
   const sizes = entries.map((e) => JSON.stringify(e).length);
   const sizeRanges = [
     { range: '0-1KB', min: 0, max: 1024 },
@@ -794,7 +842,6 @@ export function getDetailedStats(memoryId: string): DetailedMemoryStats {
     count: sizes.filter((s) => s >= range.min && s < range.max).length,
   }));
 
-  // Activity timeline (last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -810,7 +857,6 @@ export function getDetailedStats(memoryId: string): DetailedMemoryStats {
     .map(([date, entries]) => ({ date, entries }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Largest entries
   const largestEntries = entries
     .map((entry) => ({
       title: entry.title,
@@ -820,18 +866,15 @@ export function getDetailedStats(memoryId: string): DetailedMemoryStats {
     .sort((a, b) => b.size - a.size)
     .slice(0, 10);
 
-  // Additional metrics
   const totalEntrySize = sizes.reduce((sum, size) => sum + size, 0);
   const averageEntrySize = entries.length > 0 ? totalEntrySize / entries.length : 0;
 
-  // Memory efficiency (ratio of actual content to JSON overhead)
   const contentSize = entries.reduce(
     (sum, entry) => sum + (entry.title.length + entry.content.length),
     0
   );
   const memoryEfficiency = totalEntrySize > 0 ? contentSize / totalEntrySize : 0;
 
-  // Growth rate (entries per day over last 30 days)
   const daysSinceCreation = Math.max(
     1,
     Math.floor((Date.now() - new Date(basicStats.createdAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -876,20 +919,20 @@ export function bulkDeleteMemories(
   memoryId: string,
   titles: string[]
 ): { deleted: number; notFound: string[] } {
-  const entries = readMemory(memoryId);
+  const data = loadMemoryFile(memoryId);
   const titlesToDeleteLower = titles.map((t) => t.toLowerCase());
 
-  const deletedEntries = entries.filter((e) => titlesToDeleteLower.includes(e.title.toLowerCase()));
-  const remainingEntries = entries.filter(
-    (e) => !titlesToDeleteLower.includes(e.title.toLowerCase())
+  const deletedEntries = data.entries.filter((e) =>
+    titlesToDeleteLower.includes(e.title.toLowerCase())
   );
+  data.entries = data.entries.filter((e) => !titlesToDeleteLower.includes(e.title.toLowerCase()));
 
-  writeMemoryFile(memoryId, remainingEntries);
+  saveMemoryFile(memoryId, data);
 
   return {
     deleted: deletedEntries.length,
     notFound: titles.filter(
-      (title) => !entries.some((e) => e.title.toLowerCase() === title.toLowerCase())
+      (title) => !data.entries.some((e) => e.title.toLowerCase() === title.toLowerCase())
     ),
   };
 }
@@ -898,18 +941,18 @@ export function bulkDeleteMemoriesByTags(
   memoryId: string,
   tags: string[]
 ): { deleted: number; entries: MemoryEntry[] } {
-  const entries = readMemory(memoryId);
+  const data = loadMemoryFile(memoryId);
   const tagsToDeleteLower = tags.map((t) => t.toLowerCase());
 
-  const deletedEntries = entries.filter((entry) =>
+  const deletedEntries = data.entries.filter((entry) =>
     entry.tags?.some((tag) => tagsToDeleteLower.includes(tag.toLowerCase()))
   );
 
-  const remainingEntries = entries.filter(
+  data.entries = data.entries.filter(
     (entry) => !entry.tags?.some((tag) => tagsToDeleteLower.includes(tag.toLowerCase()))
   );
 
-  writeMemoryFile(memoryId, remainingEntries);
+  saveMemoryFile(memoryId, data);
 
   return {
     deleted: deletedEntries.length,
@@ -922,19 +965,18 @@ export function bulkDeleteMemoriesByPattern(
   pattern: string,
   useRegex: boolean = false
 ): { deleted: number; entries: MemoryEntry[] } {
-  const entries = readMemory(memoryId);
+  const data = loadMemoryFile(memoryId);
   let deletedEntries: MemoryEntry[] = [];
 
   if (useRegex) {
     try {
-      // Sanitize regex pattern to prevent ReDoS attacks
       const sanitizedPattern = pattern
-        .replace(/[+*()[\]{}|.^$?\\]/g, '\\$&') // Escape special regex chars
-        .replace(/\\+/g, '+') // Allow escaped plus
-        .replace(/\\\*/g, '*') // Allow escaped asterisk
-        .replace(/\\\?/g, '?'); // Allow escaped question mark
+        .replace(/[+*()[\]{}|.^$?\\]/g, '\\$&')
+        .replace(/\\+/g, '+')
+        .replace(/\\\*/g, '*')
+        .replace(/\\\?/g, '?');
       const regex = new RegExp(sanitizedPattern, 'i');
-      deletedEntries = entries.filter(
+      deletedEntries = data.entries.filter(
         (entry) => regex.test(entry.title) || regex.test(entry.content)
       );
     } catch (error: unknown) {
@@ -943,16 +985,16 @@ export function bulkDeleteMemoriesByPattern(
     }
   } else {
     const patternLower = pattern.toLowerCase();
-    deletedEntries = entries.filter(
+    deletedEntries = data.entries.filter(
       (entry) =>
         entry.title.toLowerCase().includes(patternLower) ||
         entry.content.toLowerCase().includes(patternLower)
     );
   }
 
-  const remainingEntries = entries.filter((entry) => !deletedEntries.includes(entry));
+  data.entries = data.entries.filter((entry) => !deletedEntries.includes(entry));
 
-  writeMemoryFile(memoryId, remainingEntries);
+  saveMemoryFile(memoryId, data);
 
   return {
     deleted: deletedEntries.length,
@@ -983,12 +1025,10 @@ export function createBackup(memoryId: string, includeDeleted: boolean = false):
     ? entries
     : entries.filter((e) => !e.title.startsWith('_DELETED_'));
 
-  // Calculate statistics
   const allTags = filteredEntries.flatMap((e) => e.tags || []);
   const uniqueTags = Array.from(new Set(allTags));
   const totalSize = JSON.stringify(filteredEntries).length;
 
-  // Create checksum
   const checksum = nanoid(16);
 
   const metadata: BackupMetadata = {
@@ -1012,7 +1052,6 @@ export function saveBackup(memoryId: string, backupPath?: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = backupPath || `${getMemlinkDir()}/backups/${memoryId}_${timestamp}.json`;
 
-  // Ensure backup directory exists
   const backupDir = path.dirname(filename);
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
@@ -1034,20 +1073,19 @@ export function restoreBackup(
   const backup: MemoryBackup = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
   const memoryId = targetMemoryId || backup.metadata.memoryId;
 
-  // Check if memory exists
-  const memoryExists = fs.existsSync(`${getMemlinkDir()}/${memoryId}.memory.md`);
+  const memoryExists = fs.existsSync(getMemoryPath(memoryId));
 
   if (memoryExists && !overwrite) {
     throw new Error(`Memory '${memoryId}' already exists. Use overwrite=true to replace it.`);
   }
 
-  // Initialize memory if it doesn't exist
   if (!memoryExists) {
     initMemoryFile(memoryId);
   }
 
-  // Restore entries
-  writeMemoryFile(memoryId, backup.entries);
+  const data = loadMemoryFile(memoryId);
+  data.entries = backup.entries;
+  saveMemoryFile(memoryId, data);
 
   return {
     restored: backup.entries.length,

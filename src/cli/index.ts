@@ -44,6 +44,8 @@ import {
   createUniversalMemory,
   searchMemory,
   DetailedMemoryStats,
+  renderMemoryAsMarkdown,
+  renderEntryAsMarkdown,
 } from '../core/memory.ts';
 import { checkForUpdates, performUpdate } from '../update/index.ts';
 import {
@@ -824,8 +826,7 @@ agentCmd
           return;
         }
         console.log('\n' + LOGO_SMALL + '\n');
-        console.log(heading(`${memoryName} - ${entry.title}`));
-        console.log(colors.white(entry.content));
+        console.log(renderEntryAsMarkdown(entry));
         console.log();
         return;
       }
@@ -836,12 +837,8 @@ agentCmd
       }
 
       console.log('\n' + LOGO_SMALL + '\n');
-      console.log(heading(`${memoryName} Memory`));
-
-      for (const entry of entries) {
-        console.log(subheading(`## ${entry.title}`));
-        console.log(colors.white(`  ${entry.content}\n`));
-      }
+      console.log(renderMemoryAsMarkdown(memoryId));
+      console.log();
     } catch (err) {
       if (jsonOutput) {
         outputJson({ error: String(err) });

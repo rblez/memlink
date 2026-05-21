@@ -11,7 +11,7 @@ import {
   upsertMemoryEntry,
   deleteMemoryEntry,
   syncMemory,
-  parseMemoryFile,
+  getMemoryIndex,
   searchMemory,
   bulkDeleteMemories,
   bulkDeleteMemoriesByTags,
@@ -289,7 +289,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     async () => {
       try {
         const stats = syncMemory(agentId);
-        const { index } = parseMemoryFile(agentId);
+        const index = getMemoryIndex(agentId);
 
         return {
           content: [
