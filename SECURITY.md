@@ -2,98 +2,57 @@
 
 ## Supported Versions
 
-Only the latest version of Memlink is actively supported with security updates.
+| Version | Supported |
+|---------|-----------|
+| 0.5.x   | Yes       |
+| < 0.5   | No        |
 
-## Reporting a Vulnerability
+## Security Model
 
-If you discover a security vulnerability, please report it responsibly:
+### No Authentication
 
-1. **Do not create a public issue** - Security vulnerabilities should be reported privately
-2. **Send an email** to the project maintainers with details about the vulnerability
-3. **Include**:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
+Memlink uses a simple URL-based connection model:
 
-We will acknowledge receipt within 48 hours and provide a timeline for the fix.
+```
+http://localhost:4444/mcp?id=MEMORY_ID
+```
 
-## Security Features
+The memory ID (12-character nanoid) acts as the only access key. There are no tokens, bearer auth, or OAuth.
 
-### Authentication
+### Threat Model
 
-- **Bearer Token Authentication**: All MCP requests require a valid bearer token
-- **Token Rotation**: Tokens can be rotated without revoking agent access
-- **Token Revocation**: Agents and universal memories can be revoked immediately
-
-### Input Validation
-
-- All user inputs are validated using Zod schemas
-- Path traversal attacks are prevented
-- Command injection protection in file operations
-
-### Data Protection
-
-- Memory files are stored in `~/.memlink/` (user's home directory)
-- No sensitive data is logged by default
-- Optional request/response logging can be enabled for debugging
-
-### Rate Limiting
-
-- Rate limiting is implemented on the MCP server endpoint
-- Prevents abuse and DoS attacks
-- Configurable limits per token
+- **Localhost only**: By default, the server binds to `localhost`. Remote access requires explicitly changing the host.
+- **Memory ID secrecy**: The 12-character ID provides ~72 bits of entropy. Keep it private.
+- **File-based storage**: Memory files are stored in `~/.memlink/` with standard user permissions.
+- **Rate limiting**: Built-in rate limiter (1000 req/min) prevents abuse.
 
 ### Security Headers
 
-- HTTP security headers are set on all responses
-- CORS is configured appropriately
-- Content Security Policy headers
+All responses include:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Strict-Transport-Security: max-age=31536000`
+- `Content-Security-Policy: default-src 'self'`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: geolocation=(), microphone=(), camera=()`
 
-## Best Practices for Users
+## Reporting a Vulnerability
 
-### Token Management
+Report security issues via:
+- GitHub Issues: https://github.com/rblez/memlink/issues
+- Email: (add your email)
 
-1. **Never commit tokens to version control**
-2. **Rotate tokens regularly** - Use `memlink agent rotate <agentId>`
-3. **Revoke unused tokens** - Use `memlink agent revoke <agentId>`
-4. **Use environment variables** for tokens in production
+Please include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
 
-### Server Configuration
+## Best Practices
 
-1. **Bind to localhost** by default for local development
-2. **Use a reverse proxy** (nginx, Apache) for production deployments
-3. **Enable HTTPS** in production environments
-4. **Configure firewall rules** to restrict access
-
-### Memory File Security
-
-1. **Memory files are stored locally** - Ensure file system permissions are correct
-2. **Backup memory files regularly**
-3. **Audit memory content** for sensitive information
-
-## Dependencies
-
-We regularly update dependencies to address security vulnerabilities:
-
-- Run `bun update` regularly
-- Monitor security advisories for dependencies
-- Use `bun audit` to check for vulnerabilities
-
-## Development Security
-
-### Code Review
-
-- All code changes go through review
-- Security-focused review for authentication and data handling
-- Automated security scanning in CI/CD
-
-### Secrets Management
-
-- No hardcoded secrets in the codebase
-- Use environment variables for configuration
-- `.env` files are excluded from version control
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+1. **Never expose the server to the public internet** without a reverse proxy and additional auth
+2. **Keep memory IDs private** — they are the only access key
+3. **Use firewall rules** to restrict access to localhost or trusted networks
+4. **Regularly backup** your memory files from `~/.memlink/`
+5. **Update regularly** — `npm update -g memlink`

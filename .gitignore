@@ -1,75 +1,27 @@
-# Dependencies
 node_modules/
-.pnpm-store/
-.bun/
-
-# Build outputs
 dist/
 *.tsbuildinfo
-
-# Runtime data (user-specific)
 .memlink/
-*.memory
+*.memory.json
 *.memory.md
-
-# Environment
 .env
-.env.local
-.env.*.local
-
-# IDE
+.env.*
 .vscode/
 .idea/
 *.swp
-*.swo
-*.swn
-.project
-.classpath
-.settings/
-
-# OS
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# Logs
 *.log
-npm-debug.log*
-pnpm-debug.log*
-bun-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Runtime
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage
 coverage/
 *.lcov
 .nyc_output/
-
-# Temporary
-.tmp/
-.temp/
 tmp/
 temp/
-
-# Lock files
 pnpm-lock.yaml
-bun.lockb
-
-# Backup files
+bun.lock
 *.bak
 *.backup
-*~
-*.orig
-
-# Cache
 .cache/
-.parcel-cache/
 .eslintcache
-
-# memlink-skill repository (managed separately)
 memlink-skill/
+*.bun-build
