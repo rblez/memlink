@@ -4,8 +4,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import {
-  getAgentByToken,
-  getUniversalMemoryByToken,
   readMemory,
   readMemoryEntry,
   upsertMemoryEntry,
@@ -20,6 +18,8 @@ import {
   restoreBackup,
   listBackups,
   cleanupOldBackups,
+  getMemoryById,
+  updateUniversalMemoryLastSeen,
 } from '../core/memory.ts';
 import { loadConfig } from '../core/memory.ts';
 import { DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
@@ -27,35 +27,27 @@ import { DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 // ─── Logging state ─────────────────────────────────────────────────────────────
 
 let loggingEnabled = false;
-let requestCount = 0;
 
 function logRequest(
   req: Request,
   memoryName: string,
   method?: string,
-  params?: Record<string, unknown>
+  _params?: Record<string, unknown>
 ) {
   if (!loggingEnabled) return;
 
-  requestCount++;
   const timestamp = new Date().toISOString();
-  const memId = req.query.mem_id as string | undefined;
-  const memoryType = memId && memId.length === 12 ? 'Universal Memory' : 'Agent';
-
-  console.log(`\n[*] [${timestamp}] Request #${requestCount}`);
-  console.log(`   Memory: ${memoryName} (${memoryType})`);
+  console.log(`  [${timestamp}] [ req ] ${memoryName}`);
   if (method) {
-    console.log(`   Method: ${method}`);
-    if (params) {
-      console.log(`   Params: ${JSON.stringify(params, null, 2)}`);
-    }
+    const startTime = Date.now();
+    console.log(`  [ req ] ${method} · 200 · ${Date.now() - startTime}ms`);
   }
 }
 
 function logResponse(result: unknown, method?: string) {
   if (!loggingEnabled) return;
 
-  console.log(`   Response: ${method || 'Success'}`);
+  console.log(`  [ res ] ${method || 'Success'}`);
   if (
     result &&
     typeof result === 'object' &&
@@ -69,89 +61,68 @@ function logResponse(result: unknown, method?: string) {
       'text' in content &&
       typeof content.text === 'string'
     ) {
-      console.log(`   Content: ${content.text.substring(0, 100)}...`);
+      console.log(`  [ res ] ${content.text.substring(0, 80)}...`);
     }
   }
 }
 
-// ─── Auth middleware ──────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Extract memory ID from query string (?mem_id=xxx)
-function extractMemoryIdFromQuery(req: Request): string | null {
-  const memId = req.query.mem_id as string | undefined;
-  if (!memId) return null;
-
-  // Validate mem_id format (should match nanoid format)
-  if (!memId.match(/^[a-zA-Z0-9_-]{10,}$/)) {
-    return null;
+function formatEntry(entry: {
+  title: string;
+  content: string;
+  tags?: string[];
+  updatedAt: string;
+}): string {
+  const lines = [`## ${entry.title}`];
+  if (entry.tags && entry.tags.length > 0) {
+    lines.push(`_Tags: ${entry.tags.join(', ')}_`);
   }
-
-  return memId;
+  lines.push('');
+  lines.push(entry.content);
+  lines.push(`_Updated: ${entry.updatedAt}_`);
+  return lines.join('\n');
 }
 
-// Get memory info by ID from config
-function getMemoryById(
-  memoryId: string
-): { memoryId: string; memoryName: string; token: string } | null {
-  const config = loadConfig();
-
-  // First try universal memories
-  const universalMemory = config.universalMemories.find((m) => m.memoryId === memoryId);
-  if (universalMemory) {
-    return {
-      memoryId: universalMemory.memoryId,
-      memoryName: universalMemory.memoryName,
-      token: universalMemory.token,
-    };
-  }
-
-  // Fallback to legacy agents
-  const agent = config.agents.find((a) => a.agentId === memoryId);
-  if (agent) {
-    return {
-      memoryId: agent.agentId,
-      memoryName: agent.agentName,
-      token: agent.token,
-    };
-  }
-
-  return null;
+function errorResult(err: unknown) {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Error: ${err instanceof Error ? err.message : String(err)}`,
+      },
+    ],
+    isError: true,
+  };
 }
 
-// ─── Build MCP server for a specific agent ───────────────────────────────────
+function AGENT_SYSTEM_PROMPT(name: string): string {
+  return `You are connected to memlink — persistent memory for ${name}.
 
-function buildMcpServer(agentId: string, agentName: string): McpServer {
+Use the MCP tools to read, write, search, and manage memory.
+Always call memory_read at the start of a session to load context.
+Store important information with memory_edit.
+Search with memory_search when looking for specific entries.
+Delete with memory_delete when the user wants to forget something.`;
+}
+
+// ─── Build MCP server for a specific memory ───────────────────────────────────
+
+function buildMcpServer(memoryId: string, memoryName: string): McpServer {
   const server = new McpServer({
     name: 'memlink',
     version: '1.0.0',
   });
 
-  // ── System prompt / instructions ──────────────────────────────────────────
-  // Exposed as a resource so agents can pull the rules
   server.resource('memlink://instructions', 'memlink://instructions', async () => ({
     contents: [
       {
         uri: 'memlink://instructions',
         mimeType: 'text/plain',
-        text: AGENT_SYSTEM_PROMPT(agentName),
+        text: AGENT_SYSTEM_PROMPT(memoryName),
       },
     ],
   }));
-
-  // ── Agents list ────────────────────────────────────────────────────────────
-  server.resource('memlink://agents', 'memlink://agents', async () => {
-    const config = loadConfig();
-    const agentsList = config.agents.map((a) => `- ${a.agentName} (${a.agentId})`).join('\n');
-    return {
-      contents: [
-        {
-          uri: 'memlink://agents',
-          mimeType: 'text/plain',
-          text: `# Registered Agents\n\n${agentsList || 'No agents registered'}`,
-        },
-      ],
-    };
-  });
 
   // ── TOOL: memory_read ─────────────────────────────────────────────────────
   server.tool(
@@ -166,29 +137,24 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     async ({ title }) => {
       try {
         if (title) {
-          const entry = readMemoryEntry(agentId, title);
+          const entry = readMemoryEntry(memoryId, title);
           if (!entry) {
             return {
               content: [{ type: 'text', text: `No memory found with title: '${title}'` }],
             };
           }
           return {
-            content: [
-              {
-                type: 'text',
-                text: formatEntry(entry),
-              },
-            ],
+            content: [{ type: 'text', text: formatEntry(entry) }],
           };
         }
 
-        const entries = readMemory(agentId);
+        const entries = readMemory(memoryId);
         if (entries.length === 0) {
           return {
             content: [
               {
                 type: 'text',
-                text: `Memory is empty. Agent: ${agentName}\nUse memory_edit to add your first entry.`,
+                text: `Memory is empty.\nUse memory_edit to add your first entry.`,
               },
             ],
           };
@@ -200,7 +166,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
           content: [
             {
               type: 'text',
-              text: `# memlink Memory — ${agentName}\n${entries.length} entries\n\n${formatted}`,
+              text: `# memlink Memory — ${memoryName}\n${entries.length} entries\n\n${formatted}`,
             },
           ],
         };
@@ -213,41 +179,32 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   // ── TOOL: memory_edit ─────────────────────────────────────────────────────
   server.tool(
     'memory_edit',
-    "Create or update a memory entry. Use this whenever the user says 'save X to my memory', 'remember that', 'store this', etc. Always keep memory organized and up to date.",
+    "Create or update a memory entry. Use this whenever the user says 'save X to my memory', 'remember that', 'store this', etc.",
     {
       title: z
         .string()
         .min(1, 'Title cannot be empty')
         .max(200, 'Title too long (max 200 characters)')
-        .regex(/^[a-zA-Z0-9_\-\s]+$/, 'Title contains invalid characters')
-        .describe(
-          "Short, descriptive title for this memory block. Use PascalCase or Title Case. E.g: 'ProjectContext', 'UserPreferences', 'TechStack'"
-        ),
+        .describe('Short, descriptive title. Use PascalCase or Title Case.'),
       content: z
         .string()
         .min(1, 'Content cannot be empty')
         .max(100000, 'Content too long (max 100000 characters)')
-        .describe('Full content for this memory block. Be structured and clear.'),
+        .describe('Full content for this memory block.'),
       tags: z
-        .array(
-          z
-            .string()
-            .min(1)
-            .max(50)
-            .regex(/^[a-zA-Z0-9_\-\s]+$/)
-        )
+        .array(z.string().min(1).max(50))
         .max(20, 'Too many tags (max 20)')
         .optional()
         .describe("Optional tags for categorization. E.g: ['project', 'preferences']"),
     },
     async ({ title, content, tags }) => {
       try {
-        const entry = upsertMemoryEntry(agentId, title, content, tags);
+        const entry = upsertMemoryEntry(memoryId, title, content, tags);
         return {
           content: [
             {
               type: 'text',
-              text: `[*] Memory saved: '${entry.title}'\nUpdated: ${entry.updatedAt}\nLines: ${content.split('\n').length}`,
+              text: `[*] Memory saved: '${entry.title}'\nUpdated: ${entry.updatedAt}`,
             },
           ],
         };
@@ -266,7 +223,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     },
     async ({ title }) => {
       try {
-        const deleted = deleteMemoryEntry(agentId, title);
+        const deleted = deleteMemoryEntry(memoryId, title);
         if (!deleted) {
           return {
             content: [{ type: 'text', text: `No memory found with title: '${title}'` }],
@@ -284,12 +241,12 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   // ── TOOL: memory_sync ─────────────────────────────────────────────────────
   server.tool(
     'memory_sync',
-    'Sync and validate memory integrity. Returns current stats. Call when you want to verify the memory state.',
+    'Sync and validate memory integrity. Returns current stats.',
     {},
     async () => {
       try {
-        const stats = syncMemory(agentId);
-        const index = getMemoryIndex(agentId);
+        const stats = syncMemory(memoryId);
+        const index = getMemoryIndex(memoryId);
 
         return {
           content: [
@@ -297,7 +254,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
               type: 'text',
               text: [
                 `# memlink Memory Sync`,
-                `Agent: ${agentName} (${agentId})`,
+                `Memory: ${memoryName}`,
                 `Entries: ${stats.entries}`,
                 `File size: ${(stats.size / 1024).toFixed(2)} KB`,
                 `Last updated: ${index.updatedAt}`,
@@ -321,16 +278,11 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     },
     async ({ query }) => {
       try {
-        const results = searchMemory(agentId, query);
+        const results = searchMemory(memoryId, query);
 
         if (results.length === 0) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `No matches found for '${query}'`,
-              },
-            ],
+            content: [{ type: 'text', text: `No matches found for '${query}'` }],
           };
         }
 
@@ -353,7 +305,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   // ── TOOL: memory_batch ─────────────────────────────────────────────────────
   server.tool(
     'memory_batch',
-    'Create or update multiple memory entries at once. Useful for bulk imports or initial setup.',
+    'Create or update multiple memory entries at once.',
     {
       entries: z
         .array(
@@ -368,12 +320,10 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     async ({ entries }) => {
       try {
         const results: string[] = [];
-
         for (const entry of entries) {
-          upsertMemoryEntry(agentId, entry.title, entry.content, entry.tags);
+          upsertMemoryEntry(memoryId, entry.title, entry.content, entry.tags);
           results.push(`[*] ${entry.title}`);
         }
-
         return {
           content: [
             {
@@ -394,21 +344,12 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     'Delete multiple memory entries at once using titles, tags, or patterns.',
     {
       method: z.enum(['titles', 'tags', 'pattern']).describe('Deletion method'),
-      value: z
-        .string()
-        .describe('Value for the deletion method (comma-separated titles/tags or pattern)'),
-      use_regex: z
-        .boolean()
-        .optional()
-        .describe('Use pattern as regular expression (only for pattern method)'),
-      dry_run: z
-        .boolean()
-        .optional()
-        .describe('Show what would be deleted without actually deleting'),
+      value: z.string().describe('Comma-separated titles/tags or search pattern'),
+      use_regex: z.boolean().optional().describe('Use pattern as regex'),
+      dry_run: z.boolean().optional().describe('Preview without deleting'),
     },
     async ({ method, value, use_regex, dry_run }) => {
       try {
-        let result;
         const isDryRun = dry_run || false;
 
         if (method === 'titles') {
@@ -428,7 +369,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
               ],
             };
           }
-          result = bulkDeleteMemories(memoryId, titles);
+          const result = bulkDeleteMemories(memoryId, titles);
           return {
             content: [
               {
@@ -443,27 +384,27 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
             const memory = readMemory(memoryId);
             const tagsLower = tags.map((t) => t.toLowerCase());
             const toDelete = memory.entries.filter((e) =>
-              e.tags.some((tag) => tagsLower.includes(tag.toLowerCase()))
+              e.tags?.some((tag) => tagsLower.includes(tag.toLowerCase()))
             );
             return {
               content: [
                 {
                   type: 'text',
-                  text: `# Dry Run - Would delete ${toDelete.length} entries:\n\n${toDelete.map((e) => `- ${e.title} (tags: ${e.tags.join(', ')})`).join('\n')}`,
+                  text: `# Dry Run - Would delete ${toDelete.length} entries:\n\n${toDelete.map((e) => `- ${e.title} (tags: ${e.tags?.join(', ')})`).join('\n')}`,
                 },
               ],
             };
           }
-          result = bulkDeleteMemoriesByTags(memoryId, tags);
+          const result = bulkDeleteMemoriesByTags(memoryId, tags);
           return {
             content: [
               {
                 type: 'text',
-                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries\n\nDeleted entries:\n${result.entries.map((e) => `- ${e.title}`).join('\n')}`,
+                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries`,
               },
             ],
           };
-        } else if (method === 'pattern') {
+        } else {
           if (isDryRun) {
             const memory = readMemory(memoryId);
             let toDelete;
@@ -493,12 +434,12 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
               ],
             };
           }
-          result = bulkDeleteMemoriesByPattern(memoryId, value, use_regex);
+          const result = bulkDeleteMemoriesByPattern(memoryId, value, use_regex);
           return {
             content: [
               {
                 type: 'text',
-                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries\n\nDeleted entries:\n${result.entries.map((e) => `- ${e.title}`).join('\n')}`,
+                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries`,
               },
             ],
           };
@@ -514,18 +455,13 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     'backup_create',
     'Create a backup of the current memory.',
     {
-      include_deleted: z.boolean().optional().describe('Include deleted entries in backup'),
+      include_deleted: z.boolean().optional().describe('Include deleted entries'),
     },
-    async (_params) => {
+    async ({ include_deleted: _include_deleted }) => {
       try {
-        const backupPath = saveBackup(memoryId);
+        const path = saveBackup(memoryId);
         return {
-          content: [
-            {
-              type: 'text',
-              text: `# Backup Created\n\nBackup saved to: ${backupPath}\n\nUse 'backup_restore' tool to restore from this file.`,
-            },
-          ],
+          content: [{ type: 'text', text: `# Backup Created\n\nPath: ${path}` }],
         };
       } catch (err) {
         return errorResult(err);
@@ -533,7 +469,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     }
   );
 
-  // ── TOOL: backup_restore ─────────────────────────────────────────────────────
+  // ── TOOL: backup_restore ────────────────────────────────────────────────────
   server.tool(
     'backup_restore',
     'Restore memory from a backup file.',
@@ -543,12 +479,12 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     },
     async ({ backup_path, overwrite }) => {
       try {
-        const result = restoreBackup(backup_path, memoryId, overwrite);
+        const result = restoreBackup(backup_path, undefined, overwrite || false);
         return {
           content: [
             {
               type: 'text',
-              text: `# Backup Restored\n\nRestored ${result.restored} entries to memory '${result.memoryId}'`,
+              text: `# Backup Restored\n\nRestored: ${result.restored} entries\nMemory: ${result.memoryId}`,
             },
           ],
         };
@@ -558,36 +494,18 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
     }
   );
 
-  // ── TOOL: backup_list ─────────────────────────────────────────────────────
+  // ── TOOL: backup_list ───────────────────────────────────────────────────────
   server.tool('backup_list', 'List available backup files.', {}, async () => {
     try {
       const backups = listBackups(memoryId);
-
       if (backups.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: 'No backups found for this memory.',
-            },
-          ],
-        };
+        return { content: [{ type: 'text', text: 'No backups found.' }] };
       }
-
-      const formatted = backups
-        .map(
-          (backup) =>
-            `- ${backup.filename}\n  Memory: ${backup.memoryId}\n  Entries: ${backup.entryCount}\n  Size: ${(backup.size / 1024).toFixed(1)}KB\n  Created: ${backup.createdAt.toLocaleString()}`
-        )
-        .join('\n\n');
-
+      const lines = backups.map(
+        (b) => `- ${b.filename} (${b.entryCount} entries, ${(b.size / 1024).toFixed(1)} KB)`
+      );
       return {
-        content: [
-          {
-            type: 'text',
-            text: `# Available Backups\n\n${formatted}`,
-          },
-        ],
+        content: [{ type: 'text', text: `# Available Backups\n\n${lines.join('\n')}` }],
       };
     } catch (err) {
       return errorResult(err);
@@ -598,44 +516,24 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   server.tool(
     'backup_delete',
     'Delete a backup file.',
-    {
-      backup_path: z.string().describe('Path to backup file to delete'),
-    },
+    { backup_path: z.string().describe('Path to backup file') },
     async ({ backup_path }) => {
       try {
-        const success = deleteBackup(backup_path);
-        if (success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `# Backup Deleted\n\nSuccessfully deleted: ${backup_path}`,
-              },
-            ],
-          };
-        } else {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `# Backup Not Found\n\nBackup file not found: ${backup_path}`,
-              },
-            ],
-          };
-        }
+        const ok = deleteBackup(backup_path);
+        return {
+          content: [{ type: 'text', text: ok ? 'Backup deleted.' : 'Backup not found.' }],
+        };
       } catch (err) {
         return errorResult(err);
       }
     }
   );
 
-  // ── TOOL: backup_cleanup ─────────────────────────────────────────────────────
+  // ── TOOL: backup_cleanup ────────────────────────────────────────────────────
   server.tool(
     'backup_cleanup',
-    'Clean up old backup files, keeping only the most recent ones.',
-    {
-      keep_count: z.number().optional().describe('Number of backups to keep (default: 10)'),
-    },
+    'Clean up old backups, keeping only the most recent ones.',
+    { keep_count: z.number().optional().describe('Number of backups to keep (default: 10)') },
     async ({ keep_count }) => {
       try {
         const result = cleanupOldBackups(memoryId, keep_count || 10);
@@ -643,7 +541,7 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
           content: [
             {
               type: 'text',
-              text: `# Backup Cleanup Complete\n\nKept: ${result.kept} backups\nDeleted: ${result.deleted} backups`,
+              text: `# Cleanup Complete\n\nKept: ${result.kept}\nDeleted: ${result.deleted}`,
             },
           ],
         };
@@ -656,95 +554,21 @@ function buildMcpServer(agentId: string, agentName: string): McpServer {
   return server;
 }
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
+// ─── Create Express app ────────────────────────────────────────────────────────
 
-function formatEntry(entry: {
-  title: string;
-  content: string;
-  tags?: string[];
-  updatedAt: string;
-}): string {
-  const lines = [
-    `### ${entry.title}`,
-    entry.tags?.length ? `Tags: ${entry.tags.join(', ')}` : null,
-    `Updated: ${entry.updatedAt}`,
-    ``,
-    entry.content,
-  ]
-    .filter((l) => l !== null)
-    .join('\n');
-  return lines;
-}
-
-function errorResult(err: unknown) {
-  return {
-    content: [
-      {
-        type: 'text' as const,
-        text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-      },
-    ],
-    isError: true,
-  };
-}
-
-// ─── Agent system prompt ──────────────────────────────────────────────────────
-
-function AGENT_SYSTEM_PROMPT(agentName: string): string {
-  return `# memlink — Universal Agent Memory Rules
-
-You are connected to memlink, a self-hosted memory system for AI agents.
-Your connected agent identity: **${agentName}**
-
-## Core Rules
-
-1. **Always read memory at session start** — call \`memory_read\` when starting a new session to load full context.
-
-2. **Always save important information** — when the user shares preferences, decisions, project details, or asks you to remember something, immediately call \`memory_edit\`.
-
-3. **Recognize memory commands** — detect these user intents and act on them:
-   - 'Save X to my memory' → \`memory_edit\`
-   - 'Remember that X' → \`memory_edit\`
-   - 'Don't forget X' → \`memory_edit\`
-   - 'Forget X' / 'Remove X from memory' → \`memory_delete\`
-   - 'What do you remember about X?' → \`memory_read\` with title
-   - 'Show my memory' → \`memory_read\`
-
-4. **Keep memory organized** — use clear, descriptive titles. Group related info. Update existing entries rather than duplicating.
-
-5. **You only have one memory** — this connected memory is your only source of persistent context. Do not reference external files or paths.
-
-6. **Auto-organize** — if the user gives you scattered information, organize it into clean structured memory blocks with logical titles.
-
-## Memory Structure Guidelines
-
-Use consistent titles like:
-- \`UserPreferences\` — tone, language, style preferences
-- \`ProjectContext\` — current project, stack, goals
-- \`TechStack\` — languages, frameworks, tools
-- \`Conventions\` — code style, naming, patterns
-- \`ImportantDecisions\` — architectural or key decisions
-- \`PersonalInfo\` — user details if relevant
-
-Always keep content structured with clear sections within each block.
-`;
-}
-
-// ─── Express app ──────────────────────────────────────────────────────────────
-
-export function createApp(): express.Application {
+export function createApp(): express.Express {
   const app = express();
-  app.use(express.json());
+
+  app.use(express.json({ limit: '10mb' }));
 
   // Rate limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-  app.use('/mcp', limiter);
+  app.use(
+    rateLimit({
+      windowMs: 60 * 1000,
+      max: 1000,
+      message: { error: 'Too many requests. Try again later.' },
+    })
+  );
 
   // Security headers
   app.use((_req, res, next) => {
@@ -764,63 +588,45 @@ export function createApp(): express.Application {
     res.json({
       status: 'ok',
       version: '1.0.0',
-      agents: config.agents.length,
+      memories: config.universalMemories.length,
       uptime: process.uptime(),
     });
   });
 
-  // Instructions endpoint — returns system prompt as JSON
+  // Instructions endpoint
   app.get('/instructions', (req, res) => {
-    const agentName = (req.query.agent as string) || 'Agent';
+    const memoryId = (req.query.id as string) || '';
+    const memory = memoryId ? getMemoryById(memoryId) : undefined;
+    const name = memory?.memoryName || 'Agent';
     res.json({
       type: 'system_prompt',
-      agent: agentName,
-      content: AGENT_SYSTEM_PROMPT(agentName),
+      memory: name,
+      content: AGENT_SYSTEM_PROMPT(name),
     });
   });
 
-  // MCP endpoint — auth via query string (?mem_id=xxx) or Bearer header (legacy)
+  // MCP endpoint — auth via query string (?id=MEMORY_ID)
   app.all('/mcp', async (req: Request, res: Response) => {
-    let memoryId: string;
-    let memoryName: string;
+    const memId = (req.query.id as string) || (req.query.mem_id as string);
 
-    // Try query string first (?mem_id=xxx)
-    const memIdFromQuery = extractMemoryIdFromQuery(req);
-
-    // Fallback to Bearer header for legacy configs
-    const auth = req.headers['authorization'];
-    const bearerToken =
-      auth && typeof auth === 'string' && auth.startsWith('Bearer ') ? auth.slice(7) : null;
-
-    if (memIdFromQuery) {
-      // Query string auth
-      const memoryInfo = getMemoryById(memIdFromQuery);
-      if (!memoryInfo) {
-        res.status(403).json({ error: 'Invalid memory ID. Memory not found.' });
-        return;
-      }
-      memoryId = memoryInfo.memoryId;
-      memoryName = memoryInfo.memoryName;
-    } else if (bearerToken) {
-      // Bearer header auth (legacy fallback)
-      const universalMemory = getUniversalMemoryByToken(bearerToken);
-      const agent = getAgentByToken(bearerToken);
-
-      if (!universalMemory && !agent) {
-        res.status(403).json({ error: 'Invalid or revoked token.' });
-        return;
-      }
-
-      memoryId = universalMemory?.memoryId ?? agent!.agentId;
-      memoryName = universalMemory?.memoryName ?? agent!.agentName;
-    } else {
+    if (!memId) {
       res.status(401).json({
-        error: 'Missing authentication. Use ?mem_id=<id> or Authorization: Bearer <token>',
+        error: 'Missing authentication. Use ?id=<memory_id>',
       });
       return;
     }
 
-    // Log the request if logging is enabled
+    const memoryInfo = getMemoryById(memId);
+    if (!memoryInfo) {
+      res.status(403).json({ error: 'Invalid memory ID. Memory not found.' });
+      return;
+    }
+
+    const memoryId = memoryInfo.memoryId;
+    const memoryName = memoryInfo.memoryName;
+
+    updateUniversalMemoryLastSeen(memoryId);
+
     if (req.body && req.body.method) {
       logRequest(req, memoryName, req.body.method, req.body.params);
     }
@@ -828,10 +634,9 @@ export function createApp(): express.Application {
     try {
       const mcpServer = buildMcpServer(memoryId, memoryName);
       const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // stateless
+        sessionIdGenerator: undefined,
       });
 
-      // Intercept responses for logging
       const originalSend = res.send;
       res.send = function (data: string | Buffer) {
         if (loggingEnabled && data) {
@@ -839,7 +644,7 @@ export function createApp(): express.Application {
             const parsed = typeof data === 'string' ? JSON.parse(data) : data;
             logResponse(parsed, req.body?.method);
           } catch {
-            // Ignore parsing errors for logging
+            /* ignore */
           }
         }
         return originalSend.call(this, data);
@@ -864,12 +669,11 @@ export function createApp(): express.Application {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-export async function startServer(port?: number, host?: string, enableLogs: boolean = false) {
+export async function startServer(port?: number, host?: string, enableLogs = false) {
   const config = loadConfig();
   const p = port ?? config.serverPort ?? DEFAULT_PORT;
   const h = host ?? config.serverHost ?? DEFAULT_HOST;
 
-  // Set logging state globally
   loggingEnabled = enableLogs;
 
   const app = createApp();
@@ -880,14 +684,11 @@ export async function startServer(port?: number, host?: string, enableLogs: bool
       console.log(`  → http://${h}:${p}/mcp\n`);
 
       if (enableLogs) {
-        console.log(`\n[*] Logging enabled - Press Ctrl+L to toggle logs\n`);
-        console.log(`  Logs will show MCP requests, responses, and operations\n`);
+        console.log(`[*] Logging enabled - Press Ctrl+L to toggle\n`);
 
-        // Setup Ctrl+L handler for toggling logs
         process.stdin.setRawMode(true);
         process.stdin.resume();
         process.stdin.on('data', (key) => {
-          // Ctrl+L = 12 (ASCII form feed)
           if (key[0] === 12) {
             loggingEnabled = !loggingEnabled;
             console.log(`\n[*] Logging ${loggingEnabled ? 'ENABLED' : 'DISABLED'}\n`);

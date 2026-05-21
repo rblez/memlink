@@ -1,8 +1,8 @@
 {
   "name": "memlink",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "private": false,
   "type": "module",
   "files": ["dist", "README.md", "LICENSE"],
@@ -54,7 +54,6 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "nanoid": "^5.1.11",
-    "ora": "^9.4.0",
     "table": "^6.9.0",
     "zod": "^4.4.3"
   },

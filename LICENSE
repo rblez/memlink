@@ -1,21 +1,57 @@
-MIT License
+# Business Source License 1.1
 
-Copyright (c) 2026 Omar Blez
+## Parameters
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+- **Change Date:** 2030-01-01
+- **Change License:** MIT
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Terms
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+The Licensor hereby grants you the right to copy, modify and create derivative works of the Licensed Work, but only to the extent and in accordance with the terms and conditions of this license.
+
+### 1. Definitions
+
+- **"Licensor"** means the copyright holder of the Licensed Work.
+- **"Licensed Work"** means the work or software that is made available by the Licensor under this License.
+- **"Derivative Works"** means works that are based on or derived from the Licensed Work.
+- **"Source"** means the preferred form for making modifications to the Licensed Work.
+- **"Object"** means any form of the Licensed Work other than Source.
+- **"Additional Use Grant"** means any additional permissions granted beyond the scope of this license, as specified in the Parameters section above.
+
+### 2. Grant of Rights
+
+Subject to the terms and conditions of this License, you are hereby granted the right to:
+
+- Use the Licensed Work for personal and self-hosted purposes, as specified in the Additional Use Grant.
+- Copy, modify, and create Derivative Works of the Licensed Work, provided that such Derivative Works are not distributed or made available to third parties in a manner that competes with the Licensed Work.
+- Distribute the Licensed Work in Source or Object form, provided that you include a copy of this License with any such distribution.
+
+### 3. Restrictions
+
+You may not:
+
+- Distribute the Licensed Work or Derivative Works in a manner that competes with the Licensed Work, except as permitted by the Additional Use Grant.
+- Sublicense the Licensed Work to third parties, except as permitted by the Additional Use Grant.
+- Remove or alter any copyright, patent, trademark, or other proprietary notices from the Licensed Work.
+
+### 4. Change Date
+
+On the Change Date specified in the Parameters section above, this License shall automatically convert to the Change License specified in the Parameters section above. After the Change Date, the Licensed Work will be available under the terms of the Change License.
+
+### 5. Disclaimer of Warranty
+
+THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+
+### 6. Limitation of Liability
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+### 7. Governing Law
+
+This License shall be governed by and construed in accordance with the laws of the jurisdiction in which the Licensor is established, without regard to its conflict of law provisions.
+
+---
+
+**Licensor:** rblez  
+**Licensed Work:** memlink  
+**Copyright:** © 2024 rblez. All rights reserved.
