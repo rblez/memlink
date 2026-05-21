@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { 
-  upsertMemoryEntry, 
-  readMemory, 
-  searchMemory, 
+import {
+  upsertMemoryEntry,
+  readMemory,
+  searchMemory,
   deleteMemoryEntry,
   createUniversalMemory,
   initMemoryFile,
-  getMemoryPath
+  getMemoryPath,
 } from '../src/core/memory.ts';
 import { unlinkSync, existsSync } from 'fs';
 import { nanoid } from 'nanoid';
@@ -35,30 +35,30 @@ describe('Memory Core Functions', () => {
   });
 
   describe('upsertMemoryEntry', () => {
-it('should create a new memory entry', () => {
-    const title = 'TestEntry';
-    const content = 'This is a test entry content.';
-    const tags = ['test', 'example'];
+    it('should create a new memory entry', () => {
+      const title = 'TestEntry';
+      const content = 'This is a test entry content.';
+      const tags = ['test', 'example'];
 
-    upsertMemoryEntry(memoryId, title, content, tags);
+      upsertMemoryEntry(memoryId, title, content, tags);
 
-    const entries = readMemory(memoryId);
-    expect(entries).toHaveLength(1);
-    expect(entries[0].title).toBe(title);
-    expect(entries[0].content).toBe(content);
-    expect(entries[0].tags).toEqual(tags);
-  });
+      const entries = readMemory(memoryId);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].title).toBe(title);
+      expect(entries[0].content).toBe(content);
+      expect(entries[0].tags).toEqual(tags);
+    });
 
     it('should update an existing memory entry', () => {
       const title = 'UpdateTest';
       const initialContent = 'Initial content';
       const updatedContent = 'Updated content';
 
-// Create initial entry
-    upsertMemoryEntry(memoryId, title, initialContent);
-    
-    // Update the entry
-    upsertMemoryEntry(memoryId, title, updatedContent);
+      // Create initial entry
+      upsertMemoryEntry(memoryId, title, initialContent);
+
+      // Update the entry
+      upsertMemoryEntry(memoryId, title, updatedContent);
 
       const entries = readMemory(memoryId);
       expect(entries).toHaveLength(1);
@@ -83,13 +83,13 @@ it('should create a new memory entry', () => {
     });
 
     it('should read multiple entries correctly', () => {
-upsertMemoryEntry(memoryId, 'Entry1', 'Content 1');
-    upsertMemoryEntry(memoryId, 'Entry2', 'Content 2');
+      upsertMemoryEntry(memoryId, 'Entry1', 'Content 1');
+      upsertMemoryEntry(memoryId, 'Entry2', 'Content 2');
       upsertMemoryEntry(memoryId, 'Entry3', 'Content 3');
 
       const entries = readMemory(memoryId);
       expect(entries).toHaveLength(3);
-      expect(entries.map(e => e.title)).toEqual(['Entry1', 'Entry2', 'Entry3']);
+      expect(entries.map((e) => e.title)).toEqual(['Entry1', 'Entry2', 'Entry3']);
     });
   });
 

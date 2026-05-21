@@ -1,10 +1,9 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { execSync } from "child_process";
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
-const REPO = "rblez/memlink";
-const API_BASE = "https://api.github.com";
+const REPO = 'rblez/memlink';
+const API_BASE = 'https://api.github.com';
 
 interface Release {
   tag_name: string;
@@ -17,11 +16,11 @@ interface Release {
 
 export async function getCurrentVersion(): Promise<string> {
   try {
-    const packagePath = path.join(process.cwd(), "package.json");
-    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
+    const packagePath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
     return packageJson.version;
   } catch {
-    return "0.0.0";
+    return '0.0.0';
   }
 }
 
@@ -43,35 +42,39 @@ export function getCurrentBinaryName(): string {
   let archName: string;
 
   switch (platform) {
-    case "linux":
-      osName = "linux";
+    case 'linux':
+      osName = 'linux';
       break;
-    case "darwin":
-      osName = "darwin";
+    case 'darwin':
+      osName = 'darwin';
       break;
-    case "win32":
-      osName = "windows";
+    case 'win32':
+      osName = 'windows';
       break;
     default:
       osName = platform;
   }
 
   switch (arch) {
-    case "x64":
-      archName = "x64";
+    case 'x64':
+      archName = 'x64';
       break;
-    case "arm64":
-      archName = "arm64";
+    case 'arm64':
+      archName = 'arm64';
       break;
     default:
       archName = arch;
   }
 
   const binaryName = `memlink-${osName}-${archName}`;
-  return platform === "win32" ? `${binaryName}.exe` : binaryName;
+  return platform === 'win32' ? `${binaryName}.exe` : binaryName;
 }
 
-export async function checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string }> {
+export async function checkForUpdates(): Promise<{
+  updateAvailable: boolean;
+  currentVersion: string;
+  latestVersion: string;
+}> {
   const currentVersion = await getCurrentVersion();
   const release = await getLatestRelease();
 
@@ -83,7 +86,7 @@ export async function checkForUpdates(): Promise<{ updateAvailable: boolean; cur
     };
   }
 
-  const latestVersion = release.tag_name.replace("v", "");
+  const latestVersion = release.tag_name.replace('v', '');
   const updateAvailable = latestVersion !== currentVersion;
 
   return {
@@ -96,17 +99,17 @@ export async function checkForUpdates(): Promise<{ updateAvailable: boolean; cur
 export async function performUpdate(): Promise<boolean> {
   const release = await getLatestRelease();
   if (!release) {
-    throw new Error("Failed to fetch release information");
+    throw new Error('Failed to fetch release information');
   }
 
   const binaryName = getCurrentBinaryName();
-  const asset = release.assets.find(a => a.name === binaryName);
+  const asset = release.assets.find((a) => a.name === binaryName);
 
   if (!asset) {
     throw new Error(`No binary found for your platform (${binaryName})`);
   }
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "memlink-update-"));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memlink-update-'));
   const downloadPath = path.join(tempDir, binaryName);
 
   // Download new binary
@@ -115,22 +118,22 @@ export async function performUpdate(): Promise<boolean> {
   fs.writeFileSync(downloadPath, Buffer.from(buffer));
 
   // Make executable
-  fs.chmodSync(downloadPath, "755");
+  fs.chmodSync(downloadPath, '755');
 
   // Get current binary path
   const currentPath = process.execPath;
 
   // Replace binary
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     // Windows: Move to temp, then replace
-    const tempCurrent = currentPath + ".old";
+    const tempCurrent = currentPath + '.old';
     fs.renameSync(currentPath, tempCurrent);
     fs.copyFileSync(downloadPath, currentPath);
     fs.unlinkSync(tempCurrent);
   } else {
     // Unix: Direct replacement
     fs.copyFileSync(downloadPath, currentPath);
-    fs.chmodSync(currentPath, "755");
+    fs.chmodSync(currentPath, '755');
   }
 
   // Cleanup

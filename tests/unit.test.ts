@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { 
+import {
   createUniversalMemory,
   upsertMemoryEntry,
   readMemory,
   searchMemory,
-  deleteMemoryEntry
+  deleteMemoryEntry,
 } from '../src/core/memory.ts';
 import { nanoid } from 'nanoid';
 
@@ -13,7 +13,7 @@ describe('Unit Tests - Core Functions', () => {
     it('should create a memory with required properties', () => {
       const memoryName = `test-${nanoid(8)}`;
       const memory = createUniversalMemory(memoryName);
-      
+
       expect(memory).toHaveProperty('memoryId');
       expect(memory).toHaveProperty('memoryName', memoryName);
       expect(memory).toHaveProperty('token');
@@ -24,7 +24,7 @@ describe('Unit Tests - Core Functions', () => {
     it('should generate unique memory IDs', () => {
       const memory1 = createUniversalMemory('test1');
       const memory2 = createUniversalMemory('test2');
-      
+
       expect(memory1.memoryId).not.toBe(memory2.memoryId);
       expect(memory1.token).not.toBe(memory2.token);
     });
@@ -126,7 +126,7 @@ describe('Unit Tests - Core Functions', () => {
     it('should handle multiline content', () => {
       const content = 'Line 1\nLine 2\nLine 3';
       upsertMemoryEntry(memoryId, 'Multiline', content);
-      
+
       const entries = readMemory(memoryId);
       expect(entries[0].content).toBe(content);
     });
@@ -134,7 +134,7 @@ describe('Unit Tests - Core Functions', () => {
     it('should handle special characters in content', () => {
       const content = "Special chars: !@#$%^&*()_+-=[]{}|;':,./<>?";
       upsertMemoryEntry(memoryId, 'Special', content);
-      
+
       const entries = readMemory(memoryId);
       expect(entries[0].content).toBe(content);
     });

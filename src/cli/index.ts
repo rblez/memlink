@@ -9,7 +9,6 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { table } from 'table';
 import {
-  initMemoryFile,
   loadConfig,
   saveConfig,
   importMemory,
@@ -19,20 +18,11 @@ import {
   getDetailedStats,
   getAllMemoriesStats,
   readMemory,
-  writeMemoryFile,
-  bulkUpsertMemories,
   syncMemory,
-  parseMemoryFile,
-  initConfig,
   getMemlinkDir,
-  generateId,
-  generateToken,
-  getUniversalMemoryByToken,
-  getAgentByToken,
   bulkDeleteMemories,
   bulkDeleteMemoriesByTags,
   bulkDeleteMemoriesByPattern,
-  createBackup,
   saveBackup,
   restoreBackup,
   listBackups,
@@ -48,14 +38,8 @@ import {
   type SyncResult,
   type NativeMemory,
   detectNativeMemoryTargets,
-  performNativeSync,
   convertMemlinkToNative,
   convertNativeToMemlink,
-  loadSyncConfig,
-  saveSyncConfig,
-  enableSyncForTarget,
-  disableSyncForTarget,
-  getSyncStatus,
 } from '../core/sync.ts';
 import { startServer } from '../server/index.ts';
 import { KNOWN_AGENTS, MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
@@ -91,12 +75,12 @@ const c = {
 // ─── Branding ────────────────────────────────────────────────────────────────
 
 const LOGO = `
-${c.bold('  Memlink')}
+${c.bold('  memlink')}
 ${c.dim('  Universal Memory for AI Agents')}
 ${c.dim('  Self-hosted · Fast · Organized')}
 `;
 
-const LOGO_SMALL = c.bold('Memlink') + c.dim(' v' + MEMLINK_VERSION);
+const LOGO_SMALL = c.bold('memlink') + c.dim(' v' + MEMLINK_VERSION);
 
 // ─── Global options ──────────────────────────────────────────────────────────
 
@@ -143,36 +127,6 @@ function askYesNo(question: string, defaultYes = false): Promise<boolean> {
   });
 }
 
-async function selectAgents(): Promise<string[]> {
-  const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
-
-  console.log(c.dim('\n  === Seleccionar Agentes ===\n'));
-
-  const finalSelected: string[] = [];
-
-  for (const agent of agents) {
-    const answer = await askQuestion(`  Vincular a ${agent.name}? (y/n): `);
-    if (answer.toLowerCase() === 'y') {
-      finalSelected.push(agent.id);
-    }
-  }
-
-  return finalSelected;
-}
-
-function askScope(): Promise<'global' | 'workspace'> {
-  return new Promise((resolve) => {
-    rl.question(c.dim('\n  Alcance: (g)lobal / (w)orkspace: '), (answer) => {
-      const a = answer.trim().toLowerCase();
-      if (a === 'w' || a === 'workspace') {
-        resolve('workspace');
-      } else {
-        resolve('global');
-      }
-    });
-  });
-}
-
 // ─── IDE detection ─────────────────────────────────────────────────────
 
 function detectIDE(): string {
@@ -190,9 +144,12 @@ function getMcpConfigPath(ide: string, universal: boolean = false): string {
   const cwd = process.cwd();
   if (universal) return path.join(cwd, '.memlink/mcp.json');
   switch (ide) {
-    case 'windsurf': return path.join(home, '.codeium/windsurf/mcp_config.json');
-    case 'claude': return path.join(home, '.claude/mcp.json');
-    default: return path.join(home, '.cursor/mcp.json');
+    case 'windsurf':
+      return path.join(home, '.codeium/windsurf/mcp_config.json');
+    case 'claude':
+      return path.join(home, '.claude/mcp.json');
+    default:
+      return path.join(home, '.cursor/mcp.json');
   }
 }
 
@@ -218,7 +175,9 @@ function copyToClipboard(text: string): boolean {
           else execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
           copied = true;
           break;
-        } catch { continue; }
+        } catch {
+          continue;
+        }
       }
     } else {
       execSync(`powershell -c 'Get-Content '${tmpfile}' | Set-Clipboard'`, { stdio: 'ignore' });
@@ -227,8 +186,12 @@ function copyToClipboard(text: string): boolean {
 
     fs.unlinkSync(tmpfile);
     return copied;
-  } catch (err) {
-    try { fs.unlinkSync(tmpfile); } catch { }
+  } catch {
+    try {
+      fs.unlinkSync(tmpfile);
+    } catch {
+      /* ignore */
+    }
     return false;
   }
 }
@@ -247,7 +210,9 @@ async function promptArrow(options: ArrowOption[], title: string): Promise<strin
 
   console.log(c.bold('  ' + title + '\n'));
   for (let i = 0; i < options.length; i++) {
-    console.log(`  ${c.warning(String(i + 1) + '.')} ${options[i].label}${options[i].desc ? c.dim(' - ' + options[i].desc) : ''}`);
+    console.log(
+      `  ${c.warning(String(i + 1) + '.')} ${options[i].label}${options[i].desc ? c.dim(' - ' + options[i].desc) : ''}`
+    );
   }
   console.log();
 
@@ -287,7 +252,7 @@ const program = new Command();
 
 program
   .name('memlink')
-  .description('Memlink — Universal memory for AI agents')
+  .description('memlink — Universal memory for AI agents')
   .version(MEMLINK_VERSION)
   .option('--json', 'Output in JSON format')
   .option('-v, --verbose', 'Show detailed output')
@@ -301,7 +266,7 @@ program
 
 program
   .command('serve')
-  .description('Start the Memlink MCP server')
+  .description('Start the memlink MCP server')
   .option('-p, --port <port>', 'Port to listen on', String(DEFAULT_PORT))
   .option('-H, --host <host>', 'Host to bind to', DEFAULT_HOST)
   .option('-l, --logs', 'Enable request/response logging (Ctrl+L to toggle)')
@@ -324,7 +289,9 @@ program
         const last = agent.lastSeen
           ? c.dim(new Date(agent.lastSeen).toLocaleString())
           : c.dim('never');
-        console.log(`  • ${c.text(agent.agentName)} ${c.dim('(' + agent.agentId + ')')} — last seen: ${last}`);
+        console.log(
+          `  • ${c.text(agent.agentName)} ${c.dim('(' + agent.agentId + ')')} — last seen: ${last}`
+        );
       }
       console.log();
     }
@@ -404,9 +371,7 @@ agentCmd
         c.text(d.name),
         d.error ? c.error('error') : c.text(String(d.entries)),
         d.error ? c.error('?') : c.dim(`${(d.size / 1024).toFixed(1)} KB`),
-        d.linkedAgents.length > 0
-          ? c.success(d.linkedAgents.join(', '))
-          : c.dim('ninguno'),
+        d.linkedAgents.length > 0 ? c.success(d.linkedAgents.join(', ')) : c.dim('ninguno'),
       ]),
     ];
 
@@ -434,7 +399,9 @@ agentCmd
     const spinner = ora(`Revoking universal memory ${memory.memoryName}...`).start();
     const ok = revokeUniversalMemory(memoryId);
     if (ok) {
-      spinner.succeed(c.success(`Universal memory ${memory.memoryName} revoked and memory deleted.`));
+      spinner.succeed(
+        c.success(`Universal memory ${memory.memoryName} revoked and memory deleted.`)
+      );
     } else {
       spinner.fail(c.error('Failed to revoke universal memory'));
       process.exit(1);
@@ -476,8 +443,6 @@ agentCmd
     }
 
     // Remove MCP configs and skills for detached agents
-    const host = config.serverHost ?? DEFAULT_HOST;
-    const port = config.serverPort ?? DEFAULT_PORT;
 
     for (const aId of agentsToDetach) {
       const agent = getAgentConfig(aId);
@@ -489,12 +454,17 @@ agentCmd
       // Remove skill if exists
       const skillPath = agent.skillGlobal;
       if (skillPath) {
-        const skillDir = path.join(skillPath, `memlink-${memory.memoryName.toLowerCase().replace(/\s+/g, '-')}`);
+        const skillDir = path.join(
+          skillPath,
+          `memlink-${memory.memoryName.toLowerCase().replace(/\s+/g, '-')}`
+        );
         try {
           if (fs.existsSync(skillDir)) {
             fs.rmSync(skillDir, { recursive: true });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       console.log(c.dim(`  Removed: ${agent.name}`));
@@ -512,7 +482,9 @@ agentCmd
     });
     saveConfig(config);
 
-    console.log(c.success(`\n  Done: ${agentsToDetach.length} agent(s) detached from ${memory.memoryName}\n`));
+    console.log(
+      c.success(`\n  Done: ${agentsToDetach.length} agent(s) detached from ${memory.memoryName}\n`)
+    );
   });
 
 // ─── memlink memory link ─────────────────────────────────────────────────────────
@@ -602,12 +574,17 @@ agentCmd
     // Remove skill if exists
     const skillPath = agent.skillGlobal;
     if (skillPath) {
-      const skillDir = path.join(skillPath, `memlink-${memory.memoryName.toLowerCase().replace(/\s+/g, '-')}`);
+      const skillDir = path.join(
+        skillPath,
+        `memlink-${memory.memoryName.toLowerCase().replace(/\s+/g, '-')}`
+      );
       try {
         if (fs.existsSync(skillDir)) {
           fs.rmSync(skillDir, { recursive: true });
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     // Update config
@@ -634,176 +611,212 @@ agentCmd
   .option('-s, --scope <scope>', 'Scope: global or workspace')
   .option('--skill', 'Create skill for agents')
   .option('--agents <agents>', 'Comma-separated agent IDs')
-  .action(async (nameArg?: string, opts: {
-    description?: string;
-    scope?: string;
-    skill?: boolean;
-    agents?: string;
-  }) => {
-    console.clear();
-    console.log('\n' + c.bold('  ═══ Crear Nueva Memoria ═══\n'));
+  .action(
+    async (
+      nameArg?: string,
+      opts: {
+        description?: string;
+        scope?: string;
+        skill?: boolean;
+        agents?: string;
+      }
+    ) => {
+      console.clear();
+      console.log('\n' + c.bold('  ═══ Crear Nueva Memoria ═══\n'));
 
-    let name = nameArg;
-    let description = opts.description || '';
-    let scope: 'global' | 'workspace' = (opts.scope as 'global' | 'workspace') || 'global';
-    const createSkill = !!opts.skill;
-    const selectedAgents = opts.agents ? opts.agents.split(',') : [];
+      let name = nameArg;
+      let description = opts.description || '';
+      let scope: 'global' | 'workspace' = (opts.scope as 'global' | 'workspace') || 'global';
 
-    // Step 1: Name
-    if (!name) {
-      name = await askQuestion('  Nombre de la memoria: ');
+      // Step 1: Name
       if (!name) {
-        console.log(c.error('  Error: El nombre es obligatorio\n'));
+        name = await askQuestion('  Nombre de la memoria: ');
+        if (!name) {
+          console.log(c.error('  Error: El nombre es obligatorio\n'));
+          process.exit(1);
+        }
+      }
+
+      // Step 2: Description (only ask if not provided via CLI)
+      if (!opts.description) {
+        description = await askQuestion('  Descripción (opcional): ');
+      }
+
+      // Step 3: Scope (only ask if not provided via CLI)
+      if (!opts.scope) {
+        console.log();
+        console.log(c.dim('  Alcance:'));
+        console.log(c.dim('    (g) Global    - disponible en todos los proyectos'));
+        console.log(c.dim('    (w) Workspace - solo en el proyecto actual'));
+        const scopeAnswer = await askQuestion('  [g/w]: ');
+        scope =
+          scopeAnswer.toLowerCase() === 'w' || scopeAnswer.toLowerCase() === 'workspace'
+            ? 'workspace'
+            : 'global';
+      }
+
+      // Step 4: Select agents (only ask if not provided via CLI)
+      let finalSelectedAgents: string[] = [];
+
+      if (opts.agents) {
+        // Use agents from CLI flag
+        finalSelectedAgents = opts.agents.split(',').map((a) => a.trim());
+      } else {
+        console.log();
+        const configureAgents = await askYesNo('  ¿Configurar agentes ahora?');
+
+        if (configureAgents) {
+          console.log();
+          console.log(c.dim('  Selecciona agentes (Enter para confirmar):'));
+          console.log();
+
+          // Get supported agents
+          const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
+
+          const agentSelections: boolean[] = new Array(agents.length).fill(false);
+
+          // Simple selection - ask for each agent
+          for (let i = 0; i < agents.length; i++) {
+            const answer = await askYesNo(`    ${agents[i].name}?`, true);
+            agentSelections[i] = answer;
+          }
+
+          // Collect selected agents
+          finalSelectedAgents = agents.filter((_, i) => agentSelections[i]).map((a) => a.id);
+        }
+      }
+
+      // Step 5: Create skill
+      const wantsSkill =
+        finalSelectedAgents.length > 0
+          ? await askYesNo('  ¿Generar skill para los agentes?')
+          : false;
+
+      // Show summary and confirm
+      console.clear();
+      console.log('\n' + c.bold('  ═══ Resumen ═══\n'));
+      console.log(`  ${c.bold('Nombre:')}      ${c.text(name)}`);
+      console.log(`  ${c.bold('Descripción:')} ${c.text(description || '(sin descripción)')}`);
+      console.log(`  ${c.bold('Alcance:')}     ${c.text(scope)}`);
+      if (finalSelectedAgents.length > 0) {
+        console.log(`  ${c.bold('Agentes:')}     ${c.success(finalSelectedAgents.join(', '))}`);
+        console.log(`  ${c.bold('Skill:')}      ${wantsSkill ? c.success('Sí') : c.dim('No')}`);
+      } else {
+        console.log(c.dim('  Agentes:      (ninguno)'));
+      }
+      console.log();
+
+      const confirm = await askYesNo('  ¿Crear memoria?', true);
+      if (!confirm) {
+        console.log(c.dim('  Cancelado.\n'));
+        return;
+      }
+
+      // Create the memory
+      const spinner = ora('Creando...').start();
+
+      try {
+        const memory = createUniversalMemory(name);
+        spinner.succeed(c.success('  ¡Memoria creada!\n'));
+
+        const config = loadConfig();
+        const host = config.serverHost ?? DEFAULT_HOST;
+        const port = config.serverPort ?? DEFAULT_PORT;
+
+        const namePadding = Math.max(0, 30 - memory.memoryName.length);
+        const idPadding = Math.max(0, 30 - memory.memoryId.length);
+        console.log(c.bold('  ┌─────────────────────────────────────────┐'));
+        console.log(
+          c.bold('  │ ') + c.success('Nueva Memoria') + c.bold('                           │')
+        );
+        console.log(c.bold('  ├─────────────────────────────────────────┤'));
+        console.log(
+          c.bold('  │ ') +
+            c.dim('Nombre:     ') +
+            c.text(memory.memoryName) +
+            c.dim(' '.repeat(namePadding)) +
+            '│'
+        );
+        console.log(
+          c.bold('  │ ') +
+            c.dim('ID:         ') +
+            c.dim(memory.memoryId) +
+            c.dim(' '.repeat(idPadding)) +
+            '│'
+        );
+        console.log(
+          c.bold('  │ ') +
+            c.dim('MCP URL:    ') +
+            c.text(`http://${host}:${port}/mcp?mem_id=${memory.memoryId}`) +
+            c.dim(' '.repeat(10)) +
+            '│'
+        );
+        console.log(c.bold('  └─────────────────────────────────────────┘\n'));
+
+        // Scaffold MCP configs and skills
+        if (finalSelectedAgents.length > 0) {
+          console.log(c.dim('  Configurando agentes...\n'));
+
+          for (const agentId of finalSelectedAgents) {
+            const agent = getAgentConfig(agentId.trim());
+            if (!agent) continue;
+
+            // MCP config
+            const mcpOk = scaffoldMcpConfig(agent, scope, memory.memoryId, host, port);
+            console.log(c.dim(`    → ${agent.name}`));
+            console.log(mcpOk ? c.success('      ✓ MCP') : c.warning('      ✗ MCP'));
+
+            // Skill
+            if (wantsSkill && agent.hasSkill) {
+              const skillOk = scaffoldSkill(
+                agent,
+                scope,
+                memory.memoryId,
+                memory.memoryName,
+                description
+              );
+              console.log(skillOk ? c.success('      ✓ Skill') : c.warning('      ✗ Skill'));
+            }
+            console.log();
+          }
+
+          // AGENTS.md
+          const agentsMdOk = scaffoldAgentsMd(
+            scope,
+            memory.memoryId,
+            memory.memoryName,
+            host,
+            port
+          );
+          if (agentsMdOk) {
+            console.log(c.success('  ✓ AGENTS.md\n'));
+          }
+        }
+
+        // Update config with linked agents
+        config.universalMemories = config.universalMemories.map((m) => {
+          if (m.memoryId === memory.memoryId) {
+            return { ...m, linkedAgents: finalSelectedAgents };
+          }
+          return m;
+        });
+        saveConfig(config);
+
+        console.log(c.bold('  ═══ Siguientes pasos ═══\n'));
+        console.log(c.dim('    1. Iniciar servidor: ') + c.text('memlink serve'));
+        console.log(c.dim('    2. Ver memorias:     ') + c.text('memlink memory list'));
+        console.log(
+          c.dim('    3. Ver contenido:    ') + c.text(`memlink memory show ${memory.memoryId}\n`)
+        );
+      } catch (err) {
+        spinner.fail(c.error('Error al crear la memoria'));
+        console.error(c.error(`  ${err}\n`));
         process.exit(1);
       }
+
+      rl.close();
     }
-
-    // Step 2: Description (only ask if not provided via CLI)
-    if (!opts.description) {
-      description = await askQuestion('  Descripción (opcional): ');
-    }
-
-    // Step 3: Scope (only ask if not provided via CLI)
-    if (!opts.scope) {
-      console.log();
-      console.log(c.dim('  Alcance:'));
-      console.log(c.dim('    (g) Global    - disponible en todos los proyectos'));
-      console.log(c.dim('    (w) Workspace - solo en el proyecto actual'));
-      const scopeAnswer = await askQuestion('  [g/w]: ');
-      scope = (scopeAnswer.toLowerCase() === 'w' || scopeAnswer.toLowerCase() === 'workspace') 
-        ? 'workspace' 
-        : 'global';
-    }
-
-    // Step 4: Select agents (only ask if not provided via CLI)
-    let finalSelectedAgents: string[] = [];
-    
-    if (opts.agents) {
-      // Use agents from CLI flag
-      finalSelectedAgents = opts.agents.split(',').map(a => a.trim());
-    } else {
-      console.log();
-      const configureAgents = await askYesNo('  ¿Configurar agentes ahora?');
-
-      if (configureAgents) {
-        console.log();
-        console.log(c.dim('  Selecciona agentes (Enter para confirmar):'));
-        console.log();
-        
-        // Get supported agents
-        const agents = SUPPORTED_AGENTS.filter((a) => a.supportsAgents);
-        
-        const agentSelections: boolean[] = new Array(agents.length).fill(false);
-        
-        // Simple selection - ask for each agent
-        for (let i = 0; i < agents.length; i++) {
-          const answer = await askYesNo(`    ${agents[i].name}?`, true);
-          agentSelections[i] = answer;
-        }
-        
-        // Collect selected agents
-        finalSelectedAgents = agents
-          .filter((_, i) => agentSelections[i])
-          .map((a) => a.id);
-      }
-    }
-
-    // Step 5: Create skill
-    const wantsSkill = finalSelectedAgents.length > 0 
-      ? await askYesNo('  ¿Generar skill para los agentes?')
-      : false;
-
-    // Show summary and confirm
-    console.clear();
-    console.log('\n' + c.bold('  ═══ Resumen ═══\n'));
-    console.log(`  ${c.bold('Nombre:')}      ${c.text(name)}`);
-    console.log(`  ${c.bold('Descripción:')} ${c.text(description || '(sin descripción)')}`);
-    console.log(`  ${c.bold('Alcance:')}     ${c.text(scope)}`);
-    if (finalSelectedAgents.length > 0) {
-      console.log(`  ${c.bold('Agentes:')}     ${c.success(finalSelectedAgents.join(', '))}`);
-      console.log(`  ${c.bold('Skill:')}      ${wantsSkill ? c.success('Sí') : c.dim('No')}`);
-    } else {
-      console.log(c.dim('  Agentes:      (ninguno)'));
-    }
-    console.log();
-
-    const confirm = await askYesNo('  ¿Crear memoria?', true);
-    if (!confirm) {
-      console.log(c.dim('  Cancelado.\n'));
-      return;
-    }
-
-    // Create the memory
-    const spinner = ora('Creando...').start();
-
-    try {
-      const memory = createUniversalMemory(name);
-      spinner.succeed(c.success('  ¡Memoria creada!\n'));
-
-      const config = loadConfig();
-      const host = config.serverHost ?? DEFAULT_HOST;
-      const port = config.serverPort ?? DEFAULT_PORT;
-
-      const namePadding = Math.max(0, 30 - memory.memoryName.length);
-      const idPadding = Math.max(0, 30 - memory.memoryId.length);
-      console.log(c.bold('  ┌─────────────────────────────────────────┐'));
-      console.log(c.bold('  │ ') + c.success('Nueva Memoria') + c.bold('                           │'));
-      console.log(c.bold('  ├─────────────────────────────────────────┤'));
-      console.log(c.bold('  │ ') + c.dim('Nombre:     ') + c.text(memory.memoryName) + c.dim(' '.repeat(namePadding)) + '│');
-      console.log(c.bold('  │ ') + c.dim('ID:         ') + c.dim(memory.memoryId) + c.dim(' '.repeat(idPadding)) + '│');
-      console.log(c.bold('  │ ') + c.dim('MCP URL:    ') + c.text(`http://${host}:${port}/mcp?mem_id=${memory.memoryId}`) + c.dim(' '.repeat(10)) + '│');
-      console.log(c.bold('  └─────────────────────────────────────────┘\n'));
-
-      // Scaffold MCP configs and skills
-      if (finalSelectedAgents.length > 0) {
-        console.log(c.dim('  Configurando agentes...\n'));
-
-        for (const agentId of finalSelectedAgents) {
-          const agent = getAgentConfig(agentId.trim());
-          if (!agent) continue;
-
-          // MCP config
-          const mcpOk = scaffoldMcpConfig(agent, scope, memory.memoryId, host, port);
-          console.log(c.dim(`    → ${agent.name}`));
-          console.log(mcpOk ? c.success('      ✓ MCP') : c.warning('      ✗ MCP'));
-
-          // Skill
-          if (wantsSkill && agent.hasSkill) {
-            const skillOk = scaffoldSkill(agent, scope, memory.memoryId, memory.memoryName, description);
-            console.log(skillOk ? c.success('      ✓ Skill') : c.warning('      ✗ Skill'));
-          }
-          console.log();
-        }
-
-        // AGENTS.md
-        const agentsMdOk = scaffoldAgentsMd(scope, memory.memoryId, memory.memoryName, host, port);
-        if (agentsMdOk) {
-          console.log(c.success('  ✓ AGENTS.md\n'));
-        }
-      }
-
-      // Update config with linked agents
-      config.universalMemories = config.universalMemories.map((m) => {
-        if (m.memoryId === memory.memoryId) {
-          return { ...m, linkedAgents: finalSelectedAgents };
-        }
-        return m;
-      });
-      saveConfig(config);
-
-      console.log(c.bold('  ═══ Siguientes pasos ═══\n'));
-      console.log(c.dim('    1. Iniciar servidor: ') + c.text('memlink serve'));
-      console.log(c.dim('    2. Ver memorias:     ') + c.text('memlink memory list'));
-      console.log(c.dim('    3. Ver contenido:    ') + c.text(`memlink memory show ${memory.memoryId}\n`));
-
-    } catch (err) {
-      spinner.fail(c.error('Error al crear la memoria'));
-      console.error(c.error(`  ${err}\n`));
-      process.exit(1);
-    }
-
-    rl.close();
-  });
+  );
 
 agentCmd
   .command('show [memoryId]')
@@ -817,11 +830,11 @@ agentCmd
     }
 
     const config = loadConfig();
-    
+
     // Try to find agent first, then universal memory
     const agent = config.agents.find((a) => a.agentId === memoryId);
     const universalMemory = config.universalMemories.find((m) => m.memoryId === memoryId);
-    
+
     const memory = agent || universalMemory;
     const memoryType = agent ? 'agent' : 'universal';
     const memoryName = agent?.agentName || universalMemory?.memoryName;
@@ -915,7 +928,9 @@ agentCmd
         return;
       }
 
-      console.log(`  ${c.bold(universalMemory.memoryName)} — ${results.length} matches for '${query}'\n`);
+      console.log(
+        `  ${c.bold(universalMemory.memoryName)} — ${results.length} matches for '${query}'\n`
+      );
 
       for (const entry of results) {
         console.log(`  ${c.bold('• ' + entry.title)} ${c.dim(`(${entry.updatedAt})`)}`);
@@ -1039,7 +1054,7 @@ agentCmd
 
 program
   .command('config')
-  .description('Configure Memlink settings')
+  .description('Configure memlink settings')
   .option('-p, --port <port>', 'Server port')
   .option('-H, --host <host>', 'Server host')
   .action((opts) => {
@@ -1061,7 +1076,6 @@ program
     }
 
     if (changed) {
-      const { saveConfig } = require('../core/memory.js');
       saveConfig(config);
       console.log(c.success('  Configuration saved.\n'));
     } else {
@@ -1076,45 +1090,58 @@ program
 
 program
   .command('status')
-  .description('Show Memlink system status')
+  .description('Show memlink system status')
   .action(() => {
     console.log('\n' + LOGO + '\n');
     const config = loadConfig();
 
     console.log(`  ${c.bold('Version')}      ${c.text(MEMLINK_VERSION)}`);
     console.log(`  ${c.bold('Memory dir')}   ${c.dim(getMemlinkDir())}`);
-    console.log(`  ${c.bold('Server')}       ${c.text(`http://${config.serverHost ?? DEFAULT_HOST}:${config.serverPort ?? DEFAULT_PORT}/mcp`)}`);
-    console.log(`  ${c.bold('Agents')}       ${c.warning(String(config.agents.length))} registered\n`);
+    console.log(
+      `  ${c.bold('Server')}       ${c.text(`http://${config.serverHost ?? DEFAULT_HOST}:${config.serverPort ?? DEFAULT_PORT}/mcp`)}`
+    );
+    console.log(
+      `  ${c.bold('Agents')}       ${c.warning(String(config.agents.length))} registered\n`
+    );
 
     if (config.agents.length > 0) {
       console.log(c.bold('  Registered Agents:\n'));
       for (const agent of config.agents) {
-        let memInfo = '';
-        try {
-          const stats = syncMemory(agent.agentId);
-          memInfo = c.dim(`${stats.entries} entries · ${(stats.size / 1024).toFixed(1)} KB`);
-        } catch {
-          memInfo = c.error('memory error');
-        }
-        console.log(`  ${c.dim('•')} ${c.bold(agent.agentName)} ${c.dim('(' + agent.agentId + ')')}`);
+        const memInfo: string = (() => {
+          try {
+            const stats = syncMemory(agent.agentId);
+            return c.dim(`${stats.entries} entries · ${(stats.size / 1024).toFixed(1)} KB`);
+          } catch {
+            return c.error('memory error');
+          }
+        })();
+        console.log(
+          `  ${c.dim('•')} ${c.bold(agent.agentName)} ${c.dim('(' + agent.agentId + ')')}`
+        );
         console.log(`    ${memInfo}`);
         console.log(`    Token: ${c.warning(agent.token.slice(0, 20))}…`);
         console.log();
       }
     }
 
-    console.log(c.dim(`  Known agents: ${Object.entries(KNOWN_AGENTS).map(([, v]) => v.name).join(', ')}\n`));
+    console.log(
+      c.dim(
+        `  Known agents: ${Object.entries(KNOWN_AGENTS)
+          .map(([, v]) => v.name)
+          .join(', ')}\n`
+      )
+    );
   });
 
 // ─── Skill scaffold ────────────────────────────────────────────────────────────
 
 const MEMLINK_SKILL = `---
 name: memlink
-description: Use Memlink MCP for persistent memory across sessions
+description: Use memlink MCP for persistent memory across sessions
 ---
-# Memlink Memory Skill
+# memlink Memory Skill
 
-Use this skill when working with the Memlink MCP server for persistent memory.
+Use this skill when working with the memlink MCP server for persistent memory.
 
 ## When to Use
 
@@ -1348,7 +1375,7 @@ async function promptSkillLocation(agentType: string): Promise<SkillLocation> {
   const workspaceDisplay = paths.workspace.replace(process.cwd(), '.');
 
   console.log();
-  console.log(c.bold('  Where do you want to install the Memlink skill?'));
+  console.log(c.bold('  Where do you want to install the memlink skill?'));
   console.log();
   console.log(`  ${c.text('1.')} Global     ${c.dim(`(${globalDisplay})`)}`);
   console.log(`  ${c.text('2.')} Workspace   ${c.dim(`(${workspaceDisplay})`)}`);
@@ -1373,16 +1400,25 @@ program
   .description('Interactive: select agent/memory and copy MCP config to clipboard')
   .action(async () => {
     console.log('\n' + LOGO_SMALL + '\n');
-    
+
     const config = loadConfig();
     const allOptions: ArrowOption[] = [
-      ...config.agents.map(a => ({ id: a.agentId, label: a.agentName, desc: 'Agent' })),
-      ...config.universalMemories.map(m => ({ id: m.memoryId, label: m.memoryName, desc: 'Universal' })),
+      ...config.agents.map((a) => ({ id: a.agentId, label: a.agentName, desc: 'Agent' })),
+      ...config.universalMemories.map((m) => ({
+        id: m.memoryId,
+        label: m.memoryName,
+        desc: 'Universal',
+      })),
     ];
 
     if (allOptions.length === 0) {
       console.log(c.warning('  No agents or memories found.\n'));
-      console.log(c.dim('  Run: ') + c.text('memlink agent create windsurf') + c.dim(' or ') + c.text('memlink memory create MyProject'));
+      console.log(
+        c.dim('  Run: ') +
+          c.text('memlink agent create windsurf') +
+          c.dim(' or ') +
+          c.text('memlink memory create MyProject')
+      );
       console.log();
       return;
     }
@@ -1393,11 +1429,11 @@ program
       return;
     }
 
-    const agent = config.agents.find(a => a.agentId === selectedId);
-    const memory = config.universalMemories.find(m => m.memoryId === selectedId);
+    const agent = config.agents.find((a) => a.agentId === selectedId);
+    const memory = config.universalMemories.find((m) => m.memoryId === selectedId);
     const isAgent = !!agent;
-    const name = isAgent ? (agent as any).agentName : (memory as any).memoryName;
-    const token = isAgent ? (agent as any).token : (memory as any).token;
+    const name = isAgent ? agent!.agentName : memory!.memoryName;
+    const token = isAgent ? agent!.token : memory!.token;
 
     const host = config.serverHost ?? DEFAULT_HOST;
     const port = config.serverPort ?? DEFAULT_PORT;
@@ -1425,7 +1461,14 @@ program
     console.log();
     console.log(c.dim('  MCP JSON (select and copy with Ctrl+Shift+C):'));
     console.log(c.warning('  ```json'));
-    console.log(c.warning(jsonStr.split('\n').map(l => '  ' + l).join('\n')));
+    console.log(
+      c.warning(
+        jsonStr
+          .split('\n')
+          .map((l) => '  ' + l)
+          .join('\n')
+      )
+    );
     console.log(c.warning('  ```'));
     if (copied) {
       console.log(c.dim('\n  Copied to clipboard - select JSON above and use Ctrl+Shift+C'));
@@ -1439,12 +1482,12 @@ program
 
 program
   .command('init')
-  .description('Initialize Memlink in the current system')
+  .description('Initialize memlink in the current system')
   .action(async () => {
     console.log('\n' + LOGO);
-    const spinner = ora('Initializing Memlink...').start();
+    const spinner = ora('Initializing memlink...').start();
     const config = loadConfig(); // creates dir + config if not exists
-    spinner.succeed(c.success('Memlink initialized!\n'));
+    spinner.succeed(c.success('memlink initialized!\n'));
 
     const createNow = await promptYesNo('Create an agent now?', true);
     console.log();
@@ -1462,10 +1505,16 @@ program
         return;
       }
 
-      const customName = selectedType === 'custom' ? await new Promise<string>((resolve) => {
-        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-        rl.question(c.text('  Agent name: '), (ans) => { rl.close(); resolve(ans.trim() || 'Custom'); });
-      }) : undefined;
+      const customName =
+        selectedType === 'custom'
+          ? await new Promise<string>((resolve) => {
+              const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+              rl.question(c.text('  Agent name: '), (ans) => {
+                rl.close();
+                resolve(ans.trim() || 'Custom');
+              });
+            })
+          : undefined;
 
       const subSpinner = ora('Creating agent...').start();
       try {
@@ -1494,7 +1543,14 @@ program
         console.log();
         console.log(c.dim('  MCP JSON (select and copy with Ctrl+Shift+C):'));
         console.log(c.warning('  ```json'));
-        console.log(c.warning(jsonStr.split('\n').map(l => '  ' + l).join('\n')));
+        console.log(
+          c.warning(
+            jsonStr
+              .split('\n')
+              .map((l) => '  ' + l)
+              .join('\n')
+          )
+        );
         console.log(c.warning('  ```'));
         if (copied) {
           console.log(c.dim('\n  Automatically copied to clipboard'));
@@ -1523,24 +1579,33 @@ program
 
 // ─── Sync Commands ─────────────────────────────────────────────────────────────
 
-const syncCmd = program
+program
   .command('sync')
   .description('Manage native memory synchronization')
   .option('--target <target>', 'Sync target (windsurf, cursor)')
-  .option('--direction <direction>', 'Sync direction (memlink-to-native, native-to-memlink, bidirectional)')
+  .option(
+    '--direction <direction>',
+    'Sync direction (memlink-to-native, native-to-memlink, bidirectional)'
+  )
   .option('--enable', 'Enable sync for target')
   .option('--disable', 'Disable sync for target')
   .option('--status', 'Show sync status')
   .action(async (options) => {
     const targets = detectNativeMemoryTargets();
-    
+
     if (options.status || (!options.target && !options.enable && !options.disable)) {
       // Show sync status
       console.log(c.bold('Native Memory Sync Status\n'));
-      
+
       const rows = [
-        [c.bold('Target'), c.bold('Available'), c.bold('Enabled'), c.bold('Direction'), c.bold('Path')],
-        ...targets.map(target => [
+        [
+          c.bold('Target'),
+          c.bold('Available'),
+          c.bold('Enabled'),
+          c.bold('Direction'),
+          c.bold('Path'),
+        ],
+        ...targets.map((target) => [
           target.name,
           target.available ? c.success('Yes') : c.error('No'),
           target.config.enabled ? c.success('Yes') : c.dim('No'),
@@ -1548,31 +1613,31 @@ const syncCmd = program
           target.config.nativePath,
         ]),
       ];
-      
+
       console.log(table(rows));
       console.log();
-      
-      if (!targets.some(t => t.available)) {
+
+      if (!targets.some((t) => t.available)) {
         console.log(c.warning('  No native memory targets found.'));
         console.log(c.dim('  Install Windsurf or Cursor to enable sync.\n'));
       }
-      
+
       return;
     }
-    
+
     if (options.target) {
-      const target = targets.find(t => t.name === options.target);
+      const target = targets.find((t) => t.name === options.target);
       if (!target) {
         console.error(c.error(`Unknown target: ${options.target}`));
-        console.error(c.dim(`Available targets: ${targets.map(t => t.name).join(', ')}`));
+        console.error(c.dim(`Available targets: ${targets.map((t) => t.name).join(', ')}`));
         process.exit(1);
       }
-      
+
       if (!target.available) {
         console.error(c.error(`${target.name} is not available on this system.`));
         process.exit(1);
       }
-      
+
       if (options.enable) {
         // Enable sync for target
         if (!validateNativeMemoryPath(target.config.nativePath)) {
@@ -1580,31 +1645,29 @@ const syncCmd = program
           console.error(c.dim(`  ${target.config.nativePath}`));
           process.exit(1);
         }
-        
+
         target.config.enabled = true;
         if (options.direction) {
           target.config.direction = options.direction;
         }
-        
+
         console.log(c.success(`Sync enabled for ${target.name}`));
         console.log(c.dim(`  Direction: ${target.config.direction}`));
         console.log(c.dim(`  Path: ${target.config.nativePath}`));
         console.log();
         console.log(c.dim(`  Run 'memlink sync --target ${target.name}' to sync now.`));
-        
       } else if (options.disable) {
         // Disable sync for target
         target.config.enabled = false;
         console.log(c.success(`Sync disabled for ${target.name}`));
-        
       } else {
         // Perform sync
         const spinner = ora(`Syncing with ${target.name}...`).start();
-        
+
         try {
           const result = await performSync(target);
           spinner.succeed();
-          
+
           if (result.success) {
             console.log(c.success(`Sync completed`));
             console.log(c.dim(`  Synced: ${result.synced} entries`));
@@ -1613,7 +1676,7 @@ const syncCmd = program
             }
           } else {
             console.log(c.error(`Sync failed`));
-            result.errors.forEach(error => {
+            result.errors.forEach((error) => {
               console.log(c.dim(`  ${error}`));
             });
           }
@@ -1634,71 +1697,76 @@ async function performSync(target: SyncTarget): Promise<SyncResult> {
     conflicts: 0,
     errors: [],
   };
-  
+
   try {
     const config = loadConfig();
     const universalMemories = config.universalMemories;
-    
+
     if (universalMemories.length === 0) {
       result.errors.push('No universal memories found');
       return result;
     }
-    
+
     // For now, sync the first universal memory
     const memory = universalMemories[0];
     const memlinkEntries = readMemory(memory.memoryId);
-    
-    if (target.config.direction === 'memlink-to-native' || target.config.direction === 'bidirectional') {
+
+    if (
+      target.config.direction === 'memlink-to-native' ||
+      target.config.direction === 'bidirectional'
+    ) {
       // Convert Memlink to native format
       const nativeMemories = convertMemlinkToNative(memlinkEntries);
-      
+
       // Write to native format
       if (target.name === 'windsurf') {
         writeWindsurfFormat(nativeMemories, target.config.nativePath);
       } else if (target.name === 'cursor') {
         writeCursorFormat(nativeMemories, target.config.nativePath);
       }
-      
+
       result.synced = nativeMemories.length;
     }
-    
-    if (target.config.direction === 'native-to-memlink' || target.config.direction === 'bidirectional') {
+
+    if (
+      target.config.direction === 'native-to-memlink' ||
+      target.config.direction === 'bidirectional'
+    ) {
       // Read native memories
       let nativeMemories: NativeMemory[] = [];
-      
+
       if (target.name === 'windsurf') {
         nativeMemories = readWindsurfFormat(target.config.nativePath);
       } else if (target.name === 'cursor') {
         nativeMemories = readCursorFormat(target.config.nativePath);
       }
-      
+
       // Convert to Memlink format and import
       if (nativeMemories.length > 0) {
         const memlinkFormat = convertNativeToMemlink(nativeMemories);
-        
+
         for (const entry of memlinkFormat) {
           upsertMemoryEntry(memory.memoryId, entry.title, entry.content, entry.tags);
         }
-        
+
         result.synced += nativeMemories.length;
       }
     }
-    
+
     result.success = true;
-    
+
     // Update last sync time
     target.config.lastSync = new Date().toISOString();
-    
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : String(error));
   }
-  
+
   return result;
 }
 
 // ─── Bulk Delete Commands ───────────────────────────────────────────────────────
 
-const bulkDeleteCmd = program
+program
   .command('bulk-delete')
   .description('Delete multiple memory entries at once')
   .argument('<memory-id>', 'Memory ID')
@@ -1718,13 +1786,15 @@ const bulkDeleteCmd = program
       const isDryRun = options.dryRun;
 
       if (options.titles) {
-        const titles = options.titles.split(',').map(t => t.trim());
+        const titles = options.titles.split(',').map((t) => t.trim());
         if (isDryRun) {
           const memory = readMemory(memoryId);
-          const titlesLower = titles.map(t => t.toLowerCase());
-          const toDelete = memory.entries.filter(e => titlesLower.includes(e.title.toLowerCase()));
+          const titlesLower = titles.map((t) => t.toLowerCase());
+          const toDelete = memory.entries.filter((e) =>
+            titlesLower.includes(e.title.toLowerCase())
+          );
           console.log(c.bold(`Would delete ${toDelete.length} entries:`));
-          toDelete.forEach(e => console.log(`  - ${e.title}`));
+          toDelete.forEach((e) => console.log(`  - ${e.title}`));
           return;
         }
         result = bulkDeleteMemories(memoryId, titles);
@@ -1733,21 +1803,21 @@ const bulkDeleteCmd = program
           console.log(c.warning(`Not found: ${result.notFound.join(', ')}`));
         }
       } else if (options.tags) {
-        const tags = options.tags.split(',').map(t => t.trim());
+        const tags = options.tags.split(',').map((t) => t.trim());
         if (isDryRun) {
           const memory = readMemory(memoryId);
-          const tagsLower = tags.map(t => t.toLowerCase());
-          const toDelete = memory.entries.filter(e => 
-            e.tags.some(tag => tagsLower.includes(tag.toLowerCase()))
+          const tagsLower = tags.map((t) => t.toLowerCase());
+          const toDelete = memory.entries.filter((e) =>
+            e.tags.some((tag) => tagsLower.includes(tag.toLowerCase()))
           );
           console.log(c.bold(`Would delete ${toDelete.length} entries:`));
-          toDelete.forEach(e => console.log(`  - ${e.title} (tags: ${e.tags.join(', ')})`));
+          toDelete.forEach((e) => console.log(`  - ${e.title} (tags: ${e.tags.join(', ')})`));
           return;
         }
         result = bulkDeleteMemoriesByTags(memoryId, tags);
         console.log(c.success(`Deleted ${result.deleted} entries`));
         console.log(c.dim(`Deleted entries:`));
-        result.entries.forEach(e => console.log(`  - ${e.title}`));
+        result.entries.forEach((e) => console.log(`  - ${e.title}`));
       } else if (options.pattern) {
         if (isDryRun) {
           const memory = readMemory(memoryId);
@@ -1761,26 +1831,27 @@ const bulkDeleteCmd = program
                 .replace(/\\\*/g, '*') // Allow escaped asterisk
                 .replace(/\\\?/g, '?'); // Allow escaped question mark
               const regex = new RegExp(sanitizedPattern, 'i');
-              toDelete = memory.entries.filter(e => regex.test(e.title) || regex.test(e.content));
+              toDelete = memory.entries.filter((e) => regex.test(e.title) || regex.test(e.content));
             } catch (error) {
               console.error(c.error(`Invalid regex: ${error}`));
               process.exit(1);
             }
           } else {
             const patternLower = options.pattern.toLowerCase();
-            toDelete = memory.entries.filter(e => 
-              e.title.toLowerCase().includes(patternLower) ||
-              e.content.toLowerCase().includes(patternLower)
+            toDelete = memory.entries.filter(
+              (e) =>
+                e.title.toLowerCase().includes(patternLower) ||
+                e.content.toLowerCase().includes(patternLower)
             );
           }
           console.log(c.bold(`Would delete ${toDelete.length} entries:`));
-          toDelete.forEach(e => console.log(`  - ${e.title}`));
+          toDelete.forEach((e) => console.log(`  - ${e.title}`));
           return;
         }
         result = bulkDeleteMemoriesByPattern(memoryId, options.pattern, options.regex);
         console.log(c.success(`Deleted ${result.deleted} entries`));
         console.log(c.dim(`Deleted entries:`));
-        result.entries.forEach(e => console.log(`  - ${e.title}`));
+        result.entries.forEach((e) => console.log(`  - ${e.title}`));
       }
     } catch (error) {
       console.error(c.error(`Error: ${error instanceof Error ? error.message : String(error)}`));
@@ -1790,7 +1861,7 @@ const bulkDeleteCmd = program
 
 // ─── Backup Commands ─────────────────────────────────────────────────────────────
 
-const backupCmd = program
+program
   .command('backup')
   .description('Create and manage memory backups')
   .argument('[memory-id]', 'Memory ID (optional, defaults to all memories)')
@@ -1815,7 +1886,7 @@ const backupCmd = program
     }
   });
 
-const restoreCmd = program
+program
   .command('restore')
   .description('Restore memory from backup')
   .argument('<backup-path>', 'Path to backup file')
@@ -1823,11 +1894,7 @@ const restoreCmd = program
   .option('--overwrite', 'Overwrite existing memory')
   .action(async (backupPath, options) => {
     try {
-      const result = restoreBackup(
-        backupPath, 
-        options.memoryId, 
-        options.overwrite
-      );
+      const result = restoreBackup(backupPath, options.memoryId, options.overwrite);
       console.log(c.success(`Restored ${result.restored} entries to memory '${result.memoryId}'`));
     } catch (error) {
       console.error(c.error(`Error: ${error instanceof Error ? error.message : String(error)}`));
@@ -1835,28 +1902,34 @@ const restoreCmd = program
     }
   });
 
-const listBackupsCmd = program
+program
   .command('backups')
   .description('List available backups')
   .argument('[memory-id]', 'Filter by memory ID (optional)')
   .action(async (memoryId) => {
     try {
       const backups = listBackups(memoryId);
-      
+
       if (backups.length === 0) {
         console.log(c.dim('No backups found'));
         return;
       }
 
       const rows = [
-        [c.bold('Filename'), c.bold('Memory ID'), c.bold('Entries'), c.bold('Size'), c.bold('Created')],
-        ...backups.map(backup => [
+        [
+          c.bold('Filename'),
+          c.bold('Memory ID'),
+          c.bold('Entries'),
+          c.bold('Size'),
+          c.bold('Created'),
+        ],
+        ...backups.map((backup) => [
           backup.filename,
           backup.memoryId,
           backup.entryCount.toString(),
           `${(backup.size / 1024).toFixed(1)}KB`,
-          backup.createdAt.toLocaleString()
-        ])
+          backup.createdAt.toLocaleString(),
+        ]),
       ];
 
       console.log(table(rows));
@@ -1866,7 +1939,7 @@ const listBackupsCmd = program
     }
   });
 
-const deleteBackupCmd = program
+program
   .command('delete-backup')
   .description('Delete a backup file')
   .argument('<backup-path>', 'Path to backup file')
@@ -1885,7 +1958,7 @@ const deleteBackupCmd = program
     }
   });
 
-const cleanupCmd = program
+program
   .command('cleanup')
   .description('Clean up old backups')
   .argument('[memory-id]', 'Memory ID (optional, defaults to all)')
@@ -1894,7 +1967,7 @@ const cleanupCmd = program
     try {
       const keepCount = parseInt(options.keep);
       const result = cleanupOldBackups(memoryId, keepCount);
-      
+
       console.log(c.success(`Cleanup completed:`));
       console.log(c.dim(`  Kept: ${result.kept} backups`));
       console.log(c.dim(`  Deleted: ${result.deleted} backups`));
@@ -1904,7 +1977,7 @@ const cleanupCmd = program
     }
   });
 
-const statsCmd = program
+program
   .command('stats')
   .description('Show detailed memory statistics with charts')
   .argument('[memory-id]', 'Memory ID (optional, shows all memories)')
@@ -1921,40 +1994,48 @@ const statsCmd = program
           console.log(c.dim('No memories found'));
           return;
         }
-        
+
         if (options.json) {
           console.log(JSON.stringify(allStats, null, 2));
           return;
         }
-        
+
         console.log(c.bold(`Memory Statistics Overview\n`));
-        
+
         // Summary table
         const summaryRows = [
-          [c.bold('Memory'), c.bold('Entries'), c.bold('Size'), c.bold('Avg Size'), c.bold('Efficiency'), c.bold('Growth/Day')],
-          ...allStats.map(stats => [
+          [
+            c.bold('Memory'),
+            c.bold('Entries'),
+            c.bold('Size'),
+            c.bold('Avg Size'),
+            c.bold('Efficiency'),
+            c.bold('Growth/Day'),
+          ],
+          ...allStats.map((stats) => [
             stats.memoryName || stats.memoryId,
             stats.entries.toString(),
             `${(stats.size / 1024).toFixed(1)}KB`,
             `${(stats.averageEntrySize / 1024).toFixed(1)}KB`,
             `${(stats.memoryEfficiency * 100).toFixed(1)}%`,
-            stats.growthRate.toFixed(1)
-          ])
+            stats.growthRate.toFixed(1),
+          ]),
         ];
-        
+
         console.log(table(summaryRows));
         console.log();
-        
+
         // Total stats
         const totalEntries = allStats.reduce((sum, s) => sum + s.entries, 0);
         const totalSize = allStats.reduce((sum, s) => sum + s.size, 0);
-        const avgEfficiency = allStats.reduce((sum, s) => sum + s.memoryEfficiency, 0) / allStats.length;
-        
+        const avgEfficiency =
+          allStats.reduce((sum, s) => sum + s.memoryEfficiency, 0) / allStats.length;
+
         console.log(c.bold('Total Across All Memories:'));
         console.log(c.dim(`  Entries: ${totalEntries}`));
         console.log(c.dim(`  Size: ${(totalSize / 1024).toFixed(1)}KB`));
         console.log(c.dim(`  Avg Efficiency: ${(avgEfficiency * 100).toFixed(1)}%`));
-        
+
         if (options.chart && allStats.length > 0) {
           console.log();
           console.log(c.bold('Size Distribution Chart:'));
@@ -1969,7 +2050,11 @@ const statsCmd = program
 
 // ─── Stats Display Functions ─────────────────────────────────────────────────────
 
-function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = false, asJson: boolean = false): void {
+function displayMemoryStats(
+  stats: DetailedMemoryStats,
+  showChart: boolean = false,
+  asJson: boolean = false
+): void {
   if (asJson) {
     console.log(JSON.stringify(stats, null, 2));
     return;
@@ -1998,11 +2083,9 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
     console.log(c.bold('Tag Distribution:'));
     const tagRows = [
       [c.bold('Tag'), c.bold('Count'), c.bold('Size')],
-      ...stats.tagDistribution.slice(0, 10).map(tag => [
-        tag.tag,
-        tag.count.toString(),
-        `${(tag.size / 1024).toFixed(1)}KB`
-      ])
+      ...stats.tagDistribution
+        .slice(0, 10)
+        .map((tag) => [tag.tag, tag.count.toString(), `${(tag.size / 1024).toFixed(1)}KB`]),
     ];
     console.log(table(tagRows));
     console.log();
@@ -2012,10 +2095,11 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
   console.log(c.bold('Entry Size Distribution:'));
   const sizeRows = [
     [c.bold('Size Range'), c.bold('Count'), c.bold('Percentage')],
-    ...stats.entrySizeDistribution.map(range => {
-      const percentage = stats.entries > 0 ? (range.count / stats.entries * 100).toFixed(1) : '0.0';
+    ...stats.entrySizeDistribution.map((range) => {
+      const percentage =
+        stats.entries > 0 ? ((range.count / stats.entries) * 100).toFixed(1) : '0.0';
       return [range.range, range.count.toString(), `${percentage}%`];
-    })
+    }),
   ];
   console.log(table(sizeRows));
   console.log();
@@ -2025,11 +2109,11 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
     console.log(c.bold('Largest Entries (Top 10):'));
     const largestRows = [
       [c.bold('Title'), c.bold('Size'), c.bold('Tags')],
-      ...stats.largestEntries.map(entry => [
+      ...stats.largestEntries.map((entry) => [
         entry.title.length > 30 ? entry.title.substring(0, 27) + '...' : entry.title,
         `${(entry.size / 1024).toFixed(1)}KB`,
-        entry.tags.join(', ') || 'none'
-      ])
+        entry.tags.join(', ') || 'none',
+      ]),
     ];
     console.log(table(largestRows));
     console.log();
@@ -2040,10 +2124,7 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
     console.log(c.bold('Recent Activity (Last 30 Days):'));
     const activityRows = [
       [c.bold('Date'), c.bold('Entries')],
-      ...stats.activityTimeline.slice(-10).map(day => [
-        day.date,
-        day.entries.toString()
-      ])
+      ...stats.activityTimeline.slice(-10).map((day) => [day.date, day.entries.toString()]),
     ];
     console.log(table(activityRows));
     console.log();
@@ -2052,16 +2133,18 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
   // Charts
   if (showChart) {
     console.log(c.bold('Visual Charts:'));
-    
+
     // Tag distribution chart
     if (stats.tagDistribution.length > 0) {
       console.log(c.dim('\nTag Distribution:'));
-      displayBarChart(stats.tagDistribution.slice(0, 8).map(t => ({ label: t.tag, value: t.count })));
+      displayBarChart(
+        stats.tagDistribution.slice(0, 8).map((t) => ({ label: t.tag, value: t.count }))
+      );
     }
 
     // Size distribution chart
     console.log(c.dim('\nSize Distribution:'));
-    displayBarChart(stats.entrySizeDistribution.map(d => ({ label: d.range, value: d.count })));
+    displayBarChart(stats.entrySizeDistribution.map((d) => ({ label: d.range, value: d.count })));
 
     // Activity chart
     if (stats.activityTimeline.length > 0) {
@@ -2072,10 +2155,10 @@ function displayMemoryStats(stats: DetailedMemoryStats, showChart: boolean = fal
 }
 
 function displayBarChart(data: Array<{ label: string; value: number }>): void {
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value));
   const barWidth = 30;
-  
-  data.forEach(item => {
+
+  data.forEach((item) => {
     const barLength = Math.round((item.value / maxValue) * barWidth);
     const bar = '█'.repeat(barLength) + '░'.repeat(barWidth - barLength);
     console.log(c.dim(`${item.label.padEnd(12)} |${c.cyan(bar)} ${item.value}`));
@@ -2083,22 +2166,25 @@ function displayBarChart(data: Array<{ label: string; value: number }>): void {
 }
 
 function displayActivityChart(timeline: Array<{ date: string; entries: number }>): void {
-  const maxValue = Math.max(...timeline.map(d => d.entries));
+  const maxValue = Math.max(...timeline.map((d) => d.entries));
   const barWidth = 20;
-  
-  timeline.forEach(day => {
+
+  timeline.forEach((day) => {
     const barLength = Math.round((day.entries / maxValue) * barWidth);
     const bar = '█'.repeat(barLength) + '░'.repeat(barWidth - barLength);
-    const shortDate = new Date(day.date).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    const shortDate = new Date(day.date).toLocaleDateString('en', {
+      month: 'short',
+      day: 'numeric',
+    });
     console.log(c.dim(`${shortDate.padEnd(6)} |${c.green(bar)} ${day.entries}`));
   });
 }
 
 function displaySizeChart(allStats: DetailedMemoryStats[]): void {
-  const maxSize = Math.max(...allStats.map(s => s.size));
+  const maxSize = Math.max(...allStats.map((s) => s.size));
   const barWidth = 25;
-  
-  allStats.forEach(stats => {
+
+  allStats.forEach((stats) => {
     const barLength = Math.round((stats.size / maxSize) * barWidth);
     const bar = '█'.repeat(barLength) + '░'.repeat(barWidth - barLength);
     const name = (stats.memoryName || stats.memoryId).substring(0, 12);
@@ -2108,7 +2194,7 @@ function displaySizeChart(allStats: DetailedMemoryStats[]): void {
 
 program
   .command('update')
-  .description('Update Memlink to the latest version')
+  .description('Update memlink to the latest version')
   .option('--check', 'Check for updates without installing')
   .action(async (options) => {
     const spinner = ora('Checking for updates...').start();
@@ -2116,7 +2202,7 @@ program
     const { updateAvailable, currentVersion, latestVersion } = await checkForUpdates();
 
     if (!updateAvailable) {
-      spinner.succeed('Memlink is up to date!');
+      spinner.succeed('memlink is up to date!');
       console.log(c.dim(`Current version: ${currentVersion}`));
       return;
     }
@@ -2134,7 +2220,7 @@ program
       await performUpdate();
       updateSpinner.succeed('Update installed successfully!');
       console.log(c.success(`Updated to version ${latestVersion}`));
-      console.log(c.dim('Please restart Memlink to use the new version.'));
+      console.log(c.dim('Please restart memlink to use the new version.'));
     } catch (error) {
       updateSpinner.fail('Update failed');
       console.error(c.error(error instanceof Error ? error.message : 'Unknown error'));
@@ -2154,10 +2240,10 @@ interface MemoryOption {
 
 async function showMemorySelector(): Promise<void> {
   const config = loadConfig();
-  
+
   // Build list of all memories and agents
   const options: MemoryOption[] = [];
-  
+
   // Add universal memories
   for (const mem of config.universalMemories) {
     try {
@@ -2179,7 +2265,7 @@ async function showMemorySelector(): Promise<void> {
       });
     }
   }
-  
+
   // Add agents
   for (const agent of config.agents) {
     try {
@@ -2201,82 +2287,89 @@ async function showMemorySelector(): Promise<void> {
       });
     }
   }
-  
+
   if (options.length === 0) {
     console.log('\n' + LOGO_SMALL + '\n');
     console.log(c.warning('  No memories found.\n'));
     console.log(c.dim('  Create one with: memlink memory create\n'));
     return;
   }
-  
+
   // Interactive selection
   let selectedIndex = 0;
   let searchQuery = '';
-  
+
   console.clear();
-  
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
-  
+
   // Enable raw mode for arrow key handling
   process.stdin.setRawMode(true);
-  
+
   const filteredOptions = () => {
     if (!searchQuery) return options;
     const q = searchQuery.toLowerCase();
-    return options.filter(opt => 
-      opt.name.toLowerCase().includes(q) ||
-      opt.id.toLowerCase().includes(q) ||
-      opt.type.toLowerCase().includes(q)
+    return options.filter(
+      (opt) =>
+        opt.name.toLowerCase().includes(q) ||
+        opt.id.toLowerCase().includes(q) ||
+        opt.type.toLowerCase().includes(q)
     );
   };
-  
+
   const render = () => {
     const opts = filteredOptions();
     const displayOpts = opts.slice(0, 10); // Show max 10
-    
+
     console.clear();
     console.log(c.bold('\n  Seleccionar Memoria\n'));
-    console.log(c.dim('  Escribe para buscar, flechas para navegar, Enter para seleccionar, q para salir\n'));
-    
+    console.log(
+      c.dim('  Escribe para buscar, flechas para navegar, Enter para seleccionar, q para salir\n')
+    );
+
     console.log(c.dim('  Búsqueda: ') + c.text(searchQuery || '(todas)'));
     console.log();
-    
-    displayOpts.forEach((opt, i) => {
+
+    displayOpts.forEach((opt) => {
       const isSelected = opts[selectedIndex]?.id === opt.id;
       const prefix = isSelected ? c.success('  ▶ ') : c.dim('    ');
       const typeLabel = opt.type === 'memory' ? c.info('Memoria') : c.warning('Agente');
       const entryLabel = opt.entries === 1 ? 'entrada' : 'entradas';
-      
-      console.log(`${prefix}${c.bold(opt.name)} ${c.dim(`[${typeLabel} · ${opt.entries} ${entryLabel}]`)}`);
+
+      console.log(
+        `${prefix}${c.bold(opt.name)} ${c.dim(`[${typeLabel} · ${opt.entries} ${entryLabel}]`)}`
+      );
       console.log(c.dim(`      ID: ${opt.id}`));
       console.log();
     });
-    
+
     if (opts.length > 10) {
       console.log(c.dim(`  ... y ${opts.length - 10} más`));
     }
   };
-  
+
   render();
-  
+
   const keyHandler = (chunk: Buffer) => {
     const key = chunk.toString();
-    
-    if (key === '\u0003') { // Ctrl+C
+
+    if (key === '\u0003') {
+      // Ctrl+C
       process.exit(0);
     }
-    
+
     if (key === 'q') {
       process.stdin.setRawMode(false);
       rl.close();
       console.clear();
       return;
     }
-    
-    if (key === '\r') { // Enter
+
+    if (key === '\r') {
+      // Enter
       const opts = filteredOptions();
       if (opts[selectedIndex]) {
         process.stdin.setRawMode(false);
@@ -2285,24 +2378,26 @@ async function showMemorySelector(): Promise<void> {
         return;
       }
     }
-    
-    if (key === '\u001b[A') { // Arrow up
-      const opts = filteredOptions();
+
+    if (key === '\u001b[A') {
+      // Arrow up
       selectedIndex = Math.max(0, selectedIndex - 1);
-    } else if (key === '\u001b[B') { // Arrow down
+    } else if (key === '\u001b[B') {
+      // Arrow down
       const opts = filteredOptions();
       selectedIndex = Math.min(opts.length - 1, selectedIndex + 1);
-    } else if (key === '\u007f') { // Backspace
+    } else if (key === '\u007f') {
+      // Backspace
       searchQuery = searchQuery.slice(0, -1);
       selectedIndex = 0;
     } else if (key.length === 1) {
       searchQuery += key;
       selectedIndex = 0;
     }
-    
+
     render();
   };
-  
+
   process.stdin.on('data', keyHandler);
 }
 
@@ -2310,17 +2405,17 @@ function showMemoryContent(memoryId: string, memoryName: string): void {
   console.clear();
   console.log(c.bold(`\n  ${memoryName}\n`));
   console.log(c.dim(`  ID: ${memoryId}\n`));
-  
+
   try {
     const entries = readMemory(memoryId);
-    
+
     if (entries.length === 0) {
       console.log(c.warning('  Esta memoria está vacía.\n'));
       return;
     }
-    
+
     console.log(c.bold('  Entradas:\n'));
-    
+
     entries.forEach((entry, i) => {
       console.log(c.dim(`  ${i + 1}. `) + c.bold(entry.title));
       console.log(c.dim(`     Tags: ${entry.tags?.join(', ') || 'sin tags'}`));
@@ -2328,9 +2423,9 @@ function showMemoryContent(memoryId: string, memoryName: string): void {
       console.log(c.dim(`     ${preview}${entry.content.length > 80 ? '...' : ''}`));
       console.log();
     });
-    
+
     console.log(c.dim('  Presiona cualquier tecla para salir...'));
-    
+
     process.stdin.setRawMode(true);
     process.stdin.once('data', () => {
       process.stdin.setRawMode(false);

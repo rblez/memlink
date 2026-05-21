@@ -1,6 +1,6 @@
 # Source Directory
 
-This directory contains all the TypeScript source code for Memlink.
+This directory contains all the TypeScript source code for memlink.
 
 ## Structure
 

@@ -4,4 +4,4 @@ export {
   getCurrentBinaryName,
   checkForUpdates,
   performUpdate,
-} from "./updater.ts";
+} from './updater.ts';

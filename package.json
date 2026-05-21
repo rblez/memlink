@@ -1,10 +1,12 @@
 {
   "name": "memlink",
-  "version": "2.0.0",
-  "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
+  "version": "0.4.0",
+  "description": "memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
   "license": "MIT",
   "private": false,
   "type": "module",
+  "files": ["dist", "README.md", "LICENSE"],
+  "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
     "url": "https://github.com/rblez/memlink.git"
@@ -18,12 +20,12 @@
   },
   "exports": {
     ".": {
-      "import": "./src/cli/index.ts",
-      "types": "./src/cli/index.ts"
+      "import": "./dist/cli/index.js",
+      "types": "./dist/cli/index.js"
     },
     "./server": {
-      "import": "./src/server/index.ts",
-      "types": "./src/server/index.ts"
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.js"
     }
   },
   "engines": {
@@ -42,28 +44,29 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.2",
-    "chalk": "^5.3.0",
-    "commander": "^12.1.0",
-    "express": "^4.21.2",
-    "express-rate-limit": "^8.5.1",
-    "nanoid": "^5.0.7",
-    "ora": "^8.1.1",
-    "table": "^6.8.2",
-    "zod": "^3.24.2"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "nanoid": "^5.1.11",
+    "ora": "^9.4.0",
+    "table": "^6.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/express": "^5.0.1",
-    "@types/node": "^22.10.7",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.7.3"
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.8.0",
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3"
   }
 }

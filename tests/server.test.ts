@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { createServer } from "http";
-import { createUniversalMemory } from "../src/core/memory.ts";
-import { unlinkSync, existsSync } from "fs";
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { createServer } from 'http';
+import { createUniversalMemory } from '../src/core/memory.ts';
+import { unlinkSync, existsSync } from 'fs';
 
-describe("MCP Server", () => {
+describe('MCP Server', () => {
   let server: any;
   let memoryId: string;
   let memoryName: string;
@@ -33,38 +33,38 @@ describe("MCP Server", () => {
     }
   });
 
-  describe("Server Health", () => {
-    it("should start server without errors", async () => {
+  describe('Server Health', () => {
+    it('should start server without errors', async () => {
       expect(server).toBeDefined();
       expect(server.listening).toBe(true);
     });
 
-    it("should respond to health check", async () => {
+    it('should respond to health check', async () => {
       const response = await fetch(`http://localhost:${port}/health`);
       expect(response.status).toBe(200);
     });
   });
 
-  describe("MCP Protocol", () => {
-    it("should handle MCP requests", async () => {
+  describe('MCP Protocol', () => {
+    it('should handle MCP requests', async () => {
       const mcpRequest = {
-        jsonrpc: "2.0",
+        jsonrpc: '2.0',
         id: 1,
-        method: "initialize",
+        method: 'initialize',
         params: {
-          protocolVersion: "2024-11-05",
+          protocolVersion: '2024-11-05',
           capabilities: {},
           clientInfo: {
-            name: "test-client",
-            version: "1.0.0",
+            name: 'test-client',
+            version: '1.0.0',
           },
         },
       };
 
       const response = await fetch(`http://localhost:${port}/mcp`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer memlink_${memoryId}`,
         },
         body: JSON.stringify(mcpRequest),
@@ -72,16 +72,16 @@ describe("MCP Server", () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.jsonrpc).toBe("2.0");
+      expect(data.jsonrpc).toBe('2.0');
       expect(data.id).toBe(1);
       expect(data.result).toBeDefined();
     });
 
-    it("should validate authentication", async () => {
+    it('should validate authentication', async () => {
       const response = await fetch(`http://localhost:${port}/mcp`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({}),
       });
@@ -93,56 +93,56 @@ describe("MCP Server", () => {
   async function startTestServer(testPort: number): Promise<any> {
     return new Promise((resolve) => {
       const testServer = createServer((req, res) => {
-        if (req.url === "/health") {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "healthy" }));
+        if (req.url === '/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'healthy' }));
           return;
         }
 
-        if (req.url === "/mcp" && req.method === "POST") {
+        if (req.url === '/mcp' && req.method === 'POST') {
           const authHeader = req.headers.authorization;
-          if (!authHeader || !authHeader.startsWith("Bearer memlink_")) {
-            res.writeHead(401, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Unauthorized" }));
+          if (!authHeader || !authHeader.startsWith('Bearer memlink_')) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
             return;
           }
 
-          let body = "";
-          req.on("data", (chunk) => {
+          let body = '';
+          req.on('data', (chunk) => {
             body += chunk.toString();
           });
 
-          req.on("end", () => {
+          req.on('end', () => {
             try {
               const mcpRequest = JSON.parse(body);
               const mcpResponse = {
-                jsonrpc: "2.0",
+                jsonrpc: '2.0',
                 id: mcpRequest.id,
                 result: {
-                  protocolVersion: "2024-11-05",
+                  protocolVersion: '2024-11-05',
                   capabilities: {
                     tools: {},
                     resources: {},
                   },
                   serverInfo: {
-                    name: "memlink",
-                    version: "2.0.0",
+                    name: 'memlink',
+                    version: '0.4.0',
                   },
                 },
               };
 
-              res.writeHead(200, { "Content-Type": "application/json" });
+              res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(mcpResponse));
             } catch (error) {
-              res.writeHead(400, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ error: "Invalid JSON" }));
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Invalid JSON' }));
             }
           });
           return;
         }
 
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Not Found" }));
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not Found' }));
       });
 
       testServer.listen(testPort, () => {

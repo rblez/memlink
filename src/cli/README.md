@@ -1,6 +1,6 @@
 # CLI Directory
 
-Command-line interface implementation for Memlink.
+Command-line interface implementation for memlink.
 
 ## Files
 
@@ -47,7 +47,7 @@ Main CLI entry point. Contains all command definitions and user-facing functiona
 
 **Configuration:**
 - `memlink config` - View/modify configuration
-- `memlink init` - Initialize Memlink
+- `memlink init` - Initialize memlink
 
 **Utility Functions:**
 - `outputJson(data)` - Format output as JSON
@@ -96,7 +96,7 @@ The CLI supports two output formats:
 
 **Normal (human-readable):**
 ```
-  Memlink v1.0.0
+  memlink v0.4.0
 
   Agent        ID           Token          Memory
   Windsurf     abc123...    memlink_abc... abc123.memory

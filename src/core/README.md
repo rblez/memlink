@@ -6,7 +6,7 @@ Core business logic for memory management, configuration, and data persistence.
 
 ### [memory.ts](./memory.ts)
 
-Memory operations and configuration management. This is the heart of Memlink's data layer.
+Memory operations and configuration management. This is the heart of memlink's data layer.
 
 **Purpose:**
 - Manage memory files (create, read, write, delete)
@@ -19,7 +19,7 @@ Memory operations and configuration management. This is the heart of Memlink's d
 #### Configuration Management
 - `loadConfig()` - Load configuration from `~/.memlink/config.json`
 - `saveConfig(config)` - Save configuration to disk
-- `getMemlinkDir()` - Get Memlink directory path (`~/.memlink/`)
+- `getMemlinkDir()` - Get memlink directory path (`~/.memlink/`)
 
 #### Agent Management
 - `createAgent(agentName, agentType)` - Create new agent with unique token
@@ -44,7 +44,7 @@ Memory operations and configuration management. This is the heart of Memlink's d
 - `getStats(agentId)` - Get detailed memory statistics
 
 #### Utility Functions
-- `ensureMemlinkDir()` - Create Memlink directory if not exists
+- `ensureMemlinkDir()` - Create memlink directory if not exists
 - `generateToken()` - Generate unique bearer token (`memlink_<32char>`)
 
 **Memory File Format:**
@@ -53,7 +53,7 @@ Memory files use a structured format with index:
 
 ```
 # INDEX
-# Memlink Memory — Agent: Windsurf — ID: abc123
+# memlink Memory — Agent: Windsurf — ID: abc123
 # Created: 2024-01-15T10:00:00.000Z
 EntryTitle | 6-25 | tags | 2024-01-15T10:05:00.000Z
 # END_INDEX
@@ -153,7 +153,7 @@ const KNOWN_AGENTS: Record<string, KnownAgent> = {
 ```
 
 **Constants:**
-- `MEMLINK_VERSION` - Current version ("1.0.0")
+- `MEMLINK_VERSION` - Current version ("0.4.0")
 - `DEFAULT_PORT` - Default server port (4444)
 - `DEFAULT_HOST` - Default server host ("localhost")
 - `CONFIG_DIR` - Config directory name (".memlink")
