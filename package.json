@@ -34,7 +34,7 @@
   },
   "scripts": {
     "build": "bun build src/cli/index.ts --outdir dist/cli --target node && bun build src/server/index.ts --outdir dist/server --target node",
-    "build:binaries": "bun run scripts/build.ts",
+    "build:binaries": "bun run scripts/build-native.ts",
     "dev:server": "bun --watch src/server/index.ts",
     "dev:cli": "bun src/cli/index.ts",
     "start": "node dist/server/index.js",

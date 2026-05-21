@@ -43,14 +43,6 @@ function navFooter(hints: string[]): string {
   return `\n  ${colors.dim('─'.repeat(64))}\n  ${colors.dim(hints.join('  ' + colors.dim('·') + ' '))}\n`;
 }
 
-// ─── Global options ──────────────────────────────────────────────────────────
-
-let jsonOutput = false;
-
-function outputJson(data: unknown): void {
-  console.log(JSON.stringify(data, null, 2));
-}
-
 // ─── Interactive helpers ─────────────────────────────────────────────────────
 
 const rl = readline.createInterface({
@@ -73,25 +65,43 @@ function copyToClipboard(text: string): boolean {
   try {
     fs.writeFileSync(tmpfile, text, 'utf-8');
     const platform = process.platform;
+
     if (platform === 'darwin') {
       execSync(`cat '${tmpfile}' | pbcopy`, { stdio: 'ignore' });
-    } else if (platform === 'linux') {
-      for (const tool of ['wl-copy', 'xclip', 'xsel']) {
-        try {
-          execSync(`which ${tool}`, { stdio: 'ignore' });
-          if (tool === 'wl-copy') {
-            execSync(`cat '${tmpfile}' | ${tool}`, { stdio: 'ignore' });
-          } else {
-            execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
+    } else if (platform === 'win32') {
+      execSync(
+        `powershell -c "Set-Clipboard -Value (Get-Content '${tmpfile}' -Raw)"`,
+        { stdio: 'ignore' }
+      );
+    } else {
+      // Linux / Android (Termux) / BSD
+      // Try Termux first (termux-clipboard-set)
+      try {
+        execSync('which termux-clipboard-set', { stdio: 'ignore' });
+        execSync(`cat '${tmpfile}' | termux-clipboard-set`, { stdio: 'ignore' });
+        fs.unlinkSync(tmpfile);
+        return true;
+      } catch {
+        // Not Termux, try Wayland/X11 clipboard tools
+        for (const tool of ['wl-copy', 'xclip', 'xsel']) {
+          try {
+            execSync(`which ${tool}`, { stdio: 'ignore' });
+            if (tool === 'wl-copy') {
+              execSync(`cat '${tmpfile}' | ${tool}`, { stdio: 'ignore' });
+            } else if (tool === 'xclip') {
+              execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
+            } else {
+              execSync(`cat '${tmpfile}' | ${tool} --clipboard --input`, { stdio: 'ignore' });
+            }
+            fs.unlinkSync(tmpfile);
+            return true;
+          } catch {
+            continue;
           }
-          break;
-        } catch {
-          continue;
         }
       }
-    } else {
-      execSync(`powershell -c 'Get-Content '${tmpfile}' | Set-Clipboard'`, { stdio: 'ignore' });
     }
+
     fs.unlinkSync(tmpfile);
     return true;
   } catch {
@@ -153,9 +163,7 @@ async function promptSkillInstall(): Promise<'global' | 'workspace' | 'skip'> {
   console.log();
 
   return new Promise((resolve) => {
-    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl2.question(colors.primary('❯') + ' ' + colors.white('Choice [1-3]: '), (answer) => {
-      rl2.close();
+    rl.question(colors.primary('❯') + ' ' + colors.white('Choice [1-3]: '), (answer) => {
       const c = answer.trim();
       if (c === '1') resolve('workspace');
       else if (c === '2') resolve('global');
@@ -208,11 +216,9 @@ async function showMemorySelector(): Promise<string | null> {
   console.log();
 
   return new Promise((resolve) => {
-    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl2.question(
+    rl.question(
       colors.primary('❯') + ' ' + colors.white(`Choose [1-${options.length}]: `),
       (answer) => {
-        rl2.close();
         const idx = parseInt(answer.trim()) - 1;
         if (idx >= 0 && idx < options.length) resolve(options[idx].id);
         else resolve(options[0].id);
@@ -228,11 +234,7 @@ const program = new Command();
 program
   .name('memlink')
   .description('memlink — Universal memory for AI agents')
-  .version(MEMLINK_VERSION)
-  .option('--json', 'Output in JSON format')
-  .hook('preAction', (thisCommand) => {
-    jsonOutput = thisCommand.opts().json ?? false;
-  })
+  .version(MEMLINK_VERSION, '-v, --version')
   .addHelpText('before', LOGO);
 
 // ─── memlink serve ─────────────────────────────────────────────────────────────
@@ -448,18 +450,9 @@ memoryCmd
     const config = loadConfig();
 
     if (config.universalMemories.length === 0) {
-      if (jsonOutput) {
-        outputJson([]);
-        return;
-      }
       console.log('\n' + LOGO_SMALL + '\n');
       console.log(info('no memories', 'No memories found.'));
       console.log(navFooter(['^c exit']));
-      return;
-    }
-
-    if (jsonOutput) {
-      outputJson(config.universalMemories);
       return;
     }
 

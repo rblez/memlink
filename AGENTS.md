@@ -63,3 +63,5 @@ Tests use `bun:test` and create real memory files in `~/.memlink/` (cleaned up i
 - **ESLint**: modern flat config (`eslint.config.js`). Legacy `.eslintrc.js` still present but unused by `npm run lint`
 - **Format**: Prettier (semi, singleQuote, printWidth 100, tabWidth 2, no tabs)
 - **Changelog**: No CHANGELOG — git tags drive releases. PRs target `beta` branch, merges to `main` trigger release on `v*` tags.
+
+@.agents/skills/memlink

@@ -680,7 +680,7 @@ export async function startServer(port?: number, host?: string, enableLogs = fal
 
   return new Promise<void>((resolve) => {
     app.listen(p, h, () => {
-      console.log(`\n  ▲ memlink MCP Server running`);
+      console.log(`\n  ● memlink MCP Server running`);
       console.log(`  → http://${h}:${p}/mcp\n`);
 
       if (enableLogs) {

@@ -1,14 +1,13 @@
 #!/bin/bash
 set -e
 
-# memlink Installer
-# Usage: curl -sL rblez.com/memlink/install.sh | bash
+# memlink Demo Installer
+# Builds from local source — no GitHub release needed
+# Usage: ./install-demo.sh
 
 INSTALL_DIR="${HOME}/.local/bin"
-FALLBACK_DIR="/usr/local/bin"
 CONFIG_DIR="${HOME}/.memlink"
-REPO="rblez/memlink"
-GITHUB_API="https://api.github.com/repos/${REPO}/releases/latest"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Colors
 RED='\033[0;31m'
@@ -61,23 +60,16 @@ print_banner() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-# Detect runtime (bun preferred, falls back to node)
 detect_runtime() {
-    if command_exists bun; then
-        echo "bun"
-    elif command_exists node; then
-        echo "node"
-    else
-        echo "none"
+    if command_exists bun; then echo "bun"
+    elif command_exists node; then echo "node"
+    else echo "none"
     fi
 }
 
-# Detect clipboard tool
 detect_clipboard() {
-    local platform
-    platform=$(uname -s)
-    case "$platform" in
-        Darwin*)     echo "pbcopy" ;;
+    case "$(uname -s)" in
+        Darwin*) echo "pbcopy" ;;
         CYGWIN*|MINGW*|MSYS*) echo "powershell" ;;
         Linux*)
             if command_exists termux-clipboard-set; then echo "termux"
@@ -85,99 +77,40 @@ detect_clipboard() {
             elif command_exists xclip; then echo "xclip"
             elif command_exists xsel; then echo "xsel"
             else echo "none"
-            fi
-            ;;
+            fi ;;
         *) echo "none" ;;
     esac
 }
 
-# Download with progress bar
-download_with_progress() {
-    local url="$1" outfile="$2" bar_width=30
-    local total
-    total=$(curl -sIL --head "$url" 2>/dev/null | grep -i 'content-length' | tail -1 | tr -d '\r' | awk '{print $2}')
-
-    if [ -z "$total" ] || [ "$total" -eq 0 ] 2>/dev/null; then
-        curl -fsSL --max-time 60 --retry 3 -o "$outfile" "$url" 2>/dev/null
-        return $?
-    fi
-
-    curl -fsSL --max-time 60 --retry 3 "$url" > "$outfile" 2>/dev/null &
-    local pid=$!
+simulate_download() {
+    local total_kb=2048 bar_width=30
     local gc=("$C0" "$C1" "$C2" "$C3" "$C4" "$C5" "$C6" "$C7" "$C8" "$C9" "$CA" "$CB" "$CC" "$CD" "$CE" "$CF" "$CG" "$CH" "$CI" "$CJ" "$CK" "$CL" "$CM" "$CN" "$CO" "$CP")
-
-    while kill -0 $pid 2>/dev/null; do
-        local downloaded
-        downloaded=$(wc -c < "$outfile" 2>/dev/null | tr -d ' ' || echo 0)
-        [ -z "$downloaded" ] && downloaded=0
-        local pct=$((downloaded * 100 / total))
-        [ "$pct" -gt 100 ] && pct=100
-
+    local downloaded=0
+    while [ "$downloaded" -lt "$((total_kb * 1024))" ]; do
+        local chunk=$((RANDOM % 81920 + 20480))
+        downloaded=$((downloaded + chunk))
+        [ "$downloaded" -gt "$((total_kb * 1024))" ] && downloaded=$((total_kb * 1024))
+        local pct=$((downloaded * 100 / (total_kb * 1024)))
         local filled=$((pct * bar_width / 100))
         [ "$filled" -gt "$bar_width" ] && filled=$bar_width
         local empty=$((bar_width - filled))
-
         local bar="" i=0
         while [ $i -lt $filled ]; do bar="${bar}${gc[$((i % 26))]}▪${R}"; i=$((i + 1)); done
         i=0
         while [ $i -lt $empty ]; do bar="${bar}${gc[$(( (filled + i) % 26))]}▫${R}"; i=$((i + 1)); done
-
-        printf "\r  ${bar} ${pct}%% ($((downloaded / 1024))/$((total / 1024)) KB)"
-        sleep 0.15
+        printf "\r  ${bar} ${pct}%% ($((downloaded / 1024))/${total_kb} KB)"
+        sleep 0.08
     done
-
-    wait $pid
     echo ""
-    return $?
-}
-
-detect_os() {
-    case "$(uname -s)" in
-        Linux*)  echo "linux";;
-        Darwin*) echo "darwin";;
-        CYGWIN*|MINGW*|MSYS*) echo "windows";;
-        *)       echo "unknown";;
-    esac
-}
-
-detect_arch() {
-    case "$(uname -m)" in
-        x86_64)      echo "x64";;
-        aarch64|arm64) echo "arm64";;
-        *)           echo "x64";;
-    esac
-}
-
-get_latest_tag() {
-    local response
-    response=$(curl -fsSL --max-time 15 "$GITHUB_API" 2>/dev/null) || return 1
-    local tag
-    tag=$(echo "$response" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-    [ -z "$tag" ] || [ "$tag" = "$response" ] && return 1
-    echo "$tag"
 }
 
 main() {
     print_banner
 
-    # Detect environment
-    local os arch runtime clipboard
-    os=$(detect_os)
-    arch=$(detect_arch)
+    local runtime clipboard
     runtime=$(detect_runtime)
     clipboard=$(detect_clipboard)
 
-    # OS checks
-    if [ "$os" = "windows" ]; then
-        echo -e "${YELLOW}Windows requires manual installation.${R}"
-        echo ""
-        echo "  Download from: https://github.com/${REPO}/releases/latest"
-        echo ""
-        exit 1
-    fi
-    [ "$os" = "unknown" ] && { echo -e "${RED}Unsupported OS: $(uname -s)${R}"; exit 1; }
-
-    # Runtime check
     if [ "$runtime" = "none" ]; then
         echo -e "${RED}bun or node is required but not installed.${R}"
         echo ""
@@ -186,57 +119,41 @@ main() {
         exit 1
     fi
 
-    # Fetch release
-    local tag
-    tag=$(get_latest_tag) || { echo -e "${RED}Failed to reach GitHub API.${R}"; exit 1; }
-
-    # Binary name
-    local binary_name
-    [ "$os" = "windows" ] && binary_name="memlink-windows-${arch}.exe" || binary_name="memlink-${os}-${arch}"
-    local download_url="https://github.com/${REPO}/releases/download/${tag}/${binary_name}"
-
-    # Download
-    local tmpfile
-    tmpfile=$(mktemp "/tmp/memlink-${binary_name}.XXXXXX") || exit 1
-
-    download_with_progress "$download_url" "$tmpfile" || {
-        rm -f "$tmpfile"
-        echo -e "${RED}Download failed. Check: https://github.com/${REPO}/releases${R}"
-        exit 1
-    }
-
-    # Install
-    local target_dir="$INSTALL_DIR" target_path="${INSTALL_DIR}/memlink"
-    mkdir -p "$target_dir" 2>/dev/null || true
-
-    if [ -d "$target_dir" ] && [ -w "$target_dir" ]; then
-        mv "$tmpfile" "$target_path"
-        chmod +x "$target_path"
-    elif command_exists sudo; then
-        sudo mv "$tmpfile" "${FALLBACK_DIR}/memlink"
-        sudo chmod +x "${FALLBACK_DIR}/memlink"
-        target_dir="$FALLBACK_DIR"
-        target_path="${FALLBACK_DIR}/memlink"
-    else
-        rm -f "$tmpfile"
-        echo -e "${RED}Cannot write to ${INSTALL_DIR} or ${FALLBACK_DIR}.${R}"
+    if [ ! -f "${SCRIPT_DIR}/package.json" ]; then
+        echo -e "${RED}package.json not found. Run from the memlink project root.${R}"
         exit 1
     fi
 
-    mkdir -p "$CONFIG_DIR"
+    simulate_download "memlink-linux-x64"
 
-    # Build wrapper if needed (for source installs)
-    # Binary is standalone, no wrapper needed
+    # Install deps
+    "$runtime" install --cwd "${SCRIPT_DIR}" >/dev/null 2>&1
+
+    # Build standalone binary (no JS exposure)
+    "$runtime" run build --cwd "${SCRIPT_DIR}" 2>/dev/null
+
+    # Install standalone binary
+    mkdir -p "$INSTALL_DIR"
+    local target="${INSTALL_DIR}/memlink"
+    local project_root="$(cd "${SCRIPT_DIR}" && pwd)"
+
+    # Compile to native binary via bun build --compile
+    local tmpbin
+    tmpbin=$(mktemp /tmp/memlink-compile-XXXXXX)
+    "$runtime" build "${project_root}/dist/cli/index.js" --compile --outfile "$tmpbin" 2>/dev/null
+    mv "$tmpbin" "$target"
+    chmod +x "$target"
+    mkdir -p "$CONFIG_DIR"
 
     # Ensure PATH
     local memlink_cmd="memlink"
     case ":${PATH}:" in
-        *:"${target_dir}":*) ;;
-        *) memlink_cmd="${target_path}" ;;
+        *:"${INSTALL_DIR}":*) ;;
+        *) memlink_cmd="${target}" ;;
     esac
 
     echo ""
-    echo -e "${GREEN}memlink ${tag} installed${R}"
+    echo -e "${GREEN}memlink demo installed${R}"
     echo ""
 
     # Run init

@@ -12,12 +12,12 @@ Main CLI entry point. Contains all command definitions and user-facing functiona
 - Defines all CLI commands using Commander.js
 - Handles user input and output formatting
 - Provides interactive prompts for configuration
-- Manages global options (--json, --verbose)
+- Manages CLI options and global state
 
 **Key Components:**
 
 #### Global Options
-- `--json` - Output in JSON format for scripting
+- `-v, --version` - Show version
 - `-v, --verbose` - Show detailed debugging output
 
 #### Commands
@@ -80,7 +80,7 @@ npm run build
 # Run CLI
 node bin/memlink.js --help
 node bin/memlink.js agent list
-node bin/memlink.js --json memory list
+node bin/memlink.js memory list
 ```
 
 ## Development
@@ -119,4 +119,4 @@ All commands include proper error handling:
 - Try-catch blocks for operations
 - User-friendly error messages
 - Exit code 1 on errors
-- JSON error output when `--json` flag is used
+- Clean error messages with helpful hints
