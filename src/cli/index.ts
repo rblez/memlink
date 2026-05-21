@@ -315,6 +315,7 @@ program
     console.log();
     console.log(dimLine('Start server: memlink serve'));
     console.log();
+    console.log(navFooter(['^c exit']));
 
     rl.close();
   });
@@ -399,9 +400,10 @@ program
     console.log();
     console.log(dimLine('Start server: memlink serve'));
     console.log();
+    console.log(navFooter(['^c exit']));
   });
 
-// ─── memlink status ─────────────────────────────────────────────────────────────
+// ─── memlink status ───────────────────────────────────────────────────────────── ─────────────────────────────────────────────────────────────
 
 program
   .command('status')
@@ -431,6 +433,7 @@ program
     console.log(count('entries', totalEntries));
     console.log(count('size', `${(totalSize / 1024).toFixed(1)} KB`));
     console.log();
+    console.log(navFooter(['^c exit']));
   });
 
 // ─── memlink memory list ─────────────────────────────────────────────────────────
@@ -451,6 +454,7 @@ memoryCmd
       }
       console.log('\n' + LOGO_SMALL + '\n');
       console.log(info('no memories', 'No memories found.'));
+      console.log(navFooter(['^c exit']));
       return;
     }
 
@@ -478,6 +482,7 @@ memoryCmd
     ];
 
     console.log(table(rows));
+    console.log(navFooter(['^c exit']));
   });
 
 // ─── memlink memory show ─────────────────────────────────────────────────────────
@@ -512,6 +517,7 @@ memoryCmd
       if (entries.length === 0) {
         console.log('\n' + LOGO_SMALL + '\n');
         console.log(info('empty', `Memory is empty for ${memory.memoryName}\n`));
+        console.log(navFooter(['^c exit']));
         return;
       }
 
@@ -524,44 +530,24 @@ memoryCmd
         console.log('\n' + LOGO_SMALL + '\n');
         console.log(renderEntryAsMarkdown(entry));
         console.log();
+        console.log(navFooter(['^c exit']));
         return;
       }
 
       console.log('\n' + LOGO_SMALL + '\n');
       console.log(renderMemoryAsMarkdown(memoryId));
       console.log();
+      console.log(navFooter(['^c exit']));
     } catch (e) {
       console.error(err('Failed to read memory', String(e)));
       process.exit(1);
     }
   });
 
-// ─── Default: show banner + main commands ────────────────────────────────────
+// ─── Default: show help with banner ──────────────────────────────────────────
 
 if (process.argv.length <= 2) {
-  console.log(LOGO);
-  console.log();
-  console.log(heading('Main Commands'));
-  console.log();
-  console.log(
-    `  ${colors.primary('❯')}  ${colors.white('serve')}          ${colors.dim('Start MCP server')}`
-  );
-  console.log(
-    `  ${colors.primary('❯')}  ${colors.white('init')}           ${colors.dim('Create a memory')}`
-  );
-  console.log(
-    `  ${colors.primary('❯')}  ${colors.white('connect')}        ${colors.dim('Connect an agent')}`
-  );
-  console.log(
-    `  ${colors.primary('❯')}  ${colors.white('memory list')}    ${colors.dim('List memories')}`
-  );
-  console.log(
-    `  ${colors.primary('❯')}  ${colors.white('status')}         ${colors.dim('System status')}`
-  );
-  console.log();
-  console.log(navFooter(['--help all commands']));
-  console.log();
-  process.exit(0);
+  process.argv.push('--help');
 }
 
 program.parse(process.argv);
