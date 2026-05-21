@@ -2,7 +2,7 @@
 
 > **Universal Memory for AI Agents. Self-hosted, Fast, Organized.**
 
-![Memlink](assets/memlink.png)
+![Memlink](./assets/memlink.png)
 
 Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
 
