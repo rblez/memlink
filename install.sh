@@ -1,16 +1,15 @@
 #!/bin/bash
+# memlink Installer — Linux/macOS
+# Usage: curl -sL memlink.rblez.com/install.sh | sh
+# Windows: iex (iwr memlink.rblez.com/install.sh).Content
+
 set -e
 
-# memlink Installer
-# Usage: curl -sL rblez.com/memlink/install.sh | bash
-
-INSTALL_DIR="${HOME}/.local/bin"
-FALLBACK_DIR="/usr/local/bin"
-CONFIG_DIR="${HOME}/.memlink"
 REPO="rblez/memlink"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases/latest"
 
-# Colors
+# ─── Colors ───────────────────────────────────────────────────────────────────
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,6 +28,8 @@ CL='\033[38;2;221;85;221m'   CM='\033[38;2;217;64;217m'   CN='\033[38;2;212;43;2
 CO='\033[38;2;208;21;208m'   CP='\033[38;2;204;0;204m'
 R='\033[0m'
 
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
 cline() {
     local s="$1"
     local colors=("$C0" "$C1" "$C2" "$C3" "$C4" "$C5" "$C6" "$C7" "$C8" "$C9" "$CA" "$CB" "$CC" "$CD" "$CE" "$CF" "$CG" "$CH" "$CI" "$CJ" "$CK" "$CL" "$CM" "$CN" "$CO" "$CP")
@@ -43,16 +44,16 @@ cline() {
 print_banner() {
     echo ""
     cline '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'
-    cline '⠀⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⠀'
-    cline '⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀'
+    cline '⠀⠀⠀⠀⢠⣤⣤⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⠀'
+    cline '⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⣿⣿⣿⠀⠀⠀⠀'
     cline '⠀⠀⠀⠀⠘⠛⠛⠛⣶⣶⣶⡞⠛⠛⠛⣶⣶⣶⡞⠛⠛⠛⠀⠀⠀⠀'
-    cline '⢠⣤⣤⣤⣤⣤⣤⣤⣿⣿⣿⡇⠀⠀⠀⣿⣿⣿⣧⣤⣤⣤⣤⣤⣤⣤'
-    cline '⢸⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿'
-    cline '⠘⠛⠛⠛⠛⠛⠛⠛⣿⣿⣿⡇⠀⠀⠀⣿⣿⣿⡟⠛⠛⠛⠛⠛⠛⠛'
+    cline '⣤⣤⣤⣤⣤⣤⣿⣿⡇⠀⠀⠀⣿⣿⣿⣤⣤⣤⣤⣤⣤'
+    cline '⢸⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿'
+    cline '⠘⠛⠛⠛⠛⠛⠛⠛⣿⣿⣿⡇⠀⠀⠀⣿⣿⡟⠛⠛⠛⠛⠛'
     cline '⠀⠀⠀⠀⢠⣤⣤⣤⣿⣿⣿⣧⣤⣤⣤⣿⣿⣿⣧⣤⣤⣤⠀⠀⠀⠀'
-    cline '⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀'
-    cline '⠀⠀⠀⠀⠘⠛⠛⠛⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠘⠛⠛⠛⠀⠀⠀⠀'
-    cline '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'
+    cline '⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⣿⣿⣿⠀⠀⠀⠀'
+    cline '⠀⠀⠀⠀⠛⠛⠛⠀⠀⠀⢸⣿⣿⠀⠀⠀⠘⠛⠛⠛⠀⠀⠀⠀'
+    cline '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'
     echo ""
     echo -e "${DIM}  Universal Memory for AI Agents${R}"
     echo -e "${DIM}  Self-hosted · Fast · Organized${R}"
@@ -61,37 +62,6 @@ print_banner() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-# Detect runtime (bun preferred, falls back to node)
-detect_runtime() {
-    if command_exists bun; then
-        echo "bun"
-    elif command_exists node; then
-        echo "node"
-    else
-        echo "none"
-    fi
-}
-
-# Detect clipboard tool
-detect_clipboard() {
-    local platform
-    platform=$(uname -s)
-    case "$platform" in
-        Darwin*)     echo "pbcopy" ;;
-        CYGWIN*|MINGW*|MSYS*) echo "powershell" ;;
-        Linux*)
-            if command_exists termux-clipboard-set; then echo "termux"
-            elif command_exists wl-copy; then echo "wl-copy"
-            elif command_exists xclip; then echo "xclip"
-            elif command_exists xsel; then echo "xsel"
-            else echo "none"
-            fi
-            ;;
-        *) echo "none" ;;
-    esac
-}
-
-# Download with progress bar
 download_with_progress() {
     local url="$1" outfile="$2" bar_width=30
     local total
@@ -157,27 +127,26 @@ get_latest_tag() {
     echo "$tag"
 }
 
-main() {
+# ─── Linux/macOS install ──────────────────────────────────────────────────────
+
+install_unix() {
+    local INSTALL_DIR="${HOME}/.local/bin"
+    local FALLBACK_DIR="/usr/local/bin"
+    local CONFIG_DIR="${HOME}/.memlink"
+
     print_banner
 
-    # Detect environment
-    local os arch runtime clipboard
+    local os arch runtime
     os=$(detect_os)
     arch=$(detect_arch)
-    runtime=$(detect_runtime)
-    clipboard=$(detect_clipboard)
 
-    # OS checks
-    if [ "$os" = "windows" ]; then
-        echo -e "${YELLOW}Windows requires manual installation.${R}"
-        echo ""
-        echo "  Download from: https://github.com/${REPO}/releases/latest"
-        echo ""
-        exit 1
+    if command_exists bun; then runtime="bun"
+    elif command_exists node; then runtime="node"
+    else runtime="none"
     fi
+
     [ "$os" = "unknown" ] && { echo -e "${RED}Unsupported OS: $(uname -s)${R}"; exit 1; }
 
-    # Runtime check
     if [ "$runtime" = "none" ]; then
         echo -e "${RED}bun or node is required but not installed.${R}"
         echo ""
@@ -186,16 +155,12 @@ main() {
         exit 1
     fi
 
-    # Fetch release
     local tag
     tag=$(get_latest_tag) || { echo -e "${RED}Failed to reach GitHub API.${R}"; exit 1; }
 
-    # Binary name
-    local binary_name
-    [ "$os" = "windows" ] && binary_name="memlink-windows-${arch}.exe" || binary_name="memlink-${os}-${arch}"
+    local binary_name="memlink-${os}-${arch}"
     local download_url="https://github.com/${REPO}/releases/download/${tag}/${binary_name}"
 
-    # Download
     local tmpfile
     tmpfile=$(mktemp "/tmp/memlink-${binary_name}.XXXXXX") || exit 1
 
@@ -205,7 +170,6 @@ main() {
         exit 1
     }
 
-    # Install
     local target_dir="$INSTALL_DIR" target_path="${INSTALL_DIR}/memlink"
     mkdir -p "$target_dir" 2>/dev/null || true
 
@@ -225,10 +189,6 @@ main() {
 
     mkdir -p "$CONFIG_DIR"
 
-    # Build wrapper if needed (for source installs)
-    # Binary is standalone, no wrapper needed
-
-    # Ensure PATH
     local memlink_cmd="memlink"
     case ":${PATH}:" in
         *:"${target_dir}":*) ;;
@@ -239,13 +199,91 @@ main() {
     echo -e "${GREEN}memlink ${tag} installed${R}"
     echo ""
 
-    # Run init
     "$memlink_cmd" init
 
     echo ""
     echo -e "${DIM}  Start server: memlink serve${R}"
-    echo -e "${DIM}  Docs: https://rblez.com/memlink${R}"
+    echo -e "${DIM}  Docs: https://memlink.rblez.com/docs${R}"
     echo ""
 }
 
-main "$@"
+# ─── Windows PowerShell install ──────────────────────────────────────────────
+# When invoked via: iex (iwr memlink.rblez.com/install.sh).Content
+# This section outputs PowerShell code that gets executed
+
+install_windows() {
+    cat << 'PWSH'
+$ErrorActionPreference = "Stop"
+
+Write-Host ""
+Write-Host "  memlink — Universal Memory for AI Agents" -ForegroundColor DarkGray
+Write-Host "  Self-hosted · Fast · Organized" -ForegroundColor DarkGray
+Write-Host ""
+
+$repo = "rblez/memlink"
+$apiUrl = "https://api.github.com/repos/$repo/releases/latest"
+
+try {
+    $release = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -TimeoutSec 15
+} catch {
+    Write-Host "  Failed to reach GitHub API." -ForegroundColor Red
+    exit 1
+}
+
+$tag = $release.tag_name
+if (-not $tag) {
+    Write-Host "  No release found." -ForegroundColor Red
+    exit 1
+}
+
+$arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+$asset = $release.assets | Where-Object { $_.name -like "*windows-${arch}*" } | Select-Object -First 1
+
+if (-not $asset) {
+    Write-Host "  No binary found for windows-${arch}." -ForegroundColor Red
+    exit 1
+}
+
+$installDir = "$env:LOCALAPPDATA\memlink"
+New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+
+Write-Host "  Downloading memlink-$tag ..." -ForegroundColor DarkGray
+Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$installDir\memlink.exe" -UseBasicParsing
+
+# Add to user PATH if not already present
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$installDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$installDir;$userPath", "User")
+    $env:Path = "$installDir;$env:Path"
+}
+
+Write-Host ""
+Write-Host "  memlink $tag installed" -ForegroundColor Green
+Write-Host ""
+
+& "$installDir\memlink.exe" init
+
+Write-Host ""
+Write-Host "  Start server: memlink serve" -ForegroundColor DarkGray
+Write-Host "  Docs: https://memlink.rblez.com/docs" -ForegroundColor DarkGray
+Write-Host ""
+PWSH
+}
+
+# ─── Entry point ──────────────────────────────────────────────────────────────
+
+# Detect if running in PowerShell (via iex/iwr)
+if [ -n "$PSModulePath" ] || [ -n "$PSVersionTable" ] || echo "$0" | grep -qi "powershell"; then
+    install_windows
+    exit 0
+fi
+
+# Detect Windows via uname (Git Bash, MSYS, Cygwin)
+os=$(detect_os)
+if [ "$os" = "windows" ]; then
+    install_windows
+    exit 0
+fi
+
+# Default: Linux/macOS
+install_unix

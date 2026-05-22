@@ -1,6 +1,6 @@
 {
   "name": "memlink",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
   "license": "BUSL-1.1",
   "private": false,
@@ -14,7 +14,7 @@
   "bugs": {
     "url": "https://github.com/rblez/memlink/issues"
   },
-  "homepage": "https://rblez.com/memlink",
+  "homepage": "https://memlink.rblez.com/docs",
   "bin": {
     "memlink": "./dist/cli/index.js"
   },

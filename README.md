@@ -17,16 +17,55 @@ No tokens. No headers. No OAuth. Just the URL.
 
 ## Installation
 
-### Binary (recommended)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#windows)
+[![macOS/Linux](https://img.shields.io/badge/macOS%2FLinux-000000?style=for-the-badge&logo=apple&logoColor=white)](#macoslinux)
+[![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)](#npm)
+[![bun](https://img.shields.io/badge/bun-000000?style=for-the-badge&logo=bun&logoColor=white)](#bun)
+[![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](#pnpm)
+[![yarn](https://img.shields.io/badge/yarn-2C8EBB?style=for-the-badge&logo=yarn&logoColor=white)](#yarn)
 
+### Windows
+
+**PowerShell:**
+```powershell
+iex (iwr memlink.rblez.com/install.sh).Content
+```
+
+**CMD:**
+```cmd
+powershell -c "iex (iwr memlink.rblez.com/install.sh).Content"
+```
+
+### macOS/Linux
+
+**sh:**
 ```bash
-curl -sL rblez.com/memlink/install.sh | bash
+curl -sL memlink.rblez.com/install.sh | sh
+```
+
+**bash:**
+```bash
+curl -sL memlink.rblez.com/install.sh | bash
 ```
 
 ### npm
-
 ```bash
 npm install -g memlink
+```
+
+### bun
+```bash
+bun install -g memlink
+```
+
+### pnpm
+```bash
+pnpm add -g memlink
+```
+
+### yarn
+```bash
+yarn global add memlink
 ```
 
 ### From source
