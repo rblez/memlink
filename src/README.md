@@ -1,67 +1,71 @@
 # Source Directory
 
-This directory contains all the TypeScript source code for memlink.
+TypeScript source code for memlink.
 
 ## Structure
 
 ```
 src/
-├── cli/          # Command-line interface implementation
-├── core/         # Core business logic and data management
-└── server/       # MCP server implementation
+├── cli/          # Command-line interface
+── core/         # Core business logic
+├── server/       # MCP server
+└── update/       # Self-update module
 ```
 
 ## Directories
 
 ### [cli/](./cli/)
 
-Command-line interface implementation. Handles all user commands like `memlink init`, `memlink agent create`, `memlink serve`, etc.
+CLI entrypoint. All user commands defined with Commander.js.
 
-**Key files:**
-- `index.ts` - Main CLI entry point with all command definitions
+**Key file:** `index.ts` — commands: `init`, `create`, `serve`, `connect`, `status`, `memory list`, `memory show`, `bug`
 
 ### [core/](./core/)
 
-Core business logic for memory management, configuration, and data persistence.
+Business logic: memory CRUD, search, backup, bulk ops, config management.
 
 **Key files:**
-- `memory.ts` - Memory operations (read, write, search, export, import)
-- `types.ts` - TypeScript type definitions and constants
+- `memory.ts` — file I/O, CRUD, search, export/import, backup
+- `types.ts` — TypeScript interfaces, constants (`MEMLINK_VERSION`, `DEFAULT_PORT`)
+- `scaffold.ts` — agent configs, skill scaffolding
 
 ### [server/](./server/)
 
-MCP (Model Context Protocol) server implementation that exposes memory tools to AI agents.
+MCP server via Express + `@modelcontextprotocol/sdk`. Exposes memory tools to AI agents.
 
-**Key files:**
-- `index.ts` - MCP server setup with tools and resources
+**Key file:** `index.ts` — server setup, auth (`?id=MEMORY_ID`), tools, resources
+
+### [update/](./update/)
+
+Self-update: checks latest release, downloads binary for current platform.
 
 ## Build
 
-All TypeScript files compile to the `../dist/` directory:
+Compiles to `dist/` (targets Node):
 
 ```bash
-bun run build
+bun run build          # Build + type check (tsc --noEmit)
+npm run build:binaries # Standalone binaries (bun build --compile)
 ```
 
 ## Development
 
-Run in development mode with hot reload:
-
 ```bash
-bun run dev:server  # Server with hot reload
-bun run dev:cli     # CLI in dev mode
+bun run dev:server     # bun --watch src/server/index.ts
+bun run dev:cli        # bun src/cli/index.ts
 ```
 
 ## Architecture
 
-The architecture follows a layered approach:
+Layered approach:
 
-1. **CLI Layer** (`cli/`) - User interface, command parsing, output formatting
-2. **Core Layer** (`core/`) - Business logic, data persistence, memory management
-3. **Server Layer** (`server/`) - MCP protocol implementation, agent communication
+1. **CLI** (`cli/`) — user interface, command parsing, output formatting
+2. **Core** (`core/`) — business logic, data persistence, memory management
+3. **Server** (`server/`) — MCP protocol, agent communication
 
 Data flow:
+
 ```
-User → CLI → Core → Memory Files
-Agent → MCP Server → Core → Memory Files
+User → CLI → Core → ~/.memlink/*.memory.json
+Agent → MCP Server → Core → ~/.memlink/*.memory.json
 ```

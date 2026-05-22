@@ -1,43 +1,79 @@
-# Memlink
+<p align="center">
+  <img src="assets/memlink.png" alt="Memlink Logo" width="400" />
+</p>
 
-> **Universal Memory for AI Agents. Self-hosted, Fast, Organized.**
+<h1 align="center">Memlink</h1>
 
-![Memlink](public/memlink.png)
+<p align="center">
+  <strong>Universal Memory for AI Agents</strong><br/>
+  Self-hosted · Fast · Organized
+</p>
+
+---
 
 Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
 
+No tokens. No headers. No OAuth. Just the URL.
+
 ## Installation
+
+### Binary (recommended)
 
 ```bash
 curl -sL rblez.com/memlink/install.sh | bash
 ```
 
-Or via npm:
+### npm
 
 ```bash
 npm install -g memlink
 ```
 
+### From source
+
+```bash
+git clone https://github.com/rblez/memlink.git
+cd memlink
+bun install
+npm run build
+```
+
 ## Quick Start
 
 ```bash
-memlink init       # Create your first memory
-memlink serve      # Start the MCP server
-memlink connect    # Get connection details + install skill
+memlink init my-project    # Create memory + install skill
+memlink serve              # Start MCP server
+memlink connect <id>       # Get connection details
 ```
 
 ## Commands
 
+### Core
+
 | Command | Description |
 |---------|-------------|
-| `memlink` | Show banner + main commands |
-| `memlink init` | Create a memory, install skill, copy URL |
-| `memlink serve [-l]` | Start MCP server (optional: live logs) |
-| `memlink connect` | Select memory, get MCP config, install skill |
-| `memlink status` | System status: URL, memories, size |
+| `memlink` | Show banner + help |
+| `memlink init [name]` | Create memory, auto-install skill, copy URL |
+| `memlink create [name]` | Alias for `init` |
+| `memlink serve [-p port] [-H host]` | Start MCP server |
+| `memlink status` | System status: server, memories, size |
+| `memlink bug` | Open GitHub to report bug or feedback |
+
+### Memory
+
+| Command | Description |
+|---------|-------------|
 | `memlink memory list` | List all memories |
-| `memlink memory show [id]` | Show memory contents |
-| `memlink --help` | All commands and flags |
+| `memlink memory show <id>` | Show full memory content |
+| `memlink memory show <id> --entries` | List all entries |
+| `memlink memory show <id> --title <t>` | Show specific entry |
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-v, --version` | Show version |
+| `-h, --help` | Show help |
 
 ## Architecture
 
@@ -53,7 +89,12 @@ Agents connect via MCP:
 http://localhost:4444/mcp?id=MEMORY_ID
 ```
 
-No tokens. No headers. No OAuth. Just the URL.
+Data flow:
+
+```
+User → CLI → Core → Memory Files
+Agent → MCP Server → Core → Memory Files
+```
 
 ## MCP Tools
 
@@ -76,12 +117,52 @@ Agents have access to these tools:
 
 ## Skill Installation
 
-Memlink can install a skill file for agents:
+Memlink auto-installs a skill file for agents at `~/.agents/skills/memlink/` (global, all OS).
 
-- **Workspace**: `./AGENTS.md` + `./.agents/skills/memlink/`
-- **Global**: `~/.agents/skills/memlink/`
+The skill teaches agents how to use memlink MCP tools:
 
-The skill teaches agents how to use memlink MCP tools.
+- `memory_read` — retrieve stored context
+- `memory_edit` — store new context
+- `memory_search` — find relevant entries
+- `memory_delete` — forget something
+- `memory_sync` — verify memory state
+
+## Development
+
+```bash
+bun install              # Install deps
+npm run build            # Build + type check
+npm run dev:server       # Server with hot reload
+npm run dev:cli          # CLI dev mode
+npm run test             # Run tests
+npm run lint             # ESLint
+npm run format           # Prettier
+```
+
+## Project Structure
+
+```
+src/
+├── cli/index.ts       # CLI entrypoint (commands)
+├── server/index.ts    # MCP server (Express + @modelcontextprotocol/sdk)
+├── core/
+│   ├── memory.ts      # File I/O, CRUD, search, backup, bulk ops
+│   ├── types.ts       # Types, constants
+│   ── scaffold.ts    # Agent configs, MCP config/skill scaffolding
+└── update/            # Self-update (check latest release)
+tests/
+├── memory.test.ts     # Core memory unit tests
+├── server.test.ts     # MCP server integration tests
+└── unit.test.ts       # Additional unit tests
+```
+
+## CI/CD
+
+```
+bun test → bun run build → bun run format:check → bun run lint
+```
+
+Releases trigger on `v*` tags → builds 5 platform binaries + npm publish.
 
 ## License
 

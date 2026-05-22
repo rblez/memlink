@@ -1,125 +1,69 @@
-# Server Directory
+# Server
 
-MCP (Model Context Protocol) server implementation that exposes memory tools to AI agents.
+MCP (Model Context Protocol) server that exposes memory tools to AI agents.
 
-## Files
+## Entry Point
 
-### [index.ts](./index.ts)
+`index.ts` — Express server + `@modelcontextprotocol/sdk` with streamable HTTP transport.
 
-MCP server setup with tools and resources. Implements the Model Context Protocol for agent communication.
+## Auth
 
-**Purpose:**
-- Create and configure MCP server
-- Expose memory tools to AI agents
-- Provide resources for agent instructions
-- Handle authentication via bearer tokens
+No tokens. No headers. No OAuth. Auth via query param:
 
-**Key Components:**
+```
+http://localhost:4444/mcp?id=MEMORY_ID
+```
 
-#### Server Setup
-- `buildMcpServer(agentId, agentName)` - Create MCP server instance for specific agent
-- `startServer()` - Start HTTP server with MCP transport
+Legacy `Authorization: Bearer <token>` still supported as fallback.
 
-#### Authentication Middleware
-- `extractToken(req)` - Extract bearer token from HTTP headers
-- Auth middleware validates tokens on each request
+## MCP Tools
 
-#### MCP Tools
+| Tool | Description | Params |
+|------|-------------|--------|
+| `memory_read` | Read all entries or by title | `title?` |
+| `memory_edit` | Create or update entry | `title`, `content`, `tags?` |
+| `memory_delete` | Delete entry by title | `title` |
+| `memory_search` | Search by query | `query` |
+| `memory_sync` | Validate memory integrity | — |
+| `memory_batch` | Bulk create/update | `entries[]` |
+| `bulk_delete` | Delete by titles/tags/pattern | `titles?`, `tags?`, `pattern?` |
+| `backup_create` | Create backup | — |
+| `backup_restore` | Restore from backup | `backupFile` |
+| `backup_list` | List backups | — |
+| `backup_delete` | Delete a backup | `backupFile` |
+| `backup_cleanup` | Clean old backups | `keep?` |
 
-**1. memory_read**
-- Read all memory entries or a specific one by title
-- Parameters: `title` (optional)
-- Returns: Memory entries with content
+## MCP Resources
 
-**2. memory_edit**
-- Create or update a memory entry
-- Parameters: `title`, `content`, `tags` (optional)
-- Returns: Success confirmation
+| Resource | Description |
+|----------|-------------|
+| `memlink://instructions` | Agent rules: read memory at start, save important info, detect memory commands |
+| `memlink://agents` | List all registered memories |
 
-**3. memory_delete**
-- Delete a memory entry by title
-- Parameters: `title`
-- Returns: Success confirmation
-
-**4. memory_sync**
-- Sync and validate memory integrity
-- Parameters: none
-- Returns: Memory statistics
-
-**5. memory_search**
-- Search entries by query (title, content, tags)
-- Parameters: `query`
-- Returns: Matching entries
-
-**6. memory_batch**
-- Create/update multiple entries at once
-- Parameters: `entries` (array of {title, content, tags})
-- Returns: Success confirmation
-
-#### MCP Resources
-
-**1. memlink://instructions**
-- Agent rules system prompt
-- Returns: Instructions for how agents should use memory
-- Content includes:
-  - Read memory at session start
-  - Save important information automatically
-  - Detect memory commands ("save X", "remember that", "forget X")
-  - Keep memory organized
-  - Update existing entries
-
-**2. memlink://agents**
-- List all registered agents
-- Returns: JSON array of agent information
-- Includes: agentId, agentName, createdAt, lastSeen
-
-#### Server Configuration
+## Server Setup
 
 ```typescript
-// Default configuration
-const PORT = 4444;
-const HOST = 'localhost';
+import { startServer } from './server/index.ts';
 
-// Can be customized via:
-// - CLI flags: --port, --host
-// - Config file: ~/.memlink/config.json
+await startServer(port, host);
 ```
 
-**HTTP Endpoints:**
+Default: `http://localhost:4444/mcp`
 
-- `POST /mcp` - MCP protocol endpoint
-- All requests require `Authorization: Bearer <token>` header
+## HTTP Endpoints
 
-**Dependencies:**
-- `express` - HTTP server framework
-- `@modelcontextprotocol/sdk` - MCP SDK
-- `zod` - Schema validation for tool parameters
-
-## Usage
-
-```bash
-# Start server (default)
-node bin/memlink.js serve
-
-# Start with custom port/host
-node bin/memlink.js serve --port 4445 --host 0.0.0.0
-
-# Server will start on:
-# http://localhost:4444/mcp
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/mcp` | POST | MCP protocol endpoint |
+| `/health` | GET | Health check |
 
 ## Agent Connection
-
-Agents connect via MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "memlink": {
-      "serverUrl": "http://localhost:4444/mcp",
-      "headers": {
-        "Authorization": "Bearer memlink_YOUR_TOKEN"
-      }
+      "url": "http://localhost:4444/mcp?id=MEMORY_ID"
     }
   }
 }
@@ -127,73 +71,61 @@ Agents connect via MCP configuration:
 
 ## Protocol Flow
 
-1. **Agent sends request** → HTTP POST to `/mcp`
-2. **Auth middleware** → Validates bearer token
-3. **MCP transport** → Routes to appropriate tool
-4. **Tool execution** → Performs memory operation
-5. **Response** → Returns result to agent
+1. Agent sends request → `POST /mcp?id=MEMORY_ID`
+2. Server extracts memory ID from query param
+3. MCP transport routes to appropriate tool
+4. Tool executes memory operation via `core/memory.ts`
+5. Response returned to agent
 
 ## Error Handling
 
-- Invalid token → 401 Unauthorized
-- Missing token → 401 Unauthorized
-- Invalid parameters → Tool error response
-- Memory not found → Tool error response
-- Server errors → Logged to console
-
-## Development
-
-```bash
-# Run in dev mode with hot reload
-npm run dev:server
-
-# Test server
-curl -X POST http://localhost:4444/mcp \
-  -H "Authorization: Bearer memlink_YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
-```
-
-## Security
-
-- Bearer token authentication required for all requests
-- Tokens are unique per agent (`memlink_<32char>`)
-- Server binds to localhost by default (not exposed to network)
-- Can bind to 0.0.0.0 for network access (use with caution)
-
-## MCP Protocol Details
-
-The server implements the Model Context Protocol (MCP) specification:
-
-**Transport:** Streamable HTTP
-**Protocol Version:** 2024-11-05
-**Capabilities:**
-- Tools (6 available)
-- Resources (2 available)
-
-**Tool Schema:**
-Each tool defines:
-- `name` - Tool identifier
-- `description` - Tool purpose
-- `inputSchema` - Zod schema for parameters
-
-**Resource Schema:**
-Each resource defines:
-- `uri` - Resource identifier (e.g., `memlink://instructions`)
-- `name` - Display name
-- `mimeType` - Content type (application/json)
+| Error | Response |
+|-------|----------|
+| Missing memory ID | 401 |
+| Memory not found | 404 |
+| Invalid params | Tool error |
+| Server error | Logged to console |
 
 ## Logging
 
-Server logs to console:
-- Startup message with URL
-- Agent connections
-- Tool invocations (in verbose mode)
+Logs always on (no toggle):
+
+- Startup message with URLs
+- Memory connections
+- Tool invocations
 - Errors and warnings
+
+## Dependencies
+
+- `express` — HTTP server
+- `@modelcontextprotocol/sdk` — MCP SDK
+- `zod` — schema validation
+
+## Usage
+
+```bash
+# Start server
+memlink serve
+
+# Custom port/host
+memlink serve -p 4445 -H 0.0.0.0
+```
+
+## Dev
+
+```bash
+npm run dev:server    # bun --watch src/server/index.ts
+```
+
+## Test
+
+```bash
+curl http://localhost:4444/health
+```
 
 ## Performance
 
 - Stateless design (no server-side sessions)
 - Memory files loaded on-demand
-- Efficient parsing with line-based indexing
+- Efficient JSON parsing
 - Minimal memory footprint

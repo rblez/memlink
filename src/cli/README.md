@@ -1,75 +1,88 @@
-# CLI Directory
+# CLI
 
-Command-line interface implementation for memlink.
+Command-line interface for memlink. Built with Commander.js.
 
-## Files
+## Entry Point
 
-### [index.ts](./index.ts)
+`index.ts` — all command definitions, output formatting, interactive prompts.
 
-Main CLI entry point. Contains all command definitions and user-facing functionality.
+## Commands
 
-**Purpose:**
-- Defines all CLI commands using Commander.js
-- Handles user input and output formatting
-- Provides interactive prompts for configuration
-- Manages CLI options and global state
+### `memlink init [name]`
 
-**Key Components:**
+Create a new memory. If `name` is not provided, prompts interactively.
 
-#### Global Options
-- `-v, --version` - Show version
-- `-v, --verbose` - Show detailed debugging output
+- Creates memory file at `~/.memlink/<id>.memory.json`
+- Auto-installs skill at `~/.agents/skills/memlink/` (global)
+- Copies MCP URL to clipboard
+- Only command with interactive TUI
 
-#### Commands
+### `memlink create [name]`
 
-**Server Management:**
-- `memlink serve` - Start the MCP server
-- `memlink status` - Show system status
+Alias for `init`.
 
-**Agent Management:**
-- `memlink agent create <type>` - Create a new agent
-- `memlink agent list` - List all agents
-- `memlink agent token <agentId>` - Show agent token
-- `memlink agent revoke <agentId>` - Revoke agent
-- `memlink agent rotate <agentId>` - Rotate agent token
+### `memlink serve [-p port] [-H host]`
 
-**Memory Operations:**
-- `memlink memory list` - List all memory files
-- `memlink memory show <agentId>` - Show agent memory
-- `memlink memory search <agentId> <query>` - Search memory
-- `memlink memory export <agentId>` - Export memory to JSON
-- `memlink memory import <agentId> <file>` - Import memory from JSON
-- `memlink memory stats <agentId>` - Show memory statistics
+Start the MCP server.
 
-**Skill Management:**
-- `memlink skill install <agentType>` - Install skill for agent type
-- `memlink skill update <agentType>` - Update skill for agent type
+- Default: `http://localhost:4444/mcp`
+- Logs always on (no toggle flag)
+- Shows all memory URLs on startup
 
-**Configuration:**
-- `memlink config` - View/modify configuration
-- `memlink init` - Initialize memlink
+### `memlink connect <memoryId>`
 
-**Utility Functions:**
-- `outputJson(data)` - Format output as JSON
-- `verboseLog(...args)` - Log only in verbose mode
-- `promptSkillLocation(agentType)` - Interactive skill location prompt
-- `writeSkillScaffold(location, agentType)` - Write skill file to `.agents/skills/memlink/SKILL.md`
+Get MCP connection details for a specific memory.
 
-**Color Palette:**
-Uses a pure color palette defined in `c` object:
-- `c.text` - White text
-- `c.bold` - Bold white text
-- `c.dim` - Dimmed text
-- `c.success` - Green for success messages
-- `c.error` - Red for error messages
-- `c.warning` - Yellow for warnings
-- `c.info` - Blue for info messages
+- Requires memory ID (list with `memlink memory list`)
+- Shows URL, MCP JSON config
+- Auto-installs skill at `~/.agents/skills/memlink/`
+- Copies URL to clipboard
 
-**Dependencies:**
-- `commander` - CLI framework
-- `chalk` - Terminal colors
-- `ora` - Loading spinners
-- `table` - Table formatting
+### `memlink status`
+
+Show system status: server URL, memory count, total entries, total size.
+
+### `memlink memory list`
+
+List all memories in a table: Name, ID, Size.
+
+### `memlink memory show <memoryId>`
+
+Show memory contents.
+
+| Flag | Description |
+|------|-------------|
+| (none) | Show full memory content |
+| `--entries` | List all entries numbered |
+| `--title <t>` | Show specific entry |
+
+### `memlink bug`
+
+Alias: `feedback`. Opens GitHub issue form in browser with pre-filled template.
+
+## Output
+
+### Branding
+
+- Logo: braille art with gradient (`#00E5A0 → #FFFFFF → #CC00CC`)
+- Symbols: `● ○ ❯  ─ * ↓ ↑ ↵` (no emojis)
+- Colors: `primary (#00E5A0)`, `accent (#CC00CC)`, `muted (#66B8A0)`, `white (#e8e8e8)`, `dim (#444)`
+
+### Nav Footer
+
+Only on `init`, `serve`, `status`:
+
+```
+  ────────────────────────────────────────────────────────────────
+  ^c exit  ·  ^c stop
+```
+
+## Dependencies
+
+- `commander` — CLI framework
+- `chalk` — terminal colors
+- `table` — table formatting
+- `readline` — interactive prompts (init only)
 
 ## Usage
 
@@ -77,46 +90,15 @@ Uses a pure color palette defined in `c` object:
 # Build
 npm run build
 
-# Run CLI
-node bin/memlink.js --help
-node bin/memlink.js agent list
-node bin/memlink.js memory list
+# Run
+node dist/cli/index.js --help
+node dist/cli/index.js init my-project
+node dist/cli/index.js serve
 ```
 
-## Development
+## Dev
 
 ```bash
-# Run in dev mode
 npx tsx src/cli/index.ts --help
+bun run dev:cli
 ```
-
-## Output Formats
-
-The CLI supports two output formats:
-
-**Normal (human-readable):**
-```
-  memlink v0.4.0
-
-  Agent        ID           Token          Memory
-  Windsurf     abc123...    memlink_abc... abc123.memory
-```
-
-**JSON (for scripting):**
-```json
-[
-  {
-    "name": "Windsurf",
-    "id": "abc123",
-    "memoryFile": "abc123.memory"
-  }
-]
-```
-
-## Error Handling
-
-All commands include proper error handling:
-- Try-catch blocks for operations
-- User-friendly error messages
-- Exit code 1 on errors
-- Clean error messages with helpful hints

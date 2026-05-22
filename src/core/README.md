@@ -1,96 +1,73 @@
-# Core Directory
+# Core
 
-Core business logic for memory management, configuration, and data persistence.
+Business logic for memory management, configuration, and data persistence.
 
 ## Files
 
-### [memory.ts](./memory.ts)
+### `memory.ts`
 
-Memory operations and configuration management. This is the heart of memlink's data layer.
+Memory operations and configuration management. The heart of memlink's data layer.
 
-**Purpose:**
-- Manage memory files (create, read, write, delete)
-- Handle agent registration and tokens
-- Provide search and export/import functionality
-- Manage global configuration
+#### Configuration
 
-**Key Functions:**
+| Function | Description |
+|----------|-------------|
+| `loadConfig()` | Load `~/.memlink/config.json` |
+| `saveConfig(config)` | Save config to disk |
+| `getMemlinkDir()` | Get `~/.memlink/` path |
+| `ensureMemlinkDir()` | Create dir if not exists |
 
-#### Configuration Management
-- `loadConfig()` - Load configuration from `~/.memlink/config.json`
-- `saveConfig(config)` - Save configuration to disk
-- `getMemlinkDir()` - Get memlink directory path (`~/.memlink/`)
+#### Universal Memory
 
-#### Agent Management
-- `createAgent(agentName, agentType)` - Create new agent with unique token
-- `revokeAgent(agentId)` - Revoke agent and delete memory
-- `getAgentByToken(token)` - Find agent by bearer token
-- `rotateToken(agentId)` - Generate new token for agent
+| Function | Description |
+|----------|-------------|
+| `createUniversalMemory(name)` | Create new memory, returns `{memoryId, memoryName, memoryFile}` |
+| `readMemory(memoryId)` | Read all entries from memory file |
+| `readMemoryEntry(memoryId, title)` | Read specific entry by title |
+| `upsertMemoryEntry(memoryId, title, content, tags?)` | Create or update entry |
+| `deleteMemoryEntry(memoryId, title)` | Delete entry by title |
+| `searchMemory(memoryId, query)` | Search by title, content, or tags |
+| `getStats(memoryId)` | Get entry count + file size |
 
-#### Memory Operations
-- `readMemory(agentId)` - Read all memory entries for agent
-- `readMemoryEntry(agentId, title)` - Read specific entry by title
-- `upsertMemoryEntry(agentId, agentName, title, content, tags)` - Create or update entry
-- `deleteMemoryEntry(agentId, title)` - Delete entry by title
-- `syncMemory(agentId)` - Sync memory file and return stats
-- `parseMemoryFile(agentId)` - Parse memory file structure
+#### Render
 
-#### Search and Export
-- `searchMemory(agentId, query)` - Search entries by title, content, or tags
-- `exportMemory(agentId)` - Export memory to JSON format
-- `importMemory(agentId, data)` - Import memory from JSON
+| Function | Description |
+|----------|-------------|
+| `renderMemoryAsMarkdown(memoryId)` | Full memory as markdown |
+| `renderEntryAsMarkdown(entry)` | Single entry as markdown |
 
-#### Statistics
-- `getStats(agentId)` - Get detailed memory statistics
+#### Backup
 
-#### Utility Functions
-- `ensureMemlinkDir()` - Create memlink directory if not exists
-- `generateToken()` - Generate unique bearer token (`memlink_<32char>`)
+| Function | Description |
+|----------|-------------|
+| `createBackup(memoryId)` | Create timestamped backup |
+| `listBackups(memoryId)` | List all backups |
+| `restoreBackup(memoryId, backupFile)` | Restore from backup |
+| `deleteBackup(memoryId, backupFile)` | Delete a backup |
+| `cleanupBackups(memoryId, keep)` | Remove old backups |
 
-**Memory File Format:**
+#### Bulk Operations
 
-Memory files use a structured format with index:
+| Function | Description |
+|----------|-------------|
+| `bulkUpsert(memoryId, entries)` | Create/update multiple entries |
+| `bulkDeleteByTitles(memoryId, titles)` | Delete by title list |
+| `bulkDeleteByTags(memoryId, tags)` | Delete entries matching tags |
+| `bulkDeleteByPattern(memoryId, pattern)` | Delete entries matching regex |
 
-```
-# INDEX
-# memlink Memory — Agent: Windsurf — ID: abc123
-# Created: 2024-01-15T10:00:00.000Z
-EntryTitle | 6-25 | tags | 2024-01-15T10:05:00.000Z
-# END_INDEX
+#### Export/Import
 
-## ENTRYTITLE
-Entry content here...
-## END_ENTRYTITLE
-```
+| Function | Description |
+|----------|-------------|
+| `exportMemory(memoryId)` | Export to JSON |
+| `importMemory(memoryId, data)` | Import from JSON |
 
-**Configuration Structure:**
+### `types.ts`
 
-```typescript
-interface MemlinkConfig {
-  serverPort: number;      // Default: 4444
-  serverHost: string;      // Default: localhost
-  agents: AgentToken[];    // Registered agents
-}
-```
+TypeScript interfaces and constants.
 
-**Dependencies:**
-- `nanoid` - Unique ID generation
-- `fs` - File system operations
-- `path` - Path utilities
-- `os` - OS utilities (homedir)
+#### Types
 
-### [types.ts](./types.ts)
-
-TypeScript type definitions and constants.
-
-**Purpose:**
-- Define all TypeScript interfaces and types
-- Export constants and configuration values
-- Define known agent types
-
-**Key Types:**
-
-#### Memory Types
 ```typescript
 interface MemoryEntry {
   title: string;
@@ -101,126 +78,88 @@ interface MemoryEntry {
   updatedAt: string;
 }
 
-interface MemoryIndex {
-  version: string;
-  agent: string;
-  agentId: string;
-  createdAt: string;
-  updatedAt: string;
-  entries: MemoryIndexEntry[];
-}
-```
-
-#### Agent Types
-```typescript
-interface AgentToken {
-  agentId: string;
-  agentName: string;
-  token: string;
+interface UniversalMemory {
+  memoryId: string;
+  memoryName: string;
+  memoryFile: string;
   createdAt: string;
   lastSeen?: string;
-  memoryFile: string;
 }
-```
 
-#### Configuration Types
-```typescript
 interface MemlinkConfig {
-  serverPort?: number;
-  serverHost?: string;
-  agents: AgentToken[];
+  version: string;
+  baseDir: string;
+  universalMemories: UniversalMemory[];
+  serverPort: number;
+  serverHost: string;
 }
 ```
 
-#### Known Agent Types
-```typescript
-interface KnownAgent {
-  name: string;
-  description: string;
-  color: string;
-  skillPaths: {
-    projectLocal: string;
-    global: string;
-  };
-}
+#### Constants
 
-const KNOWN_AGENTS: Record<string, KnownAgent> = {
-  windsurf: { ... },
-  cursor: { ... },
-  claude: { ... },
-  // ... 11 agent types total
-};
+| Constant | Value |
+|----------|-------|
+| `MEMLINK_VERSION` | `"0.5.0"` |
+| `DEFAULT_PORT` | `4444` |
+| `DEFAULT_HOST` | `"localhost"` |
+| `CONFIG_DIR` | `".memlink"` |
+| `CONFIG_FILE` | `"config.json"` |
+
+### `scaffold.ts`
+
+Agent configs and skill scaffolding.
+
+- Generates MCP config JSON for agents
+- Writes `SKILL.md` + `README.md` to `~/.agents/skills/memlink/`
+- Supports 6 agents: windsurf, cursor, claude, codex, opencode, devin
+
+## Data Storage
+
+```
+~/.memlink/
+├── config.json              # Global config
+└── vaJBhSjFY0Zn.memory.json # Universal memory (JSON)
 ```
 
-**Constants:**
-- `MEMLINK_VERSION` - Current version ("0.4.0")
-- `DEFAULT_PORT` - Default server port (4444)
-- `DEFAULT_HOST` - Default server host ("localhost")
-- `CONFIG_DIR` - Config directory name (".memlink")
-- `CONFIG_FILE` - Config file name ("config.json")
-- `MEMORY_LINES_PER_BLOCK` - Lines per memory block (50)
+Memory files are JSON (not markdown), with entries stored as an array:
 
-**Supported Agent Types:**
-1. `windsurf` - Windsurf IDE
-2. `cursor` - Cursor IDE
-3. `claude` - Claude AI
-4. `codex` - OpenAI Codex
-5. `goose` - Goose AI
-6. `opencode` - OpenCode
-7. `kimi` - Kimi AI
-8. `qwen` - Qwen AI
-9. `copilot` - GitHub Copilot
-10. `amp` - Amp AI
-11. `custom` - Custom agents
+```json
+{
+  "version": "0.5.0",
+  "memoryName": "my-project",
+  "createdAt": "2024-01-15T10:00:00.000Z",
+  "entries": [
+    {
+      "title": "ProjectContext",
+      "content": "...",
+      "tags": ["context"],
+      "updatedAt": "2024-01-15T10:05:00.000Z"
+    }
+  ]
+}
+```
 
 ## Usage
 
 ```typescript
 import {
   loadConfig,
-  createAgent,
+  createUniversalMemory,
   readMemory,
-  upsertMemoryEntry
-} from './core/memory.js';
+  upsertMemoryEntry,
+  searchMemory,
+} from './core/memory.ts';
 
-// Load config
 const config = loadConfig();
-
-// Create agent
-const agent = createAgent('Windsurf', 'windsurf');
-
-// Read memory
-const entries = readMemory(agent.agentId);
-
-// Update memory
-upsertMemoryEntry(agent.agentId, 'ProjectContext', 'Content...');
-```
-
-## Data Storage
-
-All data is stored in `~/.memlink/`:
-
-```
-~/.memlink/
-├── config.json           # Global configuration
-├── abc123.memory         # Agent memory files
-└── xyz789.memory
+const memory = createUniversalMemory('my-project');
+const entries = readMemory(memory.memoryId);
+upsertMemoryEntry(memory.memoryId, 'ProjectContext', 'Content...', ['context']);
+const results = searchMemory(memory.memoryId, 'project');
 ```
 
 ## Error Handling
 
-All functions include error handling:
-- File not found → Create new file
-- Invalid JSON → Throw error
-- Missing directory → Create directory
-- Invalid agent → Throw error
-
-## Testing
-
-```bash
-# Build
-npm run build
-
-# Test memory operations
-node -e "const { loadConfig } = require('./dist/core/memory.js'); console.log(loadConfig());"
-```
+- File not found → create new file
+- Invalid JSON → throw error
+- Missing directory → create directory
+- Memory not found → throw error
