@@ -75,6 +75,7 @@ memlink serve                        # Start MCP server
 | `memlink show <id>` | Show full memory as consolidated Markdown |
 | `memlink serve` | Start MCP server. `--port`, `--host` |
 | `memlink connect <id>` | Get MCP connection details |
+| `memlink wsl-connect <id>` | Get MCP URL for agents running in WSL (OpenCode, Devin) |
 | `memlink skill` | Install agent skill. `--global` or `-g` for all projects |
 | `memlink bug` | Open GitHub issue with pre-filled template |
 

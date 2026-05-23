@@ -733,7 +733,7 @@ export function createApp(): express.Express {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-export async function startServer(port?: number, host?: string) {
+export async function startServer(port?: number, host?: string): Promise<void> {
   const config = loadConfig();
 
   let envPort: number | undefined;
@@ -752,10 +752,35 @@ export async function startServer(port?: number, host?: string) {
   const app = createApp();
 
   return new Promise<void>((resolve) => {
-    app.listen(p, h, () => {
+    const server = app.listen(p, h, () => {
       console.log(`  → http://${h}:${p}/mcp\n`);
-
-      resolve();
     });
+
+    let shuttingDown = false;
+
+    function shutdown() {
+      if (shuttingDown) return;
+      shuttingDown = true;
+
+      loggingEnabled = false;
+
+      // Close SSE sessions
+      const sessions = [...sseSessions.entries()];
+      for (const [, session] of sessions) {
+        session.mcpServer.close();
+      }
+
+      server.close(() => {
+        resolve();
+      });
+
+      // Force exit after 5s
+      setTimeout(() => {
+        process.exit(0);
+      }, 5000).unref();
+    }
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
   });
 }
