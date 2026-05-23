@@ -21,6 +21,8 @@ export interface MemlinkConfig {
   universalMemories: UniversalMemory[];
   serverPort: number;
   serverHost: string;
+  cors?: string;
+  readOnly?: boolean;
 }
 
 export const MEMLINK_VERSION = '1.0.8';

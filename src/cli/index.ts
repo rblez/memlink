@@ -211,6 +211,8 @@ program
   .description('Start the Memlink MCP server')
   .option('--port <port>', 'Port to listen on', String(DEFAULT_PORT))
   .option('--host <host>', 'Host to bind to', DEFAULT_HOST)
+  .option('--cors <origins>', 'CORS allowed origins (comma-separated or *)')
+  .option('--read-only', 'Disable write operations')
   .action(async (opts) => {
     const config = loadConfig();
     const port = parseInt(opts.port);
@@ -224,9 +226,12 @@ program
       console.log(info('no memories', 'Create one with: Memlink init <name>'));
     }
 
+    if (opts.cors) console.log(info('CORS', opts.cors));
+    if (opts.readOnly) console.log(info('mode', 'read-only'));
+
     console.log(colors.dim('  ^c stop\n'));
 
-    await startServer(port, host);
+    await startServer(port, host, { cors: opts.cors, readOnly: opts.readOnly });
   });
 
 // ─── memlink init <name> (i) / create <name> (c) ─────────────────────────

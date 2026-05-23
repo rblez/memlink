@@ -73,7 +73,7 @@ memlink serve                        # Start MCP server
 | `memlink delete <id>` | Permanently delete a memory and its data |
 | `memlink ls` | List all memories (name, ID, size) |
 | `memlink show <id>` | Show full memory as consolidated Markdown |
-| `memlink serve` | Start MCP server. `--port`, `--host` |
+| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only` |
 | `memlink connect <id>` | Get MCP connection details |
 | `memlink wsl-connect <id>` | Get MCP URL for agents running in WSL (OpenCode, Devin) |
 | `memlink skill` | Install agent skill. `--global` or `-g` for all projects |

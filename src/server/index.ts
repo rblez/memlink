@@ -25,9 +25,11 @@ import {
 import { loadConfig } from '../core/memory.ts';
 import { DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 
-// ─── Logging state ─────────────────────────────────────────────────────────────
+// ─── Server state ──────────────────────────────────────────────────────────────
 
 let loggingEnabled = false;
+let corsOrigins: string | null = null;
+let readOnly = false;
 
 function logRequest(
   _req: Request,
@@ -87,14 +89,19 @@ function formatEntry(entry: {
 
 function errorResult(err: unknown) {
   return {
-    content: [
-      {
-        type: 'text',
-        text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-      },
-    ],
+    content: [{ type: 'text' as const, text: `Error: ${err}` }],
     isError: true,
   };
+}
+
+function readOnlyGuard() {
+  if (readOnly) {
+    return {
+      content: [{ type: 'text' as const, text: 'Server is in read-only mode. Writes are disabled.' }],
+      isError: true,
+    };
+  }
+  return null;
 }
 
 function AGENT_SYSTEM_PROMPT(name: string): string {
@@ -200,6 +207,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ title, content, tags }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const entry = upsertMemoryEntry(memoryId, title, content, tags);
         return {
           content: [
@@ -224,6 +233,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ title }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const deleted = deleteMemoryEntry(memoryId, title);
         if (!deleted) {
           return {
@@ -320,6 +331,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ entries }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const results: string[] = [];
         for (const entry of entries) {
           upsertMemoryEntry(memoryId, entry.title, entry.content, entry.tags);
@@ -351,6 +364,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ method, value, use_regex, dry_run }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const isDryRun = dry_run || false;
 
         if (method === 'titles') {
@@ -460,6 +475,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ include_deleted: _include_deleted }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const path = saveBackup(memoryId);
         return {
           content: [{ type: 'text', text: `# Backup Created\n\nPath: ${path}` }],
@@ -480,6 +497,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ backup_path, overwrite }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const result = restoreBackup(backup_path, undefined, overwrite || false);
         return {
           content: [
@@ -520,6 +539,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     { backup_path: z.string().describe('Path to backup file') },
     async ({ backup_path }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const ok = deleteBackup(backup_path);
         return {
           content: [{ type: 'text', text: ok ? 'Backup deleted.' : 'Backup not found.' }],
@@ -537,6 +558,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     { keep_count: z.number().optional().describe('Number of backups to keep (default: 10)') },
     async ({ keep_count }) => {
       try {
+        const guard = readOnlyGuard();
+        if (guard) return guard;
         const result = cleanupOldBackups(memoryId, keep_count || 10);
         return {
           content: [
@@ -577,6 +600,24 @@ export function createApp(): express.Express {
       message: { error: 'Too many requests. Try again later.' },
     })
   );
+
+  // CORS
+  if (corsOrigins) {
+    app.use((req, res, next) => {
+      const origin = req.headers.origin || '*';
+      if (corsOrigins === '*' || corsOrigins.split(',').map(s => s.trim()).includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', corsOrigins === '*' ? '*' : origin);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Max-Age', '86400');
+      }
+      if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+      }
+      next();
+    });
+  }
 
   // Security headers
   app.use((_req, res, next) => {
@@ -733,7 +774,11 @@ export function createApp(): express.Express {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-export async function startServer(port?: number, host?: string): Promise<void> {
+export async function startServer(
+  port?: number,
+  host?: string,
+  options?: { cors?: string; readOnly?: boolean },
+): Promise<void> {
   const config = loadConfig();
 
   let envPort: number | undefined;
@@ -747,6 +792,8 @@ export async function startServer(port?: number, host?: string): Promise<void> {
   const envHost = process.env.MEMLINK_HOST || process.env.HOST;
   const h = host || envHost || config.serverHost || DEFAULT_HOST;
 
+  corsOrigins = options?.cors || config.cors || null;
+  readOnly = options?.readOnly ?? config.readOnly ?? false;
   loggingEnabled = true;
 
   const app = createApp();
