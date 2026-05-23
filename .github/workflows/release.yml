@@ -7,21 +7,14 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish-npm:
-    name: Publish to npm
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -34,5 +27,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --access public --provenance
+      - name: Test
+        run: bun test
+
+      - name: Lint
+        run: npm run lint
