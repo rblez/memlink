@@ -1,6 +1,6 @@
 {
   "name": "@memlink/cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
   "keywords": [
     "mcp",
