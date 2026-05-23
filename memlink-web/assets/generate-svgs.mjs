@@ -9,7 +9,10 @@ function svg(name, title, lines) {
   const termPad = 20;
   const termTop = 80;
   const lineStart = termTop + 54;
-  const h = lineStart + lines.length * lineH + termPad + pad;
+  const h = 380;
+
+  // Pad lines to match tallest feature
+  while (lines.length < 9) lines.push({ text: '', color: 'transparent' });
 
   const textLines = lines
     .map(
@@ -26,9 +29,9 @@ function svg(name, title, lines) {
       <stop offset="100%" stop-color="#D946EF"/>
     </linearGradient>
   </defs>
-  <rect width="580" height="${h}" fill="url(#bg)" rx="16"/>
-  <rect x="${pad}" y="${termTop}" width="500" height="${h - termTop - pad}" rx="12" fill="#0A0A0B"/>
-  <rect x="${pad}" y="${termTop}" width="500" height="44" rx="12" fill="#0F0F12"/>
+  <rect width="580" height="${h}" fill="url(#bg)"/>
+  <rect x="${pad}" y="${termTop}" width="500" height="${h - termTop - pad}" fill="#0A0A0B"/>
+  <rect x="${pad}" y="${termTop}" width="500" height="44" fill="#0F0F12"/>
   <rect x="${pad}" y="${termTop + 44}" width="500" height="1" fill="rgba(255,255,255,0.06)"/>
   <circle cx="${pad + 24}" cy="${termTop + 22}" r="5" fill="#EF4444"/>
   <circle cx="${pad + 42}" cy="${termTop + 22}" r="5" fill="#EAB308"/>
