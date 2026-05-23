@@ -381,30 +381,30 @@
             <div class="grid grid-cols-1 md:grid-cols-2 border border-white/10">
                 <div class="border-b border-r border-white/10">
                     <img src="assets/feature-init.svg" alt="memlink init" class="w-full" />
-                    <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">Create a Memory</h3>
-                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink init</code> creates a new memory — name, ID, and MCP URL in one command.</p>
+                    <div class="p-8 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-3 text-lg">Create a Memory</h3>
+                        <p class="text-neutral-400 text-sm leading-relaxed">Kickstart your persistent memory layer with a single command. <code class="text-emerald-400">memlink init</code> generates a unique 12-character memory ID, initializes the underlying storage file, and prints the ready-to-use MCP URL. The optional <code class="text-purple-400">--serve</code> flag even auto-starts the server so you can connect immediately &mdash; zero to connected in under a second.</p>
                     </div>
                 </div>
                 <div class="border-b border-white/10">
                     <img src="assets/feature-serve.svg" alt="memlink serve" class="w-full" />
-                    <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">Start the Server</h3>
-                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink serve</code> boots the MCP server with all your memories. Optional <code class="text-purple-400">--cors</code> and <code class="text-purple-400">--read-only</code>.</p>
+                    <div class="p-8 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-3 text-lg">Start the Server</h3>
+                        <p class="text-neutral-400 text-sm leading-relaxed"><code class="text-emerald-400">memlink serve</code> launches the MCP server using Express and the official <code class="text-white">@modelcontextprotocol/sdk</code>, broadcasting every registered memory on the Streamable HTTP transport. Use <code class="text-purple-400">--cors *</code> to allow cross-origin requests from web UIs, or <code class="text-purple-400">--read-only</code> to enforce a strict no-write policy &mdash; ideal for production deployments where data integrity is critical.</p>
                     </div>
                 </div>
                 <div class="border-b md:border-b-0 border-r border-white/10">
                     <img src="assets/feature-connect.svg" alt="memlink connect" class="w-full" />
-                    <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">Connection Details</h3>
-                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink connect</code> shows the MCP URL and copies it to your clipboard.</p>
+                    <div class="p-8 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-3 text-lg">Connection Details</h3>
+                        <p class="text-neutral-400 text-sm leading-relaxed">Need the MCP URL for a specific memory? <code class="text-emerald-400">memlink connect</code> looks up the memory by its 12-character ID, prints the full name, ID, and Streamable HTTP endpoint, and automatically copies the URL to your clipboard &mdash; ready to paste straight into your agent&rsquo;s <code class="text-white">opencode.json</code> or <code class="text-white">claude_desktop_config.json</code>.</p>
                     </div>
                 </div>
                 <div>
                     <img src="assets/feature-wsl-connect.svg" alt="memlink wsl-connect" class="w-full" />
-                    <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">WSL Bridge</h3>
-                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink wsl-connect</code> auto-detects the Windows gateway IP so agents in WSL can connect.</p>
+                    <div class="p-8 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-3 text-lg">WSL Bridge</h3>
+                        <p class="text-neutral-400 text-sm leading-relaxed">Windows users running OpenCode or Devin inside WSL face a classic networking hurdle: WSL2&rsquo;s <code class="text-white">localhost</code> is isolated from Windows. <code class="text-emerald-400">memlink wsl-connect</code> solves this by running <code class="text-white">ip route show default</code> inside WSL to automatically detect the host gateway IP, then constructs a reachable MCP URL you can drop straight into your WSL agent&rsquo;s config &mdash; no manual IP hunting required.</p>
                     </div>
                 </div>
             </div>
