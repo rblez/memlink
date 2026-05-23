@@ -640,11 +640,16 @@ export function createApp(): express.Express {
 
     try {
       await mcpServer.connect(transport);
-      await transport.start();
     } catch {
       sseSessions.delete(transport.sessionId);
       mcpServer.close();
+      return;
     }
+
+    // Keep handler alive — Express closes the connection otherwise
+    await new Promise<void>((resolve) => {
+      res.on('close', () => resolve());
+    });
   });
 
   // SSE message endpoint
