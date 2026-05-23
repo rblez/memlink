@@ -40,7 +40,6 @@ Compiles to `dist/` (targets Node):
 
 ```bash
 bun run build          # Build + type check (tsc --noEmit)
-npm run build:binaries # Standalone binaries (bun build --compile --minify)
 ```
 
 ## Development

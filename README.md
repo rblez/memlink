@@ -195,7 +195,7 @@ tests/
 bun test → bun run build → bun run format:check → bun run lint
 ```
 
-Releases trigger on `v*` tags → builds 5 platform binaries + npm publish.
+Releases trigger on `v*` tags → publishes to npm.
 
 ## License
 

@@ -5,7 +5,6 @@
 ```bash
 bun install              # install deps (no lockfile committed — bun.lock is .gitignored)
 npm run build            # builds dist/cli/index.js + dist/server/index.js (also type-checks via tsc --noEmit)
-npm run build:binaries   # standalone binaries via bun build --compile (5 platforms)
 
 npm run dev:server       # bun --watch src/server/index.ts (Ctrl+L toggles request logging)
 npm run dev:cli          # bun src/cli/index.ts  (same as npm run cli)
