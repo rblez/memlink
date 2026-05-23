@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature Request
+    url: https://github.com/rblez/memlink/issues/new?template=feature_request.yml
+    about: Suggest an idea for Memlink
+  - name: Questions & Help
+    url: https://github.com/rblez/memlink/discussions
+    about: Ask questions or get help using Memlink

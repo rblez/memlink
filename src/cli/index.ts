@@ -120,7 +120,7 @@ function copyToClipboard(text: string): boolean {
 
 function openUrl(url: string): boolean {
   const platform = process.platform;
-  const cmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
+  const cmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start ""' : 'xdg-open';
   try {
     execSync(`${cmd} "${url}"`, { stdio: 'ignore' });
     return true;
@@ -478,27 +478,9 @@ program
 
 program
   .command('bug')
-  .description('Open GitHub to report a bug or send feedback')
+  .description('Open GitHub to report a bug, request a feature, or send feedback')
   .action(() => {
-    const baseUrl = 'https://github.com/rblez/memlink/issues/new';
-    const template = encodeURIComponent(
-      [
-        '**Type:** (Bug Report / Feature Request / Feedback)',
-        '',
-        '**Description:**',
-        '(Write here)',
-        '',
-        '**Steps to reproduce (if bug):**',
-        '1.',
-        '2.',
-        '',
-        '**Expected behavior:**',
-        '',
-        '**Actual behavior:**',
-        '',
-      ].join('\n')
-    );
-    const url = `${baseUrl}?body=${template}`;
+    const url = 'https://github.com/rblez/memlink/issues/new/choose';
 
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
