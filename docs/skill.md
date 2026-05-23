@@ -10,7 +10,8 @@ The Memlink skill teaches AI agents how to use Memlink's MCP tools effectively.
 memlink skill
 ```
 
-Installs the skill to `.agents/skills/memlink/SKILL.md` in the current directory.
+- Writes `SKILL.md` to `.agents/skills/memlink/`
+- Tags `@.agents/skills/memlink` in `./AGENTS.md` (creates or appends)
 
 ### Global (all projects)
 
@@ -20,7 +21,8 @@ memlink skill --global
 memlink skill -g
 ```
 
-Installs the skill to `~/.agents/skills/memlink/SKILL.md` for all projects.
+- Writes `SKILL.md` to `~/.agents/skills/memlink/`
+- Tags `@skills/memlink` in `~/.agents/AGENTS.md` (creates or appends)
 
 ## What the skill contains
 

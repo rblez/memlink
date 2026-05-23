@@ -435,23 +435,43 @@ program
 
 // ─── memlink skill ──────────────────────────────────────────────────────
 
+function ensureSkillTag(agentsDir: string, tag: string) {
+  const agentsPath = path.join(agentsDir, 'AGENTS.md');
+  if (fs.existsSync(agentsPath)) {
+    const content = fs.readFileSync(agentsPath, 'utf-8');
+    if (content.includes(tag)) return; // already tagged
+    fs.writeFileSync(agentsPath, content.trimEnd() + '\n\n' + tag + '\n', 'utf-8');
+  } else {
+    fs.mkdirSync(agentsDir, { recursive: true });
+    fs.writeFileSync(agentsPath, tag + '\n', 'utf-8');
+  }
+}
+
 program
   .command('skill')
   .description('Install Memlink agent skill for this workspace')
   .option('-g, --global', 'Install globally for all projects')
   .action((opts) => {
-    const baseDir = opts.global
-      ? path.join(os.homedir(), '.agents', 'skills', 'memlink')
-      : path.join(process.cwd(), '.agents', 'skills', 'memlink');
-
-    fs.mkdirSync(baseDir, { recursive: true });
-    const skillPath = path.join(baseDir, 'SKILL.md');
-    fs.writeFileSync(skillPath, SKILL_MD, 'utf-8');
-
-    const small = logoSmall();
-    if (small) console.log('\n' + small + '\n');
-    console.log(okBadge(`Skill installed: ${skillPath}`));
-    console.log();
+    if (opts.global) {
+      const skillDir = path.join(os.homedir(), '.agents', 'skills', 'memlink');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), SKILL_MD, 'utf-8');
+      ensureSkillTag(path.join(os.homedir(), '.agents'), '@skills/memlink');
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Skill installed globally: ~/.agents/skills/memlink/SKILL.md`));
+      console.log();
+    } else {
+      const skillDir = path.join(process.cwd(), '.agents', 'skills', 'memlink');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), SKILL_MD, 'utf-8');
+      ensureSkillTag(process.cwd(), '@.agents/skills/memlink');
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Skill installed: .agents/skills/memlink/SKILL.md`));
+      console.log(dimLine('Tagged in AGENTS.md'));
+      console.log();
+    }
   });
 
 // ─── memlink bug (feedback) ────────────────────────────────────────────────

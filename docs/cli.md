@@ -88,8 +88,8 @@ memlink connect abc123def456
 Install the Memlink agent skill for OpenCode.
 
 ```bash
-memlink skill                  # Install in .agents/skills/memlink/ (workspace)
-memlink skill --global         # Install in ~/.agents/skills/memlink/ (global)
+memlink skill                  # Install in .agents/skills/memlink/ + tag in AGENTS.md
+memlink skill --global         # Install in ~/.agents/skills/memlink/ + tag in ~/.agents/AGENTS.md
 memlink skill -g               # Short flag for global
 ```
 
