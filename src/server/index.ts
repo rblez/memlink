@@ -97,7 +97,9 @@ function errorResult(err: unknown) {
 function readOnlyGuard() {
   if (readOnly) {
     return {
-      content: [{ type: 'text' as const, text: 'Server is in read-only mode. Writes are disabled.' }],
+      content: [
+        { type: 'text' as const, text: 'Server is in read-only mode. Writes are disabled.' },
+      ],
       isError: true,
     };
   }
@@ -605,7 +607,13 @@ export function createApp(): express.Express {
   if (corsOrigins) {
     app.use((req, res, next) => {
       const origin = req.headers.origin || '*';
-      if (corsOrigins === '*' || corsOrigins.split(',').map(s => s.trim()).includes(origin)) {
+      if (
+        corsOrigins === '*' ||
+        corsOrigins
+          .split(',')
+          .map((s) => s.trim())
+          .includes(origin)
+      ) {
         res.setHeader('Access-Control-Allow-Origin', corsOrigins === '*' ? '*' : origin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -777,7 +785,7 @@ export function createApp(): express.Express {
 export async function startServer(
   port?: number,
   host?: string,
-  options?: { cors?: string; readOnly?: boolean },
+  options?: { cors?: string; readOnly?: boolean }
 ): Promise<void> {
   const config = loadConfig();
 

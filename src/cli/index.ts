@@ -6,16 +6,7 @@ import readline from 'readline';
 import { execSync } from 'child_process';
 import { Command } from 'commander';
 import { table } from 'table';
-import {
-  ok as okBadge,
-  err,
-  info,
-  count,
-  dimLine,
-  colors,
-  printLogo,
-  SKILL_MD,
-} from './output.ts';
+import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD } from './output.ts';
 import {
   loadConfig,
   createUniversalMemory,
@@ -398,9 +389,7 @@ program
     console.log(info('ID', memory.memoryId));
     console.log(info('MCP', url));
     console.log();
-    console.log(
-      dimLine('Use this URL in your WSL agent with type "http".'),
-    );
+    console.log(dimLine('Use this URL in your WSL agent with type "http".'));
     console.log(dimLine('See docs/agent-setup.md for config examples.'));
     console.log();
   });
