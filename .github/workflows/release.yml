@@ -29,11 +29,12 @@ jobs:
 
       - name: Publish to npm
         run: |
+          npm --version
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          npm whoami 2>&1 || echo "whoami failed"
-          cat ~/.npmrc | head -1 | sed 's/:_authToken=.*$/:_authToken=REDACTED/'
-          npm publish --access public --dry-run 2>&1 | head -5
-          npm publish --access public
+          npm config list
+          npm ping 2>&1
+          npm whoami 2>&1
+          npm publish --access public --registry=https://registry.npmjs.org 2>&1
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
