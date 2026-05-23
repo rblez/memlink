@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish-npm:
@@ -15,6 +16,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -28,13 +35,4 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: |
-          npm --version
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          npm config list
-          npm ping 2>&1
-          npm whoami 2>&1
-          npm publish --access public --registry=https://registry.npmjs.org 2>&1
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
+        run: npm publish --access public --provenance
