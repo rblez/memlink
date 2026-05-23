@@ -1,28 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="580" height="380" viewBox="0 0 580 380">
   <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <linearGradient id="titlebar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a1b26"/>
+      <stop offset="100%" stop-color="#15161e"/>
+    </linearGradient>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10B981"/>
       <stop offset="50%" stop-color="#FFFFFF"/>
       <stop offset="100%" stop-color="#D946EF"/>
     </linearGradient>
   </defs>
-  <rect width="580" height="380" fill="url(#bg)"/>
-  <rect x="40" y="80" width="500" height="260" fill="#0A0A0B"/>
-  <rect x="40" y="80" width="500" height="44" fill="#0F0F12"/>
-  <rect x="40" y="124" width="500" height="1" fill="rgba(255,255,255,0.06)"/>
-  <circle cx="64" cy="102" r="5" fill="#EF4444"/>
-  <circle cx="82" cy="102" r="5" fill="#EAB308"/>
-  <circle cx="100" cy="102" r="5" fill="#22C55E"/>
-  <text x="120" y="107" font-family="'SF Mono','Cascadia Code',monospace" font-size="12" fill="rgba(255,255,255,0.3)">memlink init my-project</text>
-  <g>
-        <text x="64" y="134" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#10B981">$ memlink init my-project</text>
-        <text x="64" y="156" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
-        <text x="64" y="178" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#34D399">◆ Memory created</text>
-        <text x="64" y="200" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
-        <text x="64" y="222" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  Name    my-project</text>
-        <text x="64" y="244" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  ID      wBuv_xxjS_wR</text>
-        <text x="64" y="266" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  MCP     http://localhost:4444/mcp?id=wBuv_xxjS_wR</text>
-        <text x="64" y="288" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
-        <text x="64" y="310" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
+  <rect width="580" height="380" fill="url(#bg)" rx="0"/>
+  <g filter="url(#shadow)">
+    <rect x="32" y="56" width="516" height="292" rx="8" fill="#0D0E14"/>
+    <rect x="32" y="56" width="516" height="38" rx="8" fill="url(#titlebar)"/>
+    <rect x="32" y="86" width="516" height="8" fill="#15161e"/>
+    <circle cx="52" cy="75" r="5" fill="#EF4444"/>
+    <circle cx="70" cy="75" r="5" fill="#EAB308"/>
+    <circle cx="88" cy="75" r="5" fill="#22C55E"/>
+    <text x="106" y="80" font-family="'SF Mono','Cascadia Code',monospace" font-size="11" fill="rgba(255,255,255,0.25)">memlink init my-project</text>
   </g>
+  <g>
+        <text x="52" y="112" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="#10B981">$ memlink init my-project</text>
+        <text x="52" y="134" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="transparent"></text>
+        <text x="52" y="156" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="#34D399">  ◆ Memory created</text>
+        <text x="52" y="178" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="transparent"></text>
+        <text x="52" y="200" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="#9CA3AF">  Name    my-project                      </text>
+        <text x="52" y="222" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="#9CA3AF">  ID      wBuv_xxjS_wR                     </text>
+        <text x="52" y="244" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="#9CA3AF">  MCP     http://localhost:4444/mcp?id=…   </text>
+        <text x="52" y="266" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="transparent"></text>
+        <text x="52" y="288" font-family="'SF Mono','Cascadia Code','JetBrains Mono',monospace" font-size="13" fill="transparent"></text>
+  </g>
+  <rect x="32" y="340" width="516" height="8" rx="8" fill="#0D0E14"/>
 </svg>

@@ -169,6 +169,10 @@
                 <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Memlink</span>
             </a>
             <nav class="hidden md:flex items-center gap-6 text-sm text-white/70 font-medium">
+                <a href="#how-it-works" class="hover:text-white transition">How it Works</a>
+                <a href="#features" class="hover:text-white transition">Features</a>
+                <a href="https://github.com/rblez/memlink/blob/main/docs/faq.md" target="_blank" class="hover:text-white transition">FAQ</a>
+                <span class="w-px h-4 bg-white/10"></span>
                 <a href="https://github.com/rblez/memlink" target="_blank" aria-label="GitHub" class="hover:text-white transition flex items-center gap-1.5">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                     <span id="gh-stars" class="text-xs bg-white/10 px-1.5 py-0.5 rounded">0</span>
@@ -180,11 +184,30 @@
                     <img src="https://cdn.simpleicons.org/npm/white" alt="npm" class="w-4 h-4" />
                 </a>
             </nav>
+            <button id="menu-btn" class="md:hidden text-white/70 hover:text-white transition" aria-label="Menu">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </header>
+    <div id="mobile-menu" class="hidden fixed inset-0 z-50 bg-brand-black/95 backdrop-blur-md md:hidden">
+        <div class="flex justify-end p-6">
+            <button id="close-btn" class="text-white/70 hover:text-white transition" aria-label="Close">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <nav class="flex flex-col items-center gap-6 text-lg text-white/70 font-medium">
+            <a href="#how-it-works" class="hover:text-white transition">How it Works</a>
+            <a href="#features" class="hover:text-white transition">Features</a>
+            <a href="https://github.com/rblez/memlink/blob/main/docs/faq.md" target="_blank" class="hover:text-white transition">FAQ</a>
+            <a href="https://github.com/rblez/memlink" target="_blank" class="hover:text-white transition">GitHub</a>
+            <a href="https://www.npmjs.com/package/@memlink/cli" target="_blank" class="hover:text-white transition">npm</a>
+        </nav>
+    </div>
         </div>
     </header>
 
     <!-- Hero Section -->
-    <section class="relative pt-16 pb-24 md:py-32 overflow-hidden">
+    <section id="hero" class="relative pt-16 pb-24 md:py-32 overflow-hidden">
         <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-brand-linear opacity-20 blur-[150px] pointer-events-none rounded-full glow-pulse"></div>
 
         <div class="max-w-5xl mx-auto px-6 text-center relative z-10">
@@ -192,7 +215,7 @@
             <!-- Title -->
             <h1 id="hero-title" class="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.1] max-w-4xl mx-auto">
                 Persistent Memory for <br class="hidden sm:inline" />
-                <span class="bg-gradient-to-r from-emerald-400 via-purple-400 to-magenta-400 bg-clip-text text-transparent">Your AI Agents</span>
+                <span class="bg-gradient-to-r from-emerald-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">Your AI Agents</span>
             </h1>
 
             <!-- Description -->
@@ -202,7 +225,7 @@
 
             <!-- Installation Widget -->
             <div id="hero-install" class="max-w-2xl mx-auto mb-20">
-                <div class="glass-panel rounded-2xl overflow-hidden border border-white/10">
+                <div class="overflow-hidden border border-white/10">
                     <div class="flex flex-wrap border-b border-white/10 bg-brand-black text-xs md:text-sm">
                         <button onclick="switchTab('npm')" id="tab-npm" class="tab-btn px-5 py-3.5 border-b-2 border-emerald-500 text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/npm/white" alt="" class="w-4 h-4" />NPM</button>
                         <button onclick="switchTab('pnpm')" id="tab-pnpm" class="tab-btn px-5 py-3.5 border-b-2 border-transparent text-neutral-400 hover:text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/pnpm/white" alt="" class="w-4 h-4" />pnpm</button>
@@ -211,7 +234,7 @@
                     </div>
                     <div class="p-5 bg-[#0B0C0E]">
                         <div id="content-npm" class="tab-content block">
-                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 font-mono text-xs md:text-sm">
                                 <span id="cmd-npm" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">npm</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
                                 <button onclick="copyToClipboard('cmd-npm', 'copy-icon-npm')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
                                     <i id="copy-icon-npm" data-lucide="copy" class="w-4 h-4"></i>
@@ -219,7 +242,7 @@
                             </div>
                         </div>
                         <div id="content-pnpm" class="tab-content hidden">
-                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 font-mono text-xs md:text-sm">
                                 <span id="cmd-pnpm" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">pnpm</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
                                 <button onclick="copyToClipboard('cmd-pnpm', 'copy-icon-pnpm')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
                                     <i id="copy-icon-pnpm" data-lucide="copy" class="w-4 h-4"></i>
@@ -227,7 +250,7 @@
                             </div>
                         </div>
                         <div id="content-yarn" class="tab-content hidden">
-                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 font-mono text-xs md:text-sm">
                                 <span id="cmd-yarn" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">yarn</span> <span class="text-purple-400">global</span> <span class="text-purple-400">add</span> <span class="text-blue-400">@memlink/cli</span></span>
                                 <button onclick="copyToClipboard('cmd-yarn', 'copy-icon-yarn')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
                                     <i id="copy-icon-yarn" data-lucide="copy" class="w-4 h-4"></i>
@@ -235,7 +258,7 @@
                             </div>
                         </div>
                         <div id="content-bun" class="tab-content hidden">
-                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 font-mono text-xs md:text-sm">
                                 <span id="cmd-bun" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">bun</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
                                 <button onclick="copyToClipboard('cmd-bun', 'copy-icon-bun')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
                                     <i id="copy-icon-bun" data-lucide="copy" class="w-4 h-4"></i>
@@ -341,30 +364,55 @@
         </div>
     </section>
 
+    <!-- How it Works -->
+    <section id="how-it-works" class="pb-24">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-white text-center mb-2">How it Works</h2>
+            <p class="text-neutral-400 text-sm text-center mb-12 max-w-lg mx-auto">One protocol, one memory store. Here&rsquo;s the simple flow.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div>
+                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-emerald-400 font-bold text-lg">1</span>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Install &amp; Init</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed">Run <code class="text-white">npm install -g @memlink/cli</code> then <code class="text-emerald-400">memlink init</code> to create a memory with a unique 12-character ID.</p>
+                </div>
+                <div>
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-purple-400 font-bold text-lg">2</span>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Serve via MCP</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed"><code class="text-emerald-400">memlink serve</code> starts a Streamable HTTP server at <code class="text-white">http://localhost:4444/mcp</code> &mdash; the Model Context Protocol endpoint your agent talks to.</p>
+                </div>
+                <div>
+                    <div class="w-10 h-10 rounded-lg bg-fuchsia-500/10 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-fuchsia-400 font-bold text-lg">3</span>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Connect Any Agent</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed">Drop the MCP URL into your agent&rsquo;s config (Claude, Cursor, OpenCode, etc.). Now every agent shares the same persistent memory.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Benefits -->
-    <section class="pb-24">
+    <section id="benefits" class="pb-24">
         <div class="max-w-5xl mx-auto px-6">
             <h2 class="text-2xl md:text-3xl font-bold text-white text-center mb-2">Why Memlink</h2>
             <p class="text-neutral-400 text-sm text-center mb-12 max-w-lg mx-auto">One memory store, one URL. No tokens, no setup, no cloud.</p>
             <div class="grid grid-cols-1 md:grid-cols-3 border border-white/10">
-                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center">
-                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
+                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center relative">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
                     <h3 class="text-white font-semibold mb-2">Zero Config</h3>
                     <p class="text-neutral-400 text-sm leading-relaxed">Install and run. No tokens, no API keys, no cloud accounts. One URL connects any agent.</p>
                 </div>
-                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center">
-                    <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
-                    </div>
+                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center relative">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-white"></div>
                     <h3 class="text-white font-semibold mb-2">Any Agent</h3>
                     <p class="text-neutral-400 text-sm leading-relaxed">Works with Claude, Cursor, Windsurf, Codex, OpenCode, Cline, and any MCP-compatible tool.</p>
                 </div>
-                <div class="p-8 border-white/10 text-center">
-                    <div class="w-10 h-10 rounded-lg bg-magenta-500/10 flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-5 h-5 text-magenta-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-                    </div>
+                <div class="p-8 border-white/10 text-center relative">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-fuchsia-500"></div>
                     <h3 class="text-white font-semibold mb-2">Local-First</h3>
                     <p class="text-neutral-400 text-sm leading-relaxed">Self-hosted on your machine. Data never leaves your control. No cloud, no vendor lock-in.</p>
                 </div>
@@ -373,63 +421,58 @@
     </section>
 
     <!-- CLI Features -->
-    <section class="pb-24">
+    <section id="features" class="pb-24">
         <div class="max-w-5xl mx-auto px-6">
             <h2 class="text-2xl md:text-3xl font-bold text-white text-center mb-2">CLI at a Glance</h2>
             <p class="text-neutral-400 text-sm text-center mb-12 max-w-lg mx-auto">Every command is designed to be simple, predictable, and self-documenting.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="border border-white/10">
-                    <img src="assets/feature-init.svg" alt="memlink init" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">Create a Memory</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <img src="assets/feature-init.png" alt="memlink init" class="w-full" />
+                    <div class="mt-4">
+                        <h3 class="text-white font-semibold mb-2 text-lg">Create a Memory</h3>
                         <p class="text-neutral-400 text-sm leading-relaxed">Kickstart your persistent memory layer with a single command. <code class="text-emerald-400">memlink init</code> generates a unique 12-character memory ID, initializes the underlying storage file, and prints the ready-to-use MCP URL. The optional <code class="text-purple-400">--serve</code> flag even auto-starts the server so you can connect immediately &mdash; zero to connected in under a second.</p>
                     </div>
                 </div>
-                <div class="border border-white/10">
-                    <img src="assets/feature-serve.svg" alt="memlink serve" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">Start the Server</h3>
+                <div>
+                    <img src="assets/feature-serve.png" alt="memlink serve" class="w-full" />
+                    <div class="mt-4">
+                        <h3 class="text-white font-semibold mb-2 text-lg">Start the Server</h3>
                         <p class="text-neutral-400 text-sm leading-relaxed"><code class="text-emerald-400">memlink serve</code> launches the MCP server using Express and the official <code class="text-white">@modelcontextprotocol/sdk</code>, broadcasting every registered memory on the Streamable HTTP transport. Use <code class="text-purple-400">--cors *</code> to allow cross-origin requests from web UIs, or <code class="text-purple-400">--read-only</code> to enforce a strict no-write policy &mdash; ideal for production deployments where data integrity is critical.</p>
                     </div>
                 </div>
-                <div class="border border-white/10">
-                    <img src="assets/feature-connect.svg" alt="memlink connect" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">Connection Details</h3>
-                        <p class="text-neutral-400 text-sm leading-relaxed">Need the MCP URL for a specific memory? <code class="text-emerald-400">memlink connect</code> looks up the memory by its 12-character ID, prints the full name, ID, and Streamable HTTP endpoint, and automatically copies the URL to your clipboard &mdash; ready to paste straight into your agent&rsquo;s <code class="text-white">opencode.json</code> or <code class="text-white">claude_desktop_config.json</code>.</p>
-                    </div>
-                </div>
-                <div class="border border-white/10">
-                    <img src="assets/feature-wsl-connect.svg" alt="memlink wsl-connect" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">WSL Bridge</h3>
-                        <p class="text-neutral-400 text-sm leading-relaxed">Windows users running OpenCode or Devin inside WSL face a classic networking hurdle: WSL2&rsquo;s <code class="text-white">localhost</code> is isolated from Windows. <code class="text-emerald-400">memlink wsl-connect</code> solves this by running <code class="text-white">ip route show default</code> inside WSL to automatically detect the host gateway IP, then constructs a reachable MCP URL you can drop straight into your WSL agent&rsquo;s config &mdash; no manual IP hunting required.</p>
-                    </div>
-                </div>
-            </div>
-                </div>
-                <div class="border-b border-white/10">
-                    <img src="assets/feature-serve.svg" alt="memlink serve" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">Start the Server</h3>
-                        <p class="text-neutral-400 text-sm leading-relaxed"><code class="text-emerald-400">memlink serve</code> launches the MCP server using Express and the official <code class="text-white">@modelcontextprotocol/sdk</code>, broadcasting every registered memory on the Streamable HTTP transport. Use <code class="text-purple-400">--cors *</code> to allow cross-origin requests from web UIs, or <code class="text-purple-400">--read-only</code> to enforce a strict no-write policy &mdash; ideal for production deployments where data integrity is critical.</p>
-                    </div>
-                </div>
-                <div class="border-b md:border-b-0 border-r border-white/10">
-                    <img src="assets/feature-connect.svg" alt="memlink connect" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">Connection Details</h3>
+                <div>
+                    <img src="assets/feature-connect.png" alt="memlink connect" class="w-full" />
+                    <div class="mt-4">
+                        <h3 class="text-white font-semibold mb-2 text-lg">Connection Details</h3>
                         <p class="text-neutral-400 text-sm leading-relaxed">Need the MCP URL for a specific memory? <code class="text-emerald-400">memlink connect</code> looks up the memory by its 12-character ID, prints the full name, ID, and Streamable HTTP endpoint, and automatically copies the URL to your clipboard &mdash; ready to paste straight into your agent&rsquo;s <code class="text-white">opencode.json</code> or <code class="text-white">claude_desktop_config.json</code>.</p>
                     </div>
                 </div>
                 <div>
-                    <img src="assets/feature-wsl-connect.svg" alt="memlink wsl-connect" class="w-full" />
-                    <div class="p-8 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-3 text-lg">WSL Bridge</h3>
+                    <img src="assets/feature-wsl-connect.png" alt="memlink wsl-connect" class="w-full" />
+                    <div class="mt-4">
+                        <h3 class="text-white font-semibold mb-2 text-lg">WSL Bridge</h3>
                         <p class="text-neutral-400 text-sm leading-relaxed">Windows users running OpenCode or Devin inside WSL face a classic networking hurdle: WSL2&rsquo;s <code class="text-white">localhost</code> is isolated from Windows. <code class="text-emerald-400">memlink wsl-connect</code> solves this by running <code class="text-white">ip route show default</code> inside WSL to automatically detect the host gateway IP, then constructs a reachable MCP URL you can drop straight into your WSL agent&rsquo;s config &mdash; no manual IP hunting required.</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="pb-24">
+        <div class="max-w-2xl mx-auto px-6 text-center">
+            <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Ready to give your agents memory?</h2>
+            <p class="text-neutral-400 text-sm mb-8 max-w-md mx-auto">Install in seconds, zero config, no cloud. Your agents will thank you.</p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#hero-install" class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-3 rounded-lg transition text-sm">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                    Get Started
+                </a>
+                <a href="https://github.com/rblez/memlink" target="_blank" rel="noopener" class="inline-flex items-center gap-2 border border-white/10 hover:border-white/20 text-white font-medium px-6 py-3 rounded-lg transition text-sm">
+                    <i data-lucide="github" class="w-4 h-4"></i>
+                    View on GitHub
+                </a>
             </div>
         </div>
     </section>
@@ -471,13 +514,14 @@
                         <li><a href="https://github.com/rblez/memlink/releases" target="_blank" rel="noopener" class="hover:text-white transition">Releases</a></li>
                         <li><a href="https://github.com/rblez/memlink/issues" target="_blank" rel="noopener" class="hover:text-white transition">Issues</a></li>
                         <li><a href="https://github.com/rblez/memlink/blob/main/README.md" target="_blank" rel="noopener" class="hover:text-white transition">Documentation</a></li>
+                        <li><a href="https://github.com/rblez/memlink/blob/main/docs/faq.md" target="_blank" rel="noopener" class="hover:text-white transition">FAQ</a></li>
                     </ul>
                 </div>
             </div>
 
             <div class="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
                 <span>&copy; <span id="year"></span> Memlink. Released under the MIT License.</span>
-                <span class="text-neutral-600">v1.0.2</span>
+                <span class="text-neutral-600">v1.0.8</span>
             </div>
         </div>
     </footer>
@@ -564,14 +608,35 @@
         });
 
         fetch('https://api.github.com/repos/rblez/memlink')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(d => { document.getElementById('gh-stars').textContent = d.stargazers_count; })
-            .catch(() => {});
+            .catch(() => { document.getElementById('gh-stars').textContent = '★'; });
 
         const header = document.getElementById('header');
         window.addEventListener('scroll', () => {
             header.style.borderColor = window.scrollY > 20 ? 'rgba(255,255,255,0.08)' : 'transparent';
         });
+
+        // Mobile menu
+        const menuBtn = document.getElementById('menu-btn');
+        const closeBtn = document.getElementById('close-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (menuBtn && closeBtn && mobileMenu) {
+            menuBtn.addEventListener('click', () => {
+                mobileMenu.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            });
+            closeBtn.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                document.body.style.overflow = '';
+            });
+            mobileMenu.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.add('hidden');
+                    document.body.style.overflow = '';
+                });
+            });
+        }
     </script>
 </body>
 </html>
