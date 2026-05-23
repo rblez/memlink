@@ -380,31 +380,31 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 border border-white/10">
                 <div class="border-b border-r border-white/10">
-                    <img src="cli-overview.png" alt="Command overview" class="w-full" />
+                    <img src="assets/feature-init.png" alt="memlink init" class="w-full" />
                     <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">Command Overview</h3>
-                        <p class="text-neutral-400 text-sm">Complete list of all CLI commands. Predictable and self-documenting — no need to memorize.</p>
+                        <h3 class="text-white font-semibold mb-1">Create a Memory</h3>
+                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink init</code> creates a new memory — name, ID, and MCP URL in one command.</p>
                     </div>
                 </div>
                 <div class="border-b border-white/10">
-                    <img src="cli-serve-help.png" alt="Serve command flags" class="w-full" />
+                    <img src="assets/feature-serve.png" alt="memlink serve" class="w-full" />
                     <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">Server Flags</h3>
-                        <p class="text-neutral-400 text-sm">Optional <code class="text-emerald-400">--cors</code> and <code class="text-purple-400">--read-only</code> flags for production deployments.</p>
+                        <h3 class="text-white font-semibold mb-1">Start the Server</h3>
+                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink serve</code> boots the MCP server with all your memories. Optional <code class="text-purple-400">--cors</code> and <code class="text-purple-400">--read-only</code>.</p>
                     </div>
                 </div>
                 <div class="border-b md:border-b-0 border-r border-white/10">
-                    <img src="cli-wsl-connect.png" alt="WSL connect" class="w-full" />
+                    <img src="assets/feature-connect.png" alt="memlink connect" class="w-full" />
                     <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">WSL Support</h3>
-                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">wsl-connect</code> auto-detects the Windows gateway IP so agents running in WSL can reach your server.</p>
+                        <h3 class="text-white font-semibold mb-1">Connection Details</h3>
+                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink connect</code> shows the MCP URL and copies it to your clipboard.</p>
                     </div>
                 </div>
-                <div class="border-white/10">
-                    <img src="cli-serve-indicators.png" alt="CORS and read-only indicators" class="w-full" />
+                <div>
+                    <img src="assets/feature-wsl-connect.png" alt="memlink wsl-connect" class="w-full" />
                     <div class="p-5 border-t border-white/10">
-                        <h3 class="text-white font-semibold mb-1">At-a-Glance Indicators</h3>
-                        <p class="text-neutral-400 text-sm">Startup prints active flags like <code class="text-emerald-400">CORS *</code> and <code class="text-purple-400">mode read-only</code> so you always know the server state.</p>
+                        <h3 class="text-white font-semibold mb-1">WSL Bridge</h3>
+                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">memlink wsl-connect</code> auto-detects the Windows gateway IP so agents in WSL can connect.</p>
                     </div>
                 </div>
             </div>

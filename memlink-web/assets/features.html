@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memlink CLI Features</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050506;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    gap: 40px;
+  }
+  .card {
+    width: 580px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .card-bg {
+    padding: 40px;
+    background: linear-gradient(135deg, #10B981 0%, #ffffff 50%, #D946EF 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+  }
+  .terminal {
+    background: #0A0A0B;
+    border-radius: 12px;
+    width: 100%;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #EF4444; }
+  .dot-y { background: #EAB308; }
+  .dot-g { background: #22C55E; }
+  .terminal-title {
+    color: rgba(255,255,255,0.3);
+    font-size: 12px;
+    margin-left: 8px;
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+  }
+  .terminal-body {
+    padding: 20px;
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #E5E7EB;
+  }
+  .prompt { color: #10B981; }
+  .comment { color: #6B7280; }
+  .output { color: #D1D5DB; }
+  .accent { color: #A855F7; }
+  .success { color: #34D399; }
+</style>
+</head>
+<body>
+
+<!-- 1. memlink init -->
+<div class="card">
+  <div class="card-bg">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="terminal-title">memlink init my-project</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="prompt">$</span> memlink init my-project</div>
+        <div>&nbsp;</div>
+        <div><span class="success">◆</span> Memory created</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">Name</span>  my-project</div>
+        <div><span class="comment">ID</span>    wBuv_xxjS_wR</div>
+        <div><span class="comment">MCP</span>   http://localhost:4444/mcp?id=wBuv_xxjS_wR</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">◆ URL copied to clipboard</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. memlink serve -->
+<div class="card">
+  <div class="card-bg">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="terminal-title">memlink serve --cors "*"</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="prompt">$</span> memlink serve --cors <span class="accent">"*"</span></div>
+        <div>&nbsp;</div>
+        <div><span class="comment">MCP</span>   http://localhost:4444/mcp?id=wBuv_xxjS_wR</div>
+        <div><span class="comment">MCP</span>   http://localhost:4444/mcp?id=abc123def456</div>
+        <div><span class="comment">CORS</span>  *</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">^c stop</span></div>
+        <div>&nbsp;</div>
+        <div><span class="output">→ http://localhost:4444/mcp</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. memlink connect -->
+<div class="card">
+  <div class="card-bg">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="terminal-title">memlink connect wBuv_xxjS_wR</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="prompt">$</span> memlink connect wBuv_xxjS_wR</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">Name</span>  my-project</div>
+        <div><span class="comment">ID</span>    wBuv_xxjS_wR</div>
+        <div><span class="comment">MCP</span>   http://localhost:4444/mcp?id=wBuv_xxjS_wR</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">◆ URL copied to clipboard</span></div>
+        <div>&nbsp;</div>
+        <div><span class="comment">Start server:</span> <span class="output">Memlink serve</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. memlink wsl-connect -->
+<div class="card">
+  <div class="card-bg">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="terminal-title">memlink wsl-connect wBuv_xxjS_wR</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="prompt">$</span> memlink wsl-connect wBuv_xxjS_wR</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">Name</span>  my-project</div>
+        <div><span class="comment">ID</span>    wBuv_xxjS_wR</div>
+        <div><span class="comment">MCP</span>   http://<span class="accent">172.26.176.1</span>:4444/mcp?id=wBuv_xxjS_wR</div>
+        <div>&nbsp;</div>
+        <div><span class="comment">Use this URL in your WSL agent with type "http".</span></div>
+        <div><span class="comment">See docs/agent-setup.md for config examples.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
