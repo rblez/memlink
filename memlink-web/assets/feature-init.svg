@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="580" height="348" viewBox="0 0 580 348">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="50%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#D946EF"/>
+    </linearGradient>
+  </defs>
+  <rect width="580" height="348" fill="url(#bg)" rx="16"/>
+  <rect x="40" y="80" width="500" height="228" rx="12" fill="#0A0A0B"/>
+  <rect x="40" y="80" width="500" height="44" rx="12" fill="#0F0F12"/>
+  <rect x="40" y="124" width="500" height="1" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="64" cy="102" r="5" fill="#EF4444"/>
+  <circle cx="82" cy="102" r="5" fill="#EAB308"/>
+  <circle cx="100" cy="102" r="5" fill="#22C55E"/>
+  <text x="120" y="107" font-family="'SF Mono','Cascadia Code',monospace" font-size="12" fill="rgba(255,255,255,0.3)">memlink init my-project</text>
+  <g>
+        <text x="64" y="134" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#10B981">$ memlink init my-project</text>
+        <text x="64" y="156" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
+        <text x="64" y="178" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#34D399">◆ Memory created</text>
+        <text x="64" y="200" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="transparent"></text>
+        <text x="64" y="222" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  Name    my-project</text>
+        <text x="64" y="244" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  ID      wBuv_xxjS_wR</text>
+        <text x="64" y="266" font-family="'SF Mono','Cascadia Code',monospace" font-size="14" fill="#9CA3AF">  MCP     http://localhost:4444/mcp?id=wBuv_xxjS_wR</text>
+  </g>
+</svg>
