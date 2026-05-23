@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           registry-url: 'https://registry.npmjs.org'
+          scope: '@memlink'
 
       - name: Install dependencies
         run: bun install

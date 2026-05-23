@@ -2,23 +2,39 @@
   "name": "@memlink/cli",
   "version": "1.0.2",
   "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
-  "keywords": ["mcp", "memory", "ai", "agents", "modelcontextprotocol", "memlink", "cli", "llm"],
+  "keywords": [
+    "mcp",
+    "memory",
+    "ai",
+    "agents",
+    "modelcontextprotocol",
+    "memlink",
+    "cli",
+    "llm"
+  ],
   "license": "MIT",
   "private": false,
   "type": "module",
-  "files": ["dist/cli", "dist/server", "README.md", "LICENSE"],
+  "files": [
+    "dist/cli",
+    "dist/server",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "./dist/cli/index.js",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rblez/memlink.git"
+    "url": "git+https://github.com/rblez/memlink.git"
   },
   "bugs": {
     "url": "https://github.com/rblez/memlink/issues"
   },
   "homepage": "https://rblez.com/memlink",
   "bin": {
-    "memlink": "./dist/cli/index.js"
+    "memlink": "dist/cli/index.js"
   },
   "exports": {
     ".": {
