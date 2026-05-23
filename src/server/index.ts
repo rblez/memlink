@@ -30,7 +30,7 @@ import { DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 let loggingEnabled = false;
 
 function logRequest(
-  req: Request,
+  _req: Request,
   memoryName: string,
   method?: string,
   _params?: Record<string, unknown>

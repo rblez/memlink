@@ -14,18 +14,36 @@ This creates a memory called "my-project" and prints its unique 12-character ID 
 memlink serve
 ```
 
-The server starts at `http://localhost:4444/mcp`. Each memory you created gets its own URL with the memory ID.
+The server serves two MCP transport endpoints:
+- **Streamable HTTP** (modern): `http://localhost:4444/mcp?id=YOUR_MEMORY_ID`
+- **SSE** (legacy): `http://localhost:4444/sse?id=YOUR_MEMORY_ID`
+
+Each memory you created gets its own URL with the memory ID.
 
 ## 3. Connect an agent
 
-Add the MCP URL to your agent's configuration. Example for Claude/Cline:
+Add the MCP URL to your agent's configuration. Choose the transport that matches your agent:
 
+**Streamable HTTP** (modern — preferred):
 ```json
 {
   "mcpServers": {
     "memlink": {
       "type": "http",
       "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+    }
+  }
+}
+```
+
+**SSE** (legacy — for older agents that don't support Streamable HTTP):
+```json
+{
+  "mcpServers": {
+    "memlink": {
+      "type": "remote",
+      "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+      "enabled": true
     }
   }
 }

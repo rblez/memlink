@@ -4,14 +4,28 @@ Memlink works with any MCP-compatible agent. Here's how to configure each one.
 
 ## Configuration format
 
-All agents accept an MCP server configuration. The base format is:
+All agents accept an MCP server configuration. Choose the transport matching your agent:
 
+**Streamable HTTP** (modern — preferred):
 ```json
 {
   "mcpServers": {
     "memlink": {
       "type": "http",
       "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+    }
+  }
+}
+```
+
+**SSE** (legacy — for older agents):
+```json
+{
+  "mcpServers": {
+    "memlink": {
+      "type": "remote",
+      "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+      "enabled": true
     }
   }
 }
@@ -34,13 +48,15 @@ memlink connect <id>
 1. Open Cursor Settings → Features → MCP
 2. Add a new MCP server:
    - Name: `memlink`
-   - URL: `http://localhost:4444/mcp?id=YOUR_MEMORY_ID`
+   - URL: `http://localhost:4444/mcp?id=YOUR_MEMORY_ID` (preferred, type: http)
+   - Or URL: `http://localhost:4444/sse?id=YOUR_MEMORY_ID` (legacy, type: remote)
 
 ## Windsurf
 
 1. Open Windsurf settings
 2. Navigate to MCP Server configuration
-3. Add the memlink URL
+3. Use Streamable HTTP URL: `http://localhost:4444/mcp?id=YOUR_MEMORY_ID`
+4. Or SSE URL for older configs: `http://localhost:4444/sse?id=YOUR_MEMORY_ID`
 
 ## Codex
 
@@ -57,12 +73,26 @@ memlink connect <id>
 2. The skill tells OpenCode to always read memory at session start and use MCP tools throughout the session
 3. Add the MCP server to your `opencode.jsonc` (project root or `~/.config/opencode/opencode.jsonc`):
 
+   **Streamable HTTP** (preferred):
    ```jsonc
    {
      "mcpServers": {
        "memlink": {
          "type": "http",
          "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+       }
+     }
+   }
+   ```
+
+   **SSE** (legacy):
+   ```jsonc
+   {
+     "mcpServers": {
+       "memlink": {
+         "type": "remote",
+         "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+         "enabled": true
        }
      }
    }
@@ -76,13 +106,28 @@ Claude Code supports MCP servers. Add the URL to your Claude Code configuration.
 
 1. Open VS Code
 2. Go to Cline extension settings → MCP Servers
-3. Add:
+3. Add one of the following:
+
+   **Streamable HTTP** (preferred):
    ```json
    {
      "mcpServers": {
        "memlink": {
          "type": "http",
          "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+       }
+     }
+   }
+   ```
+
+   **SSE** (legacy):
+   ```json
+   {
+     "mcpServers": {
+       "memlink": {
+         "type": "remote",
+         "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+         "enabled": true
        }
      }
    }

@@ -23,7 +23,7 @@ export interface MemlinkConfig {
   serverHost: string;
 }
 
-export const MEMLINK_VERSION = '1.0.4';
+export const MEMLINK_VERSION = '1.0.5';
 export const DEFAULT_PORT = 4444;
 export const DEFAULT_HOST = 'localhost';
 export const CONFIG_DIR = '.memlink';

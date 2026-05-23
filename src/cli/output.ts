@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import chalk, { type ChalkInstance } from 'chalk';
 
 // ─── Color palette (hardcoded hex) ────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ export function printLogo(): string {
     { pos: 25, r: 0xcc, g: 0x00, b: 0xcc },
   ];
 
-  function getColorAt(pos: number): string {
+  function getColorAt(pos: number): ChalkInstance {
     let left = colorStops[0];
     let right = colorStops[colorStops.length - 1];
     for (let i = 0; i < colorStops.length - 1; i++) {
