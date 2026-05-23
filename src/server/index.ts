@@ -641,7 +641,7 @@ export function createApp(): express.Express {
     try {
       await mcpServer.connect(transport);
       await transport.start();
-    } catch (err) {
+    } catch {
       sseSessions.delete(transport.sessionId);
       mcpServer.close();
     }
