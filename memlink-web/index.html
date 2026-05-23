@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memlink — Universal Memory for AI Agents</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="description" content="Memlink gives every AI agent persistent, universal memory. Connect Claude, Cursor, Windsurf, and more to a single shared memory layer.">
+    <meta name="keywords" content="AI memory, MCP server, AI agents, persistent memory, Claude, Cursor, Windsurf, LLM memory, AI context">
+    <meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.rblez.com/memlink">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.rblez.com/memlink">
+<meta property="og:title" content="Memlink — Universal Memory for AI Agents">
+<meta property="og:description" content="Memlink gives every AI agent persistent, universal memory. Connect Claude, Cursor, Windsurf, and more to a single shared memory layer.">
+<meta property="og:image" content="https://www.rblez.com/memlink/memlink.png">
+<meta property="og:image:width" content="1024">
+<meta property="og:image:height" content="1024">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Memlink — Universal Memory for AI Agents">
+<meta name="twitter:description" content="Memlink gives every AI agent persistent, universal memory. Connect Claude, Cursor, Windsurf, and more to a single shared memory layer.">
+<meta name="twitter:image" content="https://www.rblez.com/memlink/memlink.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#0A0A0B',
+                            darker: '#050506',
+                            emerald: '#10B981',
+                            teal: '#059669',
+                            purple: '#A855F7',
+                            magenta: '#D946EF',
+                            gray: '#1F2023',
+                            lightGray: '#9CA3AF'
+                        }
+                    },
+                    backgroundImage: {
+                        'glow-gradient': 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.15) 0%, rgba(217, 70, 239, 0.1) 50%, transparent 100%)',
+                        'brand-linear': 'linear-gradient(135deg, #10B981 0%, #D946EF 100%)',
+                    },
+                    fontFamily: {
+                        sans: ['Suisse Intl', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['Söhne Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <style>
+        @font-face {
+            font-family: 'Suisse Intl';
+            src: url('fonts/SuisseIntl-Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Söhne Mono';
+            src: url('fonts/soehne_mono_buch.0jtqbarcimowc.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Söhne Mono';
+            src: url('fonts/soehne_mono_kraftig.0sb94k53k~spo.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+        body {
+            background-color: #050506;
+            color: #F3F4F6;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(15, 15, 18, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-hover:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.05);
+        }
+        .glowing-button {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .glowing-button::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(135deg, #10B981, #D946EF);
+            border-radius: inherit;
+            z-index: -1;
+            opacity: 0.8;
+            filter: blur(4px);
+            transition: opacity 0.3s ease;
+        }
+        .glowing-button:hover::after {
+            filter: blur(8px);
+            opacity: 1;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050506;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F2023;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10B981;
+        }
+        @keyframes subtle-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.02); opacity: 1; }
+        }
+        .glow-pulse {
+            animation: subtle-pulse 6s infinite ease-in-out;
+        }
+        .carousel-track {
+            animation: scroll-carousel 40s linear infinite;
+            width: max-content;
+        }
+        .carousel-track:hover {
+            animation-play-state: paused;
+        }
+        @keyframes scroll-carousel {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Memlink",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "macOS, Linux, Windows",
+        "description": "Universal memory layer for AI agents via MCP. Connect Claude, Cursor, Windsurf, Codex, and more to a single persistent memory store.",
+        "url": "https://www.rblez.com/memlink",
+        "author": { "@type": "Organization", "name": "rblez" }
+    }
+    </script>
+</head>
+<body class="font-sans antialiased text-gray-200">
+
+    <!-- Navigation -->
+    <header id="header" class="sticky top-0 z-40 w-full transition-all duration-300 border-b border-transparent bg-brand-black/70 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="#" class="flex items-center gap-3 group">
+                <img src="memlink.png" alt="Memlink" class="w-8 h-8 rounded-lg transform group-hover:scale-105 transition-transform" />
+                <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Memlink</span>
+            </a>
+            <nav class="hidden md:flex items-center gap-6 text-sm text-white/70 font-medium">
+                <a href="https://github.com/rblez/memlink" target="_blank" aria-label="GitHub" class="hover:text-white transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    <span id="gh-stars" class="text-xs bg-white/10 px-1.5 py-0.5 rounded">0</span>
+                </a>
+                <a href="https://x.com/memlinkdotdev" target="_blank" aria-label="X / Twitter" class="hover:text-white transition">
+                    <img src="https://cdn.simpleicons.org/x/white" alt="X" class="w-4 h-4" />
+                </a>
+                <a href="https://www.npmjs.com/package/@memlink/cli" target="_blank" aria-label="npm" class="hover:text-white transition">
+                    <img src="https://cdn.simpleicons.org/npm/white" alt="npm" class="w-4 h-4" />
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative pt-16 pb-24 md:py-32 overflow-hidden">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-brand-linear opacity-20 blur-[150px] pointer-events-none rounded-full glow-pulse"></div>
+
+        <div class="max-w-5xl mx-auto px-6 text-center relative z-10">
+
+            <!-- Title -->
+            <h1 id="hero-title" class="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.1] max-w-4xl mx-auto">
+                Persistent Memory for <br class="hidden sm:inline" />
+                <span class="bg-gradient-to-r from-emerald-400 via-purple-400 to-magenta-400 bg-clip-text text-transparent">Your AI Agents</span>
+            </h1>
+
+            <!-- Description -->
+            <p id="hero-desc" class="text-base sm:text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                One memory store, one URL, any agent connects. Self-hosted, fast, and local-first. No tokens, no complex setup.
+            </p>
+
+            <!-- Installation Widget -->
+            <div id="hero-install" class="max-w-2xl mx-auto mb-20">
+                <div class="glass-panel rounded-2xl overflow-hidden border border-white/10">
+                    <div class="flex flex-wrap border-b border-white/10 bg-brand-black text-xs md:text-sm">
+                        <button onclick="switchTab('npm')" id="tab-npm" class="tab-btn px-5 py-3.5 border-b-2 border-emerald-500 text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/npm/white" alt="" class="w-4 h-4" />NPM</button>
+                        <button onclick="switchTab('pnpm')" id="tab-pnpm" class="tab-btn px-5 py-3.5 border-b-2 border-transparent text-neutral-400 hover:text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/pnpm/white" alt="" class="w-4 h-4" />pnpm</button>
+                        <button onclick="switchTab('yarn')" id="tab-yarn" class="tab-btn px-5 py-3.5 border-b-2 border-transparent text-neutral-400 hover:text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/yarn/white" alt="" class="w-4 h-4" />Yarn</button>
+                        <button onclick="switchTab('bun')" id="tab-bun" class="tab-btn px-5 py-3.5 border-b-2 border-transparent text-neutral-400 hover:text-white font-medium focus:outline-none transition flex items-center gap-2"><img src="https://cdn.simpleicons.org/bun/white" alt="" class="w-4 h-4" />Bun</button>
+                    </div>
+                    <div class="p-5 bg-[#0B0C0E]">
+                        <div id="content-npm" class="tab-content block">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                                <span id="cmd-npm" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">npm</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
+                                <button onclick="copyToClipboard('cmd-npm', 'copy-icon-npm')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
+                                    <i id="copy-icon-npm" data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="content-pnpm" class="tab-content hidden">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                                <span id="cmd-pnpm" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">pnpm</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
+                                <button onclick="copyToClipboard('cmd-pnpm', 'copy-icon-pnpm')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
+                                    <i id="copy-icon-pnpm" data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="content-yarn" class="tab-content hidden">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                                <span id="cmd-yarn" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">yarn</span> <span class="text-purple-400">global</span> <span class="text-purple-400">add</span> <span class="text-blue-400">@memlink/cli</span></span>
+                                <button onclick="copyToClipboard('cmd-yarn', 'copy-icon-yarn')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
+                                    <i id="copy-icon-yarn" data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="content-bun" class="tab-content hidden">
+                            <div class="flex items-center justify-between bg-[#060708] border border-white/5 p-3.5 rounded-xl font-mono text-xs md:text-sm">
+                                <span id="cmd-bun" class="select-all overflow-x-auto whitespace-nowrap mr-2"><span class="text-emerald-400">bun</span> <span class="text-purple-400">install</span> <span class="text-purple-400">-g</span> <span class="text-blue-400">@memlink/cli</span></span>
+                                <button onclick="copyToClipboard('cmd-bun', 'copy-icon-bun')" class="hover:text-emerald-400 text-neutral-400 transition flex-shrink-0">
+                                    <i id="copy-icon-bun" data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- MCP-Compatible Agents Carousel -->
+            <div class="mt-20">
+                <div class="relative overflow-hidden w-full">
+                    <div class="flex gap-10 md:gap-14 carousel-track">
+                        <div class="flex items-center gap-10 md:gap-14 carousel-group">
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claude-color.png" alt="Claude" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Claude</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/cursor.png" alt="Cursor" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Cursor</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/windsurf.png" alt="Windsurf" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Windsurf</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/codex-color.png" alt="Codex" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Codex</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/opencode.png" alt="OpenCode" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">OpenCode</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claudecode-color.png" alt="Claude Code" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Claude Code</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/cline.png" alt="Cline" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Cline</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/langchain-color.png" alt="LangChain" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">LangChain</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-10 md:gap-14 carousel-group" aria-hidden="true">
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claude-color.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Claude</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/cursor.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Cursor</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/windsurf.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Windsurf</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/codex-color.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Codex</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/opencode.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">OpenCode</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claudecode-color.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Claude Code</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/cline.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">Cline</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 flex-shrink-0 w-20">
+                                <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/langchain-color.png" alt="" class="w-9 h-9" />
+                                <span class="text-[11px] text-white/60 font-medium">LangChain</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Server URL -->
+    <section class="pb-16">
+        <div class="max-w-2xl mx-auto px-6 text-center">
+            <p class="text-xs text-neutral-500 uppercase tracking-widest mb-3">MCP Server URL</p>
+            <div class="glass-panel rounded-xl overflow-hidden border border-white/10 inline-flex items-center gap-3 px-5 py-3 font-mono text-sm">
+                <span class="text-emerald-400 shrink-0">http://</span>
+                <span class="text-white">localhost:4444</span>
+                <span class="text-purple-400">/mcp?id=</span>
+                <span class="text-neutral-500 italic">&lt;mem_id&gt;</span>
+                <button onclick="copyToClipboard('mcp-url-text', 'copy-mcp-icon')" class="hover:text-emerald-400 text-neutral-400 transition shrink-0 ml-2">
+                    <i id="copy-mcp-icon" data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <span id="mcp-url-text" class="hidden">http://localhost:4444/mcp</span>
+            <p class="text-xs text-neutral-500 mt-2">Streamable HTTP</p>
+        </div>
+    </section>
+
+    <!-- Benefits -->
+    <section class="pb-24">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-white text-center mb-2">Why Memlink</h2>
+            <p class="text-neutral-400 text-sm text-center mb-12 max-w-lg mx-auto">One memory store, one URL. No tokens, no setup, no cloud.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 border border-white/10">
+                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Zero Config</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed">Install and run. No tokens, no API keys, no cloud accounts. One URL connects any agent.</p>
+                </div>
+                <div class="p-8 border-r border-b md:border-b-0 border-white/10 text-center">
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Any Agent</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed">Works with Claude, Cursor, Windsurf, Codex, OpenCode, Cline, and any MCP-compatible tool.</p>
+                </div>
+                <div class="p-8 border-white/10 text-center">
+                    <div class="w-10 h-10 rounded-lg bg-magenta-500/10 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-5 h-5 text-magenta-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                    </div>
+                    <h3 class="text-white font-semibold mb-2">Local-First</h3>
+                    <p class="text-neutral-400 text-sm leading-relaxed">Self-hosted on your machine. Data never leaves your control. No cloud, no vendor lock-in.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CLI Features -->
+    <section class="pb-24">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-white text-center mb-2">CLI at a Glance</h2>
+            <p class="text-neutral-400 text-sm text-center mb-12 max-w-lg mx-auto">Every command is designed to be simple, predictable, and self-documenting.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 border border-white/10">
+                <div class="border-b border-r border-white/10">
+                    <img src="cli-overview.png" alt="Command overview" class="w-full" />
+                    <div class="p-5 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-1">Command Overview</h3>
+                        <p class="text-neutral-400 text-sm">Complete list of all CLI commands. Predictable and self-documenting — no need to memorize.</p>
+                    </div>
+                </div>
+                <div class="border-b border-white/10">
+                    <img src="cli-serve-help.png" alt="Serve command flags" class="w-full" />
+                    <div class="p-5 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-1">Server Flags</h3>
+                        <p class="text-neutral-400 text-sm">Optional <code class="text-emerald-400">--cors</code> and <code class="text-purple-400">--read-only</code> flags for production deployments.</p>
+                    </div>
+                </div>
+                <div class="border-b md:border-b-0 border-r border-white/10">
+                    <img src="cli-wsl-connect.png" alt="WSL connect" class="w-full" />
+                    <div class="p-5 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-1">WSL Support</h3>
+                        <p class="text-neutral-400 text-sm"><code class="text-emerald-400">wsl-connect</code> auto-detects the Windows gateway IP so agents running in WSL can reach your server.</p>
+                    </div>
+                </div>
+                <div class="border-white/10">
+                    <img src="cli-serve-indicators.png" alt="CORS and read-only indicators" class="w-full" />
+                    <div class="p-5 border-t border-white/10">
+                        <h3 class="text-white font-semibold mb-1">At-a-Glance Indicators</h3>
+                        <p class="text-neutral-400 text-sm">Startup prints active flags like <code class="text-emerald-400">CORS *</code> and <code class="text-purple-400">mode read-only</code> so you always know the server state.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-brand-darker border-t border-white/5 pt-16 pb-8 text-sm text-neutral-500">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
+                <!-- Brand -->
+                <div class="col-span-2 md:col-span-1">
+                    <div class="flex items-center gap-2 mb-3">
+                        <img src="memlink.png" alt="Memlink" class="w-6 h-6 rounded" />
+                    </div>
+                    <p class="text-neutral-500 text-xs leading-relaxed max-w-xs">
+                        Persistent, local-first memory for any AI agent via the Model Context Protocol.
+                    </p>
+                </div>
+
+                <!-- Connect -->
+                <div>
+                    <h4 class="text-white text-xs font-semibold uppercase tracking-wider mb-4">Connect</h4>
+                    <ul class="space-y-2.5">
+                        <li><a href="https://github.com/rblez/memlink" target="_blank" rel="noopener" class="hover:text-white transition flex items-center gap-1.5">
+                            <img src="https://cdn.simpleicons.org/github/white" alt="" class="w-3.5 h-3.5" /> GitHub
+                        </a></li>
+                        <li><a href="https://x.com/memlinkdotdev" target="_blank" rel="noopener" class="hover:text-white transition flex items-center gap-1.5">
+                            <img src="https://cdn.simpleicons.org/x/white" alt="" class="w-3.5 h-3.5" /> X / Twitter
+                        </a></li>
+                        <li><a href="https://www.npmjs.com/package/@memlink/cli" target="_blank" rel="noopener" class="hover:text-white transition flex items-center gap-1.5">
+                            <img src="https://cdn.simpleicons.org/npm/white" alt="" class="w-3.5 h-3.5" /> npm
+                        </a></li>
+                    </ul>
+                </div>
+
+                <!-- Resource -->
+                <div>
+                    <h4 class="text-white text-xs font-semibold uppercase tracking-wider mb-4">Resource</h4>
+                    <ul class="space-y-2.5">
+                        <li><a href="https://github.com/rblez/memlink/releases" target="_blank" rel="noopener" class="hover:text-white transition">Releases</a></li>
+                        <li><a href="https://github.com/rblez/memlink/issues" target="_blank" rel="noopener" class="hover:text-white transition">Issues</a></li>
+                        <li><a href="https://github.com/rblez/memlink/blob/main/README.md" target="_blank" rel="noopener" class="hover:text-white transition">Documentation</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+                <span>&copy; <span id="year"></span> Memlink. Released under the MIT License.</span>
+                <span class="text-neutral-600">v1.0.2</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+
+    <!-- Scripts -->
+    <script>
+        lucide.createIcons();
+
+        function switchTab(tabId) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.add('hidden');
+                content.classList.remove('block');
+            });
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('border-emerald-500', 'text-white');
+                btn.classList.add('border-transparent', 'text-neutral-400');
+            });
+
+            const activeContent = document.getElementById(`content-${tabId}`);
+            if (activeContent) {
+                activeContent.classList.remove('hidden');
+                activeContent.classList.add('block');
+            }
+
+            const activeButton = document.getElementById(`tab-${tabId}`);
+            if (activeButton) {
+                activeButton.classList.remove('border-transparent', 'text-neutral-400');
+                activeButton.classList.add('border-emerald-500', 'text-white');
+            }
+        }
+
+        function copyToClipboard(elementId, iconId) {
+            const copyText = document.getElementById(elementId).innerText;
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = copyText;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            const icon = document.getElementById(iconId);
+            if (icon) {
+                icon.setAttribute('data-lucide', 'check');
+                icon.classList.add('text-emerald-400');
+                lucide.createIcons();
+
+                setTimeout(() => {
+                    icon.setAttribute('data-lucide', 'copy');
+                    icon.classList.remove('text-emerald-400');
+                    lucide.createIcons();
+                }, 2000);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+
+            gsap.from('#hero-title', {
+                opacity: 0,
+                y: 40,
+                duration: 1.2,
+                ease: 'power3.out'
+            });
+
+            gsap.from('#hero-desc', {
+                opacity: 0,
+                y: 30,
+                duration: 1.2,
+                delay: 0.2,
+                ease: 'power3.out'
+            });
+
+            gsap.from('#hero-install', {
+                opacity: 0,
+                y: 30,
+                duration: 1.2,
+                delay: 0.4,
+                ease: 'power3.out'
+            });
+        });
+
+        fetch('https://api.github.com/repos/rblez/memlink')
+            .then(r => r.json())
+            .then(d => { document.getElementById('gh-stars').textContent = d.stargazers_count; })
+            .catch(() => {});
+
+        const header = document.getElementById('header');
+        window.addEventListener('scroll', () => {
+            header.style.borderColor = window.scrollY > 20 ? 'rgba(255,255,255,0.08)' : 'transparent';
+        });
+    </script>
+</body>
+</html>
