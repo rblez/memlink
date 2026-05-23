@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { z } from 'zod';
 import {
   readMemory,
@@ -554,6 +555,13 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
   return server;
 }
 
+// ─── SSE session store ─────────────────────────────────────────────────────────
+
+const sseSessions = new Map<
+  string,
+  { transport: SSEServerTransport; memoryId: string; mcpServer: McpServer }
+>();
+
 // ─── Create Express app ────────────────────────────────────────────────────────
 
 export function createApp(): express.Express {
@@ -603,6 +611,57 @@ export function createApp(): express.Express {
       memory: name,
       content: AGENT_SYSTEM_PROMPT(name),
     });
+  });
+
+  // SSE endpoint (for SSE-based MCP clients)
+  app.get('/sse', async (req: Request, res: Response) => {
+    const memId = (req.query.id as string) || (req.query.mem_id as string);
+    if (!memId) {
+      res.status(401).json({ error: 'Missing memory ID. Use ?id=<memory_id>' });
+      return;
+    }
+    const memoryInfo = getMemoryById(memId);
+    if (!memoryInfo) {
+      res.status(403).json({ error: 'Invalid memory ID.' });
+      return;
+    }
+    const memoryId = memoryInfo.memoryId;
+    const memoryName = memoryInfo.memoryName;
+    updateUniversalMemoryLastSeen(memoryId);
+
+    const mcpServer = buildMcpServer(memoryId, memoryName);
+    const transport = new SSEServerTransport('/messages', res);
+    sseSessions.set(transport.sessionId, { transport, memoryId, mcpServer });
+
+    res.on('close', () => {
+      sseSessions.delete(transport.sessionId);
+      mcpServer.close();
+    });
+
+    try {
+      await mcpServer.connect(transport);
+      await transport.start();
+    } catch (err) {
+      sseSessions.delete(transport.sessionId);
+      mcpServer.close();
+    }
+  });
+
+  // SSE message endpoint
+  app.post('/messages', async (req: Request, res: Response) => {
+    const sessionId = req.query.sessionId as string;
+    if (!sessionId || !sseSessions.has(sessionId)) {
+      res.status(404).json({ error: 'SSE session not found' });
+      return;
+    }
+    const { transport } = sseSessions.get(sessionId)!;
+    try {
+      await transport.handlePostMessage(req, res, req.body);
+    } catch (err) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: String(err) });
+      }
+    }
   });
 
   // MCP endpoint — auth via query string (?id=MEMORY_ID)

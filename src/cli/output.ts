@@ -144,19 +144,41 @@ Memlink is a self-hosted MCP server that gives you persistent, organized memory 
 ## Connection
 
 The MCP server runs at:
+
+**Streamable HTTP** (modern clients):
 \`\`\`
 http://localhost:4444/mcp?id=YOUR_MEMORY_ID
 \`\`\`
 
+**SSE** (legacy clients like OpenCode):
+\`\`\`
+http://localhost:4444/sse?id=YOUR_MEMORY_ID
+\`\`\`
+
 The memory ID is a 12-character alphanumeric string assigned when you create a memory via \`memlink init <name>\`.
 
-### MCP Config (for agent settings)
+### Streamable HTTP config
 
 \`\`\`json
 {
   "mcpServers": {
     "memlink": {
+      "type": "http",
       "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+    }
+  }
+}
+\`\`\`
+
+### SSE config (OpenCode)
+
+\`\`\`json
+{
+  "mcpServers": {
+    "memlink": {
+      "type": "remote",
+      "enabled": true,
+      "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID"
     }
   }
 }

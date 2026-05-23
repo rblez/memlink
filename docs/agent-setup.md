@@ -10,6 +10,7 @@ All agents accept an MCP server configuration. The base format is:
 {
   "mcpServers": {
     "memlink": {
+      "type": "http",
       "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
     }
   }
@@ -54,7 +55,18 @@ memlink connect <id>
    memlink skill -g      # ~/.agents/skills/memlink/ (global)
    ```
 2. The skill tells OpenCode to always read memory at session start and use MCP tools throughout the session
-3. Add the MCP server URL to your opencode.json or agent configuration
+3. Add the MCP server to your `opencode.jsonc` (project root or `~/.config/opencode/opencode.jsonc`):
+
+   ```jsonc
+   {
+     "mcpServers": {
+       "memlink": {
+         "type": "http",
+         "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+       }
+     }
+   }
+   ```
 
 ## Claude Code
 
@@ -69,6 +81,7 @@ Claude Code supports MCP servers. Add the URL to your Claude Code configuration.
    {
      "mcpServers": {
        "memlink": {
+         "type": "http",
          "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
        }
      }

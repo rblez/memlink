@@ -24,6 +24,7 @@ Add the MCP URL to your agent's configuration. Example for Claude/Cline:
 {
   "mcpServers": {
     "memlink": {
+      "type": "http",
       "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
     }
   }

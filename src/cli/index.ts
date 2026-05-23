@@ -135,8 +135,11 @@ function memoryTableRow(name: string, id: string, sizeKb: string): string[] {
   return [colors.white(name), colors.dim(id), colors.dim(`${sizeKb} KB`)];
 }
 
-function serverUrl(host: string, port: number): string {
-  return `http://${host}:${port}/mcp`;
+function mcpUrl(host: string, port: number, memId: string): string {
+  return `http://${host}:${port}/mcp?id=${memId}`;
+}
+function sseUrl(host: string, port: number, memId: string): string {
+  return `http://${host}:${port}/sse?id=${memId}`;
 }
 
 // ─── Program ──────────────────────────────────────────────────────────────────
@@ -157,9 +160,9 @@ program.action(() => {
   const config = loadConfig();
   const host = envHost() || config.serverHost || DEFAULT_HOST;
   const port = envPort() || config.serverPort || DEFAULT_PORT;
-  const url = serverUrl(host, port);
+  const base = `http://${host}:${port}`;
 
-  console.log(info('Server', url));
+  console.log(info('Server', base));
 
   let totalSize = 0;
   let totalEntries = 0;
@@ -219,7 +222,8 @@ program
 
     if (config.universalMemories.length > 0) {
       for (const mem of config.universalMemories) {
-        console.log(info('URL', `http://${host}:${port}/mcp?id=${mem.memoryId}`));
+        console.log(info('MCP', mcpUrl(host, port, mem.memoryId)));
+        console.log(info('SSE', sseUrl(host, port, mem.memoryId)));
       }
     } else {
       console.log(info('no memories', 'Create one with: Memlink init <name>'));
@@ -241,14 +245,16 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
   const config = loadConfig();
   const host = envHost() || config.serverHost || DEFAULT_HOST;
   const port = envPort() || config.serverPort || DEFAULT_PORT;
-  const url = serverUrl(host, port) + `?id=${memory.memoryId}`;
+  const mcp = mcpUrl(host, port, memory.memoryId);
+  const sse = sseUrl(host, port, memory.memoryId);
 
   console.log(info('Name', memory.memoryName));
   console.log(info('ID', memory.memoryId));
-  console.log(info('URL', url));
+  console.log(info('MCP', mcp));
+  console.log(info('SSE', sse));
   console.log();
 
-  const copied = copyToClipboard(url);
+  const copied = copyToClipboard(mcp);
   if (copied) {
     console.log(okBadge('URL copied to clipboard'));
   }
@@ -326,29 +332,53 @@ program
 
     const host = envHost() || config.serverHost || DEFAULT_HOST;
     const port = envPort() || config.serverPort || DEFAULT_PORT;
-    const url = serverUrl(host, port) + `?id=${memory.memoryId}`;
+    const mcp = mcpUrl(host, port, memory.memoryId);
+    const sse = sseUrl(host, port, memory.memoryId);
 
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
     console.log(info('Name', memory.memoryName));
     console.log(info('ID', memory.memoryId));
-    console.log(info('URL', url));
+    console.log(info('MCP', mcp));
+    console.log(info('SSE', sse));
     console.log();
 
-    const mcpConfig = {
+    const httpConfig = {
       mcpServers: {
         memlink: {
-          url: url,
+          type: 'http',
+          url: mcp,
         },
       },
     };
 
-    console.log(subheading('MCP JSON:'));
-    const jsonStr = JSON.stringify(mcpConfig, null, 2);
+    const sseConfig = {
+      mcpServers: {
+        memlink: {
+          type: 'remote',
+          enabled: true,
+          url: sse,
+        },
+      },
+    };
+
+    console.log(subheading('Streamable HTTP (modern clients):'));
     console.log(colors.muted('  ```json'));
     console.log(
       colors.muted(
-        jsonStr
+        JSON.stringify(httpConfig, null, 2)
+          .split('\n')
+          .map((l) => '  ' + l)
+          .join('\n')
+      )
+    );
+    console.log(colors.muted('  ```'));
+    console.log();
+    console.log(subheading('SSE (legacy clients like OpenCode):'));
+    console.log(colors.muted('  ```json'));
+    console.log(
+      colors.muted(
+        JSON.stringify(sseConfig, null, 2)
           .split('\n')
           .map((l) => '  ' + l)
           .join('\n')
@@ -357,7 +387,7 @@ program
     console.log(colors.muted('  ```'));
     console.log();
 
-    const copied = copyToClipboard(url);
+    const copied = copyToClipboard(mcp);
     if (copied) {
       console.log(okBadge('URL copied to clipboard'));
     }
