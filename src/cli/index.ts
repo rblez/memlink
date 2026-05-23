@@ -11,7 +11,6 @@ import {
   err,
   info,
   count,
-  subheading,
   dimLine,
   colors,
   printLogo,
@@ -138,9 +137,6 @@ function memoryTableRow(name: string, id: string, sizeKb: string): string[] {
 function mcpUrl(host: string, port: number, memId: string): string {
   return `http://${host}:${port}/mcp?id=${memId}`;
 }
-function sseUrl(host: string, port: number, memId: string): string {
-  return `http://${host}:${port}/sse?id=${memId}`;
-}
 
 // ─── Program ──────────────────────────────────────────────────────────────────
 
@@ -223,7 +219,6 @@ program
     if (config.universalMemories.length > 0) {
       for (const mem of config.universalMemories) {
         console.log(info('MCP', mcpUrl(host, port, mem.memoryId)));
-        console.log(info('SSE', sseUrl(host, port, mem.memoryId)));
       }
     } else {
       console.log(info('no memories', 'Create one with: Memlink init <name>'));
@@ -246,12 +241,10 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
   const host = envHost() || config.serverHost || DEFAULT_HOST;
   const port = envPort() || config.serverPort || DEFAULT_PORT;
   const mcp = mcpUrl(host, port, memory.memoryId);
-  const sse = sseUrl(host, port, memory.memoryId);
 
   console.log(info('Name', memory.memoryName));
   console.log(info('ID', memory.memoryId));
   console.log(info('MCP', mcp));
-  console.log(info('SSE', sse));
   console.log();
 
   const copied = copyToClipboard(mcp);
@@ -333,58 +326,12 @@ program
     const host = envHost() || config.serverHost || DEFAULT_HOST;
     const port = envPort() || config.serverPort || DEFAULT_PORT;
     const mcp = mcpUrl(host, port, memory.memoryId);
-    const sse = sseUrl(host, port, memory.memoryId);
 
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
     console.log(info('Name', memory.memoryName));
     console.log(info('ID', memory.memoryId));
     console.log(info('MCP', mcp));
-    console.log(info('SSE', sse));
-    console.log();
-
-    const httpConfig = {
-      mcpServers: {
-        memlink: {
-          type: 'http',
-          url: mcp,
-        },
-      },
-    };
-
-    const sseConfig = {
-      mcpServers: {
-        memlink: {
-          type: 'remote',
-          enabled: true,
-          url: sse,
-        },
-      },
-    };
-
-    console.log(subheading('Streamable HTTP (modern clients):'));
-    console.log(colors.muted('  ```json'));
-    console.log(
-      colors.muted(
-        JSON.stringify(httpConfig, null, 2)
-          .split('\n')
-          .map((l) => '  ' + l)
-          .join('\n')
-      )
-    );
-    console.log(colors.muted('  ```'));
-    console.log();
-    console.log(subheading('SSE (legacy clients like OpenCode):'));
-    console.log(colors.muted('  ```json'));
-    console.log(
-      colors.muted(
-        JSON.stringify(sseConfig, null, 2)
-          .split('\n')
-          .map((l) => '  ' + l)
-          .join('\n')
-      )
-    );
-    console.log(colors.muted('  ```'));
     console.log();
 
     const copied = copyToClipboard(mcp);
