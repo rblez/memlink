@@ -9,10 +9,6 @@
   Self-hosted · Fast · Organized
 </p>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rblez/memlink/main/public/preview-terminal.png" alt="Memlink Terminal Preview" width="800" />
-</p>
-
 ---
 
 Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
