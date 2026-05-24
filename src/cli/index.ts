@@ -21,7 +21,14 @@ import {
   getMemlinkDir,
 } from '../core/memory.ts';
 import { startServer, startStdioServer } from '../server/index.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, CONFIG_DIR, CONFIG_FILE, type UniversalMemory } from '../core/types.ts';
+import {
+  MEMLINK_VERSION,
+  DEFAULT_PORT,
+  DEFAULT_HOST,
+  CONFIG_DIR,
+  CONFIG_FILE,
+  type UniversalMemory,
+} from '../core/types.ts';
 
 // ─── TTY detection ──────────────────────────────────────────────────────────
 
@@ -155,7 +162,9 @@ function buildVersionString(): string {
   for (const m of config.universalMemories) {
     try {
       totalEntries += getStats(m.memoryId).entries;
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
   const dataDir = getMemlinkDir();
   const configPath = path.join(dataDir, CONFIG_FILE);
@@ -373,7 +382,11 @@ const serveCmd = program.command('serve');
 
 serveCmd
   .description('Start the Memlink MCP server')
-  .option('--transport <transports>', 'Transport(s): auto, http, sse, stdio (comma-separated for multiple)', 'auto')
+  .option(
+    '--transport <transports>',
+    'Transport(s): auto, http, sse, stdio (comma-separated for multiple)',
+    'auto'
+  )
   .option('--memory <name-or-id>', 'Memory to serve (required for stdio)')
   .option('--port <port>', 'Port to listen on', String(DEFAULT_PORT))
   .option('--host <host>', 'Host to bind to', DEFAULT_HOST)
@@ -383,10 +396,11 @@ serveCmd
   .option('--daemon', 'Run server in background as a daemon')
   .option('--watch', 'Watch memory files and auto-export on change')
   .action(async (opts) => {
-    const config = loadConfig();
     const port = parseInt(opts.port);
     const host = opts.host;
-    const transports = (opts.transport as string).split(',').map((t: string) => t.trim().toLowerCase());
+    const transports = (opts.transport as string)
+      .split(',')
+      .map((t: string) => t.trim().toLowerCase());
 
     // Stdio mode: communicate over stdin/stdout (no HTTP server)
     if (transports.includes('stdio')) {
@@ -497,7 +511,11 @@ program
       console.log(logoSmall());
       console.log();
       console.log(info('not running', `Server PID ${pid} is not active.`));
-      try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+      try {
+        fs.unlinkSync(daemonPidPath());
+      } catch {
+        /* ignore */
+      }
       console.log();
       return;
     }
@@ -505,7 +523,11 @@ program
     try {
       process.kill(pid, 'SIGTERM');
     } catch {
-      try { process.kill(pid, 'SIGINT'); } catch { /* ignore */ }
+      try {
+        process.kill(pid, 'SIGINT');
+      } catch {
+        /* ignore */
+      }
     }
 
     // Wait for process to exit (poll up to 3s)
@@ -515,7 +537,11 @@ program
       await new Promise((r) => setTimeout(r, 100));
     }
 
-    try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(daemonPidPath());
+    } catch {
+      /* ignore */
+    }
 
     console.log(logoSmall());
     console.log();
@@ -577,7 +603,14 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
   }
 
   console.log();
-  console.log(dimLine('Connect: memlink connect ' + memory.memoryName + '  ·  Info: memlink info ' + memory.memoryName));
+  console.log(
+    dimLine(
+      'Connect: memlink connect ' +
+        memory.memoryName +
+        '  ·  Info: memlink info ' +
+        memory.memoryName
+    )
+  );
   console.log();
 
   if (opts.serve) {
@@ -646,7 +679,9 @@ program
     let stats;
     try {
       stats = getStats(memory.memoryId);
-    } catch { /* ok */ }
+    } catch {
+      /* ok */
+    }
 
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
@@ -699,7 +734,13 @@ const AGENT_DEFS: AgentDef[] = [
       }
       if (process.platform === 'darwin') {
         return fs.existsSync(
-          path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
+          path.join(
+            os.homedir(),
+            'Library',
+            'Application Support',
+            'Claude',
+            'claude_desktop_config.json'
+          )
         );
       }
       return false;
@@ -888,11 +929,7 @@ function detectAgents(): AgentDef[] {
 function agentConfigs(mcpUrl: string, showAll: boolean, memoryName: string): string {
   const configJSON = (type: 'streamableHttp' | 'sse' | 'stdio'): string => {
     if (type === 'streamableHttp') {
-      return JSON.stringify(
-        { mcpServers: { memlink: { type: 'http', url: mcpUrl } } },
-        null,
-        2
-      );
+      return JSON.stringify({ mcpServers: { memlink: { type: 'http', url: mcpUrl } } }, null, 2);
     }
     if (type === 'sse') {
       return JSON.stringify(
@@ -956,10 +993,13 @@ function agentConfigs(mcpUrl: string, showAll: boolean, memoryName: string): str
 
   for (const agent of agents) {
     const cfg =
-      agent.config === 'streamableHttp' ? cfgHttp
-      : agent.config === 'sse' ? cfgSse
-      : agent.config === 'stdio' ? cfgStdio
-      : null;
+      agent.config === 'streamableHttp'
+        ? cfgHttp
+        : agent.config === 'sse'
+          ? cfgSse
+          : agent.config === 'stdio'
+            ? cfgStdio
+            : null;
     lines.push(`  ${colors.white(agent.name)}`);
     lines.push(`    ${colors.dim('Platform:')}  ${colors.white(agent.platform)}`);
     lines.push(`    ${colors.dim('Config:')}    ${colors.white(agent.file)}`);

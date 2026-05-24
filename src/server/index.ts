@@ -41,12 +41,7 @@ function timestamp(): string {
   return new Date().toISOString().split('T')[1].split('.')[0];
 }
 
-function log(
-  level: 'basic' | 'verbose',
-  prefix: string,
-  msg: string,
-  detail?: string
-) {
+function log(level: 'basic' | 'verbose', prefix: string, msg: string, detail?: string) {
   if (logLevel === 'none') return;
   if (level === 'verbose' && logLevel !== 'verbose') return;
   const line = `  ${prefix} ${msg}`;
@@ -62,12 +57,7 @@ function logRequestStart(memoryName: string, method: string) {
 }
 
 function logRequestEnd(method: string, durationMs: number) {
-  log(
-    'verbose',
-    `[${timestamp()}]`,
-    `${' '.repeat(20)}  ${method}`,
-    `${durationMs}ms`
-  );
+  log('verbose', `[${timestamp()}]`, `${' '.repeat(20)}  ${method}`, `${durationMs}ms`);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -645,7 +635,7 @@ export function createApp(): express.Express {
     const config = loadConfig();
     res.json({
       status: 'ok',
-    version: MEMLINK_VERSION,
+      version: MEMLINK_VERSION,
       memories: config.universalMemories.length,
       uptime: process.uptime(),
     });
@@ -791,7 +781,6 @@ export async function startStdioServer(memoryId: string): Promise<void> {
 async function watchMemlinkDir(): Promise<fs.FSWatcher> {
   const dir = getMemlinkDir();
   const memDir = path.dirname(dir);
-  const base = path.basename(dir);
   const watcher = fs.watch(memDir, (eventType, filename) => {
     if (!filename) return;
     const fullPath = path.join(memDir, filename);
@@ -817,7 +806,12 @@ async function watchMemlinkDir(): Promise<fs.FSWatcher> {
 export async function startServer(
   port?: number,
   host?: string,
-  options?: { cors?: string; readOnly?: boolean; logLevel?: 'none' | 'basic' | 'verbose'; watch?: boolean }
+  options?: {
+    cors?: string;
+    readOnly?: boolean;
+    logLevel?: 'none' | 'basic' | 'verbose';
+    watch?: boolean;
+  }
 ): Promise<void> {
   const config = loadConfig();
 
@@ -885,7 +879,11 @@ export async function startServer(
       if (shuttingDown) return;
       shuttingDown = true;
       for (const w of watchers) {
-        try { w.close(); } catch { /* ignore */ }
+        try {
+          w.close();
+        } catch {
+          /* ignore */
+        }
       }
 
       logLevel = 'none';

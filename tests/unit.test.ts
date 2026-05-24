@@ -239,7 +239,9 @@ describe('Unit Tests - Core Functions', () => {
     afterEach(() => {
       try {
         revokeUniversalMemory(memoryId);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should export md file', () => {
@@ -287,7 +289,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should produce markdown with title and content', () => {
@@ -308,7 +314,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should produce plain text with title and content', () => {
@@ -328,7 +338,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should produce valid HTML with title and content', () => {
@@ -350,7 +364,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should find entries by tag', () => {
@@ -382,7 +400,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('createBackup should return backup with entries', () => {
@@ -445,7 +467,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('bulkDeleteMemories should delete by titles', () => {
@@ -481,7 +507,11 @@ describe('Unit Tests - Core Functions', () => {
     });
 
     afterEach(() => {
-      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch {
+        /* ignore */
+      }
     });
 
     it('should import entries from JSON array file', () => {

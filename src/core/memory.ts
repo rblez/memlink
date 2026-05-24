@@ -414,20 +414,6 @@ export function renderMemoryAsText(memoryId: string): string {
 
 export function renderMemoryAsHtml(memoryId: string): string {
   const data = loadMemoryFile(memoryId);
-  const entriesHtml = data.entries
-    .map(
-      (entry) => `
-    <div class="entry">
-      <h2>${escapeHtml(entry.title)}</h2>
-      ${
-        entry.tags?.length
-          ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>`
-          : ''
-      }
-      <div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div>
-    </div>`
-    )
-    .join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -656,20 +642,20 @@ export function importFromFile(
   }
 
   const raw = fs.readFileSync(filePath, 'utf-8');
-  let imported: { title: string; content: string; tags?: string[] }[] = [];
 
   const parsed = JSON.parse(raw);
-  if (Array.isArray(parsed)) {
-    imported = parsed;
-  } else if (parsed.entries && Array.isArray(parsed.entries)) {
-    imported = parsed.entries;
-  } else if (parsed.title && parsed.content !== undefined) {
-    imported = [parsed];
-  } else {
-    throw new Error(
-      'Unrecognized import format. Expected an array of entries or { entries: [...] }.'
-    );
-  }
+
+  const imported: { title: string; content: string; tags?: string[] }[] = Array.isArray(parsed)
+    ? parsed
+    : parsed.entries && Array.isArray(parsed.entries)
+      ? parsed.entries
+      : parsed.title && parsed.content !== undefined
+        ? [parsed]
+        : (() => {
+            throw new Error(
+              'Unrecognized import format. Expected an array of entries or { entries: [...] }.'
+            );
+          })();
 
   const data = loadMemoryFile(memoryId);
   let importedCount = 0;
