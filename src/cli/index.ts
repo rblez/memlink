@@ -393,6 +393,7 @@ serveCmd
   .option('--cors <origins>', 'CORS allowed origins (comma-separated or *)')
   .option('--read-only', 'Disable write operations')
   .option('--log-level <level>', 'Log level: none, basic, verbose')
+  .option('--bearer-token <token>', 'Require Authorization: Bearer <token> for MCP endpoints')
   .option('--daemon', 'Run server in background as a daemon')
   .option('--watch', 'Watch memory files and auto-export on change')
   .action(async (opts) => {
@@ -425,6 +426,7 @@ serveCmd
         cors: opts.cors,
         readOnly: opts.readOnly,
         logLevel: opts.logLevel,
+        bearerToken: opts.bearerToken,
       });
       return;
     }
@@ -442,6 +444,7 @@ serveCmd
       if (opts.cors) childArgs.push('--cors', opts.cors);
       if (opts.readOnly) childArgs.push('--read-only');
       if (opts.logLevel) childArgs.push('--log-level', opts.logLevel);
+      if (opts.bearerToken) childArgs.push('--bearer-token', opts.bearerToken);
       if (opts.transport) childArgs.push('--transport', opts.transport);
       if (opts.memory) childArgs.push('--memory', opts.memory);
       if (opts.watch) childArgs.push('--watch');
@@ -489,6 +492,7 @@ serveCmd
       readOnly: opts.readOnly,
       logLevel: opts.logLevel,
       watch: opts.watch,
+      bearerToken: opts.bearerToken,
     });
   });
 

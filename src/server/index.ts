@@ -36,6 +36,7 @@ import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 let logLevel: 'none' | 'basic' | 'verbose' = 'basic';
 let corsOrigins: string | null = null;
 let readOnly = false;
+let bearerToken: string | null = null;
 
 function timestamp(): string {
   return new Date().toISOString().split('T')[1].split('.')[0];
@@ -630,6 +631,26 @@ export function createApp(): express.Express {
     next();
   });
 
+  // Optional Bearer token auth (protect MCP transport endpoints only)
+  app.use((req, res, next) => {
+    if (!bearerToken) return next();
+
+    const p = req.path || '';
+    const protectedPaths = p === '/mcp' || p === '/sse' || p === '/messages';
+    if (!protectedPaths) return next();
+
+    const header = req.header('Authorization') || '';
+    const prefix = 'Bearer ';
+    const token = header.startsWith(prefix) ? header.slice(prefix.length) : '';
+
+    if (!token || token !== bearerToken) {
+      res.status(401).json({ error: 'Unauthorized. Missing or invalid Bearer token.' });
+      return;
+    }
+
+    next();
+  });
+
   // Health check
   app.get('/health', (_req, res) => {
     const config = loadConfig();
@@ -811,6 +832,7 @@ export async function startServer(
     readOnly?: boolean;
     logLevel?: 'none' | 'basic' | 'verbose';
     watch?: boolean;
+    bearerToken?: string;
   }
 ): Promise<void> {
   const config = loadConfig();
@@ -829,6 +851,7 @@ export async function startServer(
   corsOrigins = options?.cors || config.cors || null;
   readOnly = options?.readOnly ?? config.readOnly ?? false;
   logLevel = options?.logLevel || (process.stdout.isTTY ? 'basic' : 'none');
+  bearerToken = options?.bearerToken ?? process.env.MEMLINK_BEARER_TOKEN ?? null;
 
   const app = createApp();
 
