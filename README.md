@@ -66,15 +66,18 @@ memlink serve                        # Start MCP server
 | Command | Description |
 |---------|-------------|
 | `memlink` | System overview: server, memories, entries, size |
-| `memlink init <name>` | Create a memory. `--serve` auto-start server |
-| `memlink create <name>` | Alias for `init` |
-| `memlink delete <id>` | Permanently delete a memory and its data |
+| `memlink init <name>` | Create a memory (alias: `create`). `--serve` auto-start server |
+| `memlink delete <name\|id>` | Permanently delete a memory |
 | `memlink ls` | List all memories (name, ID, size) |
-| `memlink show <id>` | Show full memory as consolidated Markdown |
-| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only`, `--daemon`, `--log-level` |
+| `memlink show <name\|id>` | Show full memory as Markdown + export to formats |
+| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only`, `--daemon`, `--transport`, `--memory`, `--watch` |
 | `memlink stop` | Stop the daemon server |
 | `memlink status` | Check daemon server status |
-| `memlink connect <id>` | Get MCP connection details |
+| `memlink connect <name\|id>` | Show MCP config JSON + agent setup instructions |
+| `memlink info <name\|id>` | Show memory details (name, ID, URL, stats) |
+| `memlink export <name\|id>` | Export memory to configured formats (md/txt/html/json) |
+| `memlink import <name\|id> <file>` | Import entries from a JSON file |
+| `memlink config` | View or modify config (`get`, `set`) |
 | `memlink skill` | Install agent skill. `--global` or `-g` for all projects |
 | `memlink bug` | Open GitHub issue with pre-filled template |
 
@@ -113,8 +116,10 @@ Full documentation in [/docs](/docs):
 
 ```
 ~/.memlink/
-├── config.json              # Global config
-└── abc123def456.memory.json # Universal memory (JSON)
+├── config.json              # Global config (memories, port, host, exportFormats)
+├── formats/                 # Exported formats (md, txt, html, json)
+├── backups/                 # Auto-backups before every mutation
+└── abc123def456.memory.json # Memory file (JSON)
 ```
 
 Agents connect via MCP:
@@ -126,8 +131,12 @@ http://localhost:4444/mcp?id=MEMORY_ID
 Data flow:
 
 ```
-User → CLI → Core → Memory Files
-Agent → MCP Server → Core → Memory Files
+User → CLI → Core → Memory Files (JSON)
+                             ↓ auto-export
+                    → formats/ (md, txt, html, json)
+Agent → MCP Server → Core → Memory Files (JSON)
+                             ↓ auto-export
+                    → formats/ (md, txt, html, json)
 ```
 
 ## MCP Tools

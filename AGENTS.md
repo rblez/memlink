@@ -44,6 +44,8 @@ Agent → MCP Server → Core → ~/.memlink/*.memory.json
 
 Config: `~/.memlink/config.json`. Memory files are JSON arrays of entries. Server listens at `http://localhost:4444/mcp?id=<memory-id>`.
 
+All commands that take `<name-or-id>` (`show`, `info`, `connect`, `delete`) accept either memory ID or memory name (case-insensitive).
+
 ## Key details
 
 - **Server daemon**: `memlink serve --daemon` runs in background; `memlink stop` / `memlink status` to manage

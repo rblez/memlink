@@ -13,11 +13,22 @@ import {
   readMemory,
   getStats,
   renderMemoryAsMarkdown,
+  exportMemoryFormats,
+  importFromFile,
+  getFormatsDir,
+  saveConfig,
   revokeUniversalMemory,
   getMemlinkDir,
 } from '../core/memory.ts';
-import { startServer } from '../server/index.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, CONFIG_DIR, CONFIG_FILE } from '../core/types.ts';
+import { startServer, startStdioServer } from '../server/index.ts';
+import {
+  MEMLINK_VERSION,
+  DEFAULT_PORT,
+  DEFAULT_HOST,
+  CONFIG_DIR,
+  CONFIG_FILE,
+  type UniversalMemory,
+} from '../core/types.ts';
 
 // ─── TTY detection ──────────────────────────────────────────────────────────
 
@@ -130,6 +141,18 @@ function mcpUrl(host: string, port: number, memId: string): string {
   return `http://${host}:${port}/mcp?id=${memId}`;
 }
 
+function findMemory(
+  idOrName: string
+): { memory: UniversalMemory; matchedBy: 'id' | 'name' } | null {
+  const config = loadConfig();
+  const byId = config.universalMemories.find((m) => m.memoryId === idOrName);
+  if (byId) return { memory: byId, matchedBy: 'id' };
+  const lower = idOrName.toLowerCase();
+  const byName = config.universalMemories.find((m) => m.memoryName.toLowerCase() === lower);
+  if (byName) return { memory: byName, matchedBy: 'name' };
+  return null;
+}
+
 // ─── Rich version output ──────────────────────────────────────────────────────
 
 function buildVersionString(): string {
@@ -139,7 +162,9 @@ function buildVersionString(): string {
   for (const m of config.universalMemories) {
     try {
       totalEntries += getStats(m.memoryId).entries;
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
   const dataDir = getMemlinkDir();
   const configPath = path.join(dataDir, CONFIG_FILE);
@@ -165,34 +190,63 @@ function buildVersionString(): string {
 function helpExamples(): string {
   const lines = [
     '',
-    `  ${colors.primary('Examples')}`,
+    `  ${colors.primary('Commands')}`,
     '',
-    `    ${colors.dim('# Create a new memory named "project-alpha"')}`,
-    '    memlink init project-alpha',
+    `    ${colors.white('serve')}         Start the MCP server (HTTP, SSE, Stdio)`,
+    `                   ${colors.dim('memlink serve')}`,
+    `                   ${colors.dim('memlink serve --port 4444 --cors *')}`,
+    `                   ${colors.dim('memlink serve --daemon')}`,
+    `                   ${colors.dim('memlink serve --watch')}`,
+    `                   ${colors.dim('memlink serve --transport stdio --memory my-mem')}`,
     '',
-    `    ${colors.dim('# Start the MCP server with custom port')}`,
-    '    memlink serve --port 4444',
+    `    ${colors.white('init')}          Create a new memory (alias: create)`,
+    `                   ${colors.dim('memlink init project-alpha')}`,
+    `                   ${colors.dim('memlink init my-memory --serve')}`,
     '',
-    `    ${colors.dim('# Create and serve in one command')}`,
-    '    memlink init my-memory --serve',
+    `    ${colors.white('ls')}            List all memories`,
+    `                   ${colors.dim('memlink ls')}`,
     '',
-    `    ${colors.dim('# List all memories')}`,
-    '    memlink ls',
+    `    ${colors.white('show')}          Show memory content as Markdown`,
+    `                   ${colors.dim('memlink show my-memory')}`,
+    `                   ${colors.dim('memlink show <memory-id>')}`,
     '',
-    `    ${colors.dim('# Show memory content')}`,
-    '    memlink show <memory-id>',
+    `    ${colors.white('info')}          Memory details (name, ID, URL, stats)`,
+    `                   ${colors.dim('memlink info my-memory')}`,
     '',
-    `    ${colors.dim('# Get MCP connection URL for an agent')}`,
-    '    memlink connect <memory-id>',
+    `    ${colors.white('export')}        Export memory to configured formats (md/txt/html/json)`,
+    `                   ${colors.dim('memlink export my-memory')}`,
     '',
-    `    ${colors.dim('# Delete a memory')}`,
-    '    memlink delete <memory-id>',
+    `    ${colors.white('import')}        Import entries from a JSON file`,
+    `                   ${colors.dim('memlink import my-memory ./backup.json')}`,
+    `                   ${colors.dim('memlink import my-memory ./backup.json --overwrite')}`,
     '',
-    `    ${colors.dim('# Install agent skill in this workspace')}`,
-    '    memlink skill',
+    `    ${colors.white('connect')}       Show MCP config JSON + agent setup instructions`,
+    `                   ${colors.dim('memlink connect my-memory')}`,
+    `                   ${colors.dim('memlink connect my-memory --all')}`,
     '',
-    `    ${colors.dim('# Install agent skill globally')}`,
-    '    memlink skill --global',
+    `    ${colors.white('delete')}        Delete a memory permanently`,
+    `                   ${colors.dim('memlink delete my-memory')}`,
+    `                   ${colors.dim('memlink delete <memory-id>')}`,
+    '',
+    `    ${colors.white('config')}        View or modify configuration`,
+    `                   ${colors.dim('memlink config')}`,
+    `                   ${colors.dim('memlink config get exportFormats')}`,
+    `                   ${colors.dim('memlink config set exportFormats \'["md","html"]\'')}`,
+    '',
+    `    ${colors.white('stop')}          Stop the daemon server`,
+    `                   ${colors.dim('memlink stop')}`,
+    '',
+    `    ${colors.white('status')}        Check if daemon server is running`,
+    `                   ${colors.dim('memlink status')}`,
+    '',
+    `    ${colors.white('skill')}         Install Memlink agent skill`,
+    `                   ${colors.dim('memlink skill')}         (workspace)`,
+    `                   ${colors.dim('memlink skill --global')}  (global)`,
+    '',
+    `    ${colors.white('bug')}           Report a bug or request a feature`,
+    `                   ${colors.dim('memlink bug')}`,
+    '',
+    `    ${colors.dim('Use -v, --version to show system overview')}`,
     '',
   ];
   return lines.join('\n');
@@ -228,7 +282,7 @@ const program = new Command();
 
 program
   .name('memlink')
-  .description('Memlink — Universal memory for AI agents')
+  .description('Universal memory for AI agents — self-hosted MCP server')
   .version(MEMLINK_VERSION, '-v, --version', 'Display version information')
   .addHelpText('before', logo())
   .addHelpText('after', helpExamples())
@@ -282,17 +336,10 @@ program.action(() => {
   console.log(count('size', `${(totalSize / 1024).toFixed(1)} KB`));
   console.log();
 
-  console.log(kv('Commands:', ''));
-  console.log(kv('  serve', 'Start MCP server'));
-  console.log(kv('  init <name>', 'Create a memory'));
-  console.log(kv('  delete <id>', 'Delete a memory'));
-  console.log(kv('  ls', 'List memories'));
-  console.log(kv('  show <id>', 'Show memory content'));
-  console.log(kv('  connect <id>', 'MCP connection details'));
-  console.log(kv('  skill', 'Install Memlink agent skill (workspace)'));
-  console.log(kv('  bug', 'Report issue'));
+  console.log(kv('Essentials', 'serve · init · ls · show · connect · delete'));
+  console.log(kv('More', 'info · export · config · stop · status · skill · bug'));
   console.log();
-  console.log(dimLine('See memlink --help for more'));
+  console.log(dimLine('Use memlink --help for full docs'));
   console.log();
 });
 
@@ -335,16 +382,41 @@ const serveCmd = program.command('serve');
 
 serveCmd
   .description('Start the Memlink MCP server')
+  .option(
+    '--transport <transports>',
+    'Transport(s): auto, http, sse, stdio (comma-separated for multiple)',
+    'auto'
+  )
+  .option('--memory <name-or-id>', 'Memory to serve (required for stdio)')
   .option('--port <port>', 'Port to listen on', String(DEFAULT_PORT))
   .option('--host <host>', 'Host to bind to', DEFAULT_HOST)
   .option('--cors <origins>', 'CORS allowed origins (comma-separated or *)')
   .option('--read-only', 'Disable write operations')
   .option('--log-level <level>', 'Log level: none, basic, verbose')
   .option('--daemon', 'Run server in background as a daemon')
+  .option('--watch', 'Watch memory files and auto-export on change')
   .action(async (opts) => {
-    const config = loadConfig();
     const port = parseInt(opts.port);
     const host = opts.host;
+    const transports = (opts.transport as string)
+      .split(',')
+      .map((t: string) => t.trim().toLowerCase());
+
+    // Stdio mode: communicate over stdin/stdout (no HTTP server)
+    if (transports.includes('stdio')) {
+      if (!opts.memory) {
+        console.log(err('--memory <name-or-id> is required for stdio transport'));
+        console.log(dimLine('Example: memlink serve --transport stdio --memory my-memory'));
+        process.exit(1);
+      }
+      const found = findMemory(opts.memory);
+      if (!found) {
+        console.error(err(`Memory not found: ${opts.memory}`));
+        process.exit(1);
+      }
+      await startStdioServer(found.memory.memoryId);
+      return;
+    }
 
     // Internal: child of daemon spawn — write PID and start server
     if (process.env.MEMLINK_DAEMON_CHILD) {
@@ -370,6 +442,9 @@ serveCmd
       if (opts.cors) childArgs.push('--cors', opts.cors);
       if (opts.readOnly) childArgs.push('--read-only');
       if (opts.logLevel) childArgs.push('--log-level', opts.logLevel);
+      if (opts.transport) childArgs.push('--transport', opts.transport);
+      if (opts.memory) childArgs.push('--memory', opts.memory);
+      if (opts.watch) childArgs.push('--watch');
 
       // Use the same binary (node/bun) with the same script
       const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
@@ -392,7 +467,9 @@ serveCmd
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
       console.log(okBadge(`Server started (PID ${child.pid})`));
-      console.log(info('URL', `http://${host}:${port}/mcp`));
+      const url = transports.includes('stdio') ? 'stdio' : `http://${host}:${port}/mcp`;
+      console.log(info('Transport', transports.join(', ')));
+      console.log(info('URL', url));
       console.log();
       console.log(dimLine('Stop: memlink stop'));
       console.log(dimLine('Status: memlink status'));
@@ -400,11 +477,18 @@ serveCmd
       return;
     }
 
-    // Foreground mode: start server directly
+    // Foreground mode: start server directly (HTTP transports)
+    const httpTransports = transports.filter((t: string) => t !== 'stdio');
+    if (httpTransports.length === 0 && transports.includes('stdio')) {
+      // Already handled above; this path won't be reached
+      return;
+    }
+
     await startServer(port, host, {
       cors: opts.cors,
       readOnly: opts.readOnly,
       logLevel: opts.logLevel,
+      watch: opts.watch,
     });
   });
 
@@ -427,7 +511,11 @@ program
       console.log(logoSmall());
       console.log();
       console.log(info('not running', `Server PID ${pid} is not active.`));
-      try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+      try {
+        fs.unlinkSync(daemonPidPath());
+      } catch {
+        /* ignore */
+      }
       console.log();
       return;
     }
@@ -435,7 +523,11 @@ program
     try {
       process.kill(pid, 'SIGTERM');
     } catch {
-      try { process.kill(pid, 'SIGINT'); } catch { /* ignore */ }
+      try {
+        process.kill(pid, 'SIGINT');
+      } catch {
+        /* ignore */
+      }
     }
 
     // Wait for process to exit (poll up to 3s)
@@ -445,7 +537,11 @@ program
       await new Promise((r) => setTimeout(r, 100));
     }
 
-    try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(daemonPidPath());
+    } catch {
+      /* ignore */
+    }
 
     console.log(logoSmall());
     console.log();
@@ -480,7 +576,13 @@ program
 // ─── memlink init <name> (i) / create <name> (c) ─────────────────────────
 
 function initAction(name: string, opts: { serve?: boolean; port?: string }) {
-  const memory = createUniversalMemory(name);
+  let memory: UniversalMemory;
+  try {
+    memory = createUniversalMemory(name);
+  } catch (e) {
+    console.error(err(String(e)));
+    process.exit(1);
+  }
   console.log(logo());
   console.log(okBadge('Memory created'));
   console.log();
@@ -501,7 +603,14 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
   }
 
   console.log();
-  console.log(dimLine('Connect: memlink connect ' + memory.memoryId));
+  console.log(
+    dimLine(
+      'Connect: memlink connect ' +
+        memory.memoryName +
+        '  ·  Info: memlink info ' +
+        memory.memoryName
+    )
+  );
   console.log();
 
   if (opts.serve) {
@@ -513,16 +622,8 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
 
 program
   .command('init <name>')
+  .alias('create')
   .description('Create a new memory')
-  .option('--serve', 'Auto-start the MCP server after creation')
-  .option('--port <port>', 'Port for auto-start server')
-  .action((name: string, opts) => {
-    initAction(name, opts);
-  });
-
-program
-  .command('create <name>')
-  .description('Create a new memory (alias for init)')
   .option('--serve', 'Auto-start the MCP server after creation')
   .option('--port <port>', 'Port for auto-start server')
   .action((name: string, opts) => {
@@ -532,23 +633,24 @@ program
 // ─── memlink delete <memoryId> ──────────────────────────────────────────
 
 program
-  .command('delete <memoryId>')
-  .description('Delete a memory permanently')
-  .action((memoryId: string) => {
-    const config = loadConfig();
-    const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
-
-    if (!memory) {
-      console.error(err(`Memory not found: ${memoryId}`));
+  .command('delete <name-or-id>')
+  .description('Delete a memory permanently (by name or ID)')
+  .action((idOrName: string) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
       console.log(dimLine('List memories: memlink ls'));
       process.exit(1);
     }
+    const { memory, matchedBy } = found;
+    const memoryId = memory.memoryId;
 
     const ok = revokeUniversalMemory(memoryId);
     if (ok) {
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
-      console.log(okBadge(`Memory deleted: ${memory.memoryName} (${memoryId})`));
+      const by = matchedBy === 'name' ? ` (${memoryId})` : '';
+      console.log(okBadge(`Memory deleted: ${memory.memoryName}${by}`));
       console.log();
     } else {
       console.error(err(`Failed to delete memory: ${memoryId}`));
@@ -556,29 +658,43 @@ program
     }
   });
 
-// ─── memlink connect <memoryId> (con) ─────────────────────────────────────
+// ─── memlink info <name-or-id> ────────────────────────────────────────────
 
 program
-  .command('connect <memoryId>')
-  .description('Get MCP connection details for a memory')
-  .action(async (memoryId: string) => {
-    const config = loadConfig();
-    const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
-
-    if (!memory) {
-      console.error(err(`Memory not found: ${memoryId}`));
+  .command('info <name-or-id>')
+  .description('Show memory details (name, ID, URL, stats)')
+  .action(async (idOrName: string) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
       console.log(dimLine('List memories: memlink ls'));
+      return;
     }
-
+    const { memory } = found;
+    const config = loadConfig();
     const host = envHost() || config.serverHost || DEFAULT_HOST;
     const port = envPort() || config.serverPort || DEFAULT_PORT;
     const mcp = mcpUrl(host, port, memory.memoryId);
+
+    let stats;
+    try {
+      stats = getStats(memory.memoryId);
+    } catch {
+      /* ok */
+    }
 
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
     console.log(info('Name', memory.memoryName));
     console.log(info('ID', memory.memoryId));
     console.log(info('MCP', mcp));
+    if (stats) {
+      console.log(info('Entries', String(stats.entries)));
+      console.log(info('Size', `${(stats.size / 1024).toFixed(1)} KB`));
+      if (stats.tags.length > 0) console.log(info('Tags', stats.tags.join(', ')));
+      console.log(info('Created', stats.createdAt));
+      if (stats.lastSeen) console.log(info('Last seen', stats.lastSeen));
+    }
     console.log();
 
     const copied = copyToClipboard(mcp);
@@ -586,7 +702,363 @@ program
       console.log(okBadge('URL copied to clipboard'));
     }
     console.log();
-    console.log(dimLine('Start server: memlink serve'));
+  });
+
+// ─── memlink connect <name-or-id> ────────────────────────────────────────
+
+// ─── Agent definitions ─────────────────────────────────────────────────────
+
+interface AgentDef {
+  id: string;
+  name: string;
+  platform: string;
+  file: string;
+  note: string;
+  config: 'streamableHttp' | 'sse' | 'stdio' | null;
+  detect(): boolean;
+}
+
+const AGENT_DEFS: AgentDef[] = [
+  {
+    id: 'claude-desktop',
+    name: 'Claude Desktop',
+    platform: 'Windows / macOS',
+    file: 'claude_desktop_config.json',
+    note: 'Add the JSON inside the "mcpServers" object',
+    config: 'streamableHttp',
+    detect() {
+      if (process.platform === 'win32') {
+        return fs.existsSync(
+          path.join(process.env.APPDATA || '', 'Claude', 'claude_desktop_config.json')
+        );
+      }
+      if (process.platform === 'darwin') {
+        return fs.existsSync(
+          path.join(
+            os.homedir(),
+            'Library',
+            'Application Support',
+            'Claude',
+            'claude_desktop_config.json'
+          )
+        );
+      }
+      return false;
+    },
+  },
+  {
+    id: 'claude-code',
+    name: 'Claude Code',
+    platform: 'CLI (cross-platform)',
+    file: '~/.claude/settings.json',
+    note: 'Add inside existing JSON, under "mcpServers"',
+    config: 'stdio',
+    detect() {
+      return fs.existsSync(path.join(os.homedir(), '.claude', 'settings.json'));
+    },
+  },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    platform: 'Cross-platform',
+    file: '.cursor/mcp.json (project)',
+    note: 'Create in the project root directory',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(process.cwd(), '.cursor', 'mcp.json'));
+    },
+  },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    platform: 'Cross-platform',
+    file: '.windsurf/mcp.json (project)',
+    note: 'Create in the project root directory',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(process.cwd(), '.windsurf', 'mcp.json'));
+    },
+  },
+  {
+    id: 'opencode',
+    name: 'OpenCode',
+    platform: 'Cross-platform',
+    file: '.opencode.json (project) o ~/.config/opencode/opencode.json',
+    note: 'Add inside "mcpServers" in the JSON config',
+    config: 'stdio',
+    detect() {
+      return (
+        fs.existsSync(path.join(process.cwd(), '.opencode.json')) ||
+        fs.existsSync(path.join(process.cwd(), '.opencode.jsonc')) ||
+        fs.existsSync(path.join(os.homedir(), '.config', 'opencode', 'opencode.json'))
+      );
+    },
+  },
+  {
+    id: 'cline',
+    name: 'Cline (VS Code)',
+    platform: 'Cross-platform',
+    file: '~/.vscode/globalStorage/.../cline_mcp_settings.json',
+    note: 'Or configure from the Cline UI in VS Code',
+    config: 'streamableHttp',
+    detect() {
+      try {
+        const vscodePath =
+          process.platform === 'win32'
+            ? path.join(process.env.APPDATA || '', 'Code')
+            : process.platform === 'darwin'
+              ? path.join(os.homedir(), 'Library', 'Application Support', 'Code')
+              : path.join(os.homedir(), '.vscode');
+        const storage = path.join(vscodePath, 'User', 'globalStorage');
+        if (!fs.existsSync(storage)) return false;
+        return fs.readdirSync(storage).some((d) => d.startsWith('saoudrizwan.claude'));
+      } catch {
+        return false;
+      }
+    },
+  },
+  {
+    id: 'continue',
+    name: 'Continue.dev',
+    platform: 'Cross-platform',
+    file: '~/.continue/config.json',
+    note: 'Add inside "experimental.mcpServers"',
+    config: 'sse',
+    detect() {
+      return fs.existsSync(path.join(os.homedir(), '.continue', 'config.json'));
+    },
+  },
+  {
+    id: 'aider',
+    name: 'Aider',
+    platform: 'CLI (cross-platform)',
+    file: '~/.aider.conf.yml',
+    note: 'Run: aider --mcp-servers "memlink=URL"  or  use stdio config in .aider.conf.yml',
+    config: 'stdio',
+    detect() {
+      return (
+        fs.existsSync(path.join(os.homedir(), '.aider.conf.yml')) ||
+        fs.existsSync(path.join(os.homedir(), '.aider.conf.json'))
+      );
+    },
+  },
+  {
+    id: 'github-copilot',
+    name: 'GitHub Copilot',
+    platform: 'VS Code / JetBrains / CLI',
+    file: '~/.config/github-copilot/mcp.json',
+    note: 'Configure from VS Code: Settings > GitHub Copilot > MCP',
+    config: 'streamableHttp',
+    detect() {
+      const p = path.join(os.homedir(), '.config', 'github-copilot');
+      return fs.existsSync(p) && fs.readdirSync(p).some((f) => f.includes('mcp'));
+    },
+  },
+  {
+    id: 'cody',
+    name: 'Cody (Sourcegraph)',
+    platform: 'VS Code / JetBrains',
+    file: '.vscode/mcp.json (project)',
+    note: 'Experimental MCP support',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(process.cwd(), '.vscode', 'mcp.json'));
+    },
+  },
+  {
+    id: 'amazon-q',
+    name: 'Amazon Q Developer',
+    platform: 'VS Code / JetBrains / CLI',
+    file: '~/.aws/q/mcp.json',
+    note: 'Configure from AWS Toolkit settings',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(os.homedir(), '.aws', 'q', 'mcp.json'));
+    },
+  },
+  {
+    id: 'tabby',
+    name: 'Tabby',
+    platform: 'Self-hosted / CLI',
+    file: '~/.tabby/mcp.json',
+    note: 'Self-hosted MCP server',
+    config: 'sse',
+    detect() {
+      return fs.existsSync(path.join(os.homedir(), '.tabby'));
+    },
+  },
+  {
+    id: 'pearai',
+    name: 'PearAI',
+    platform: 'VS Code fork',
+    file: '.pearai/mcp.json (project)',
+    note: 'Compatible with Cursor/Windsurf configs',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(process.cwd(), '.pearai'));
+    },
+  },
+  {
+    id: 'codegpt',
+    name: 'CodeGPT',
+    platform: 'VS Code',
+    file: '.codegpt/mcp.json (project)',
+    note: 'Configure from extension settings or JSON file',
+    config: 'streamableHttp',
+    detect() {
+      return fs.existsSync(path.join(process.cwd(), '.codegpt'));
+    },
+  },
+  {
+    id: 'mcp-inspector',
+    name: 'MCP Inspector',
+    platform: 'CLI / Browser',
+    file: 'npx',
+    note: 'npx @modelcontextprotocol/inspector URL',
+    config: null,
+    detect() {
+      return true; // always available if Node is installed
+    },
+  },
+];
+
+function detectAgents(): AgentDef[] {
+  return AGENT_DEFS.filter((a) => a.detect());
+}
+
+function agentConfigs(mcpUrl: string, showAll: boolean, memoryName: string): string {
+  const configJSON = (type: 'streamableHttp' | 'sse' | 'stdio'): string => {
+    if (type === 'streamableHttp') {
+      return JSON.stringify({ mcpServers: { memlink: { type: 'http', url: mcpUrl } } }, null, 2);
+    }
+    if (type === 'sse') {
+      return JSON.stringify(
+        {
+          mcpServers: {
+            memlink: {
+              type: 'remote',
+              url: mcpUrl.replace('/mcp?', '/sse?'),
+              enabled: true,
+            },
+          },
+        },
+        null,
+        2
+      );
+    }
+    return JSON.stringify(
+      {
+        mcpServers: {
+          memlink: {
+            type: 'stdio',
+            command: 'memlink',
+            args: ['serve', '--transport', 'stdio', '--memory', memoryName],
+          },
+        },
+      },
+      null,
+      2
+    );
+  };
+
+  const cfgHttp = configJSON('streamableHttp');
+  const cfgSse = configJSON('sse');
+  const cfgStdio = configJSON('stdio');
+
+  const agents = showAll ? AGENT_DEFS : detectAgents();
+
+  const lines: string[] = [];
+  lines.push('');
+  lines.push(`  ${colors.primary('MCP Configuration')}`);
+  lines.push('');
+  lines.push(`  ${colors.dim('Streamable HTTP (modern — preferred):')}`);
+  lines.push('');
+  cfgHttp.split('\n').forEach((l) => lines.push(`    ${l}`));
+  lines.push('');
+  lines.push(`  ${colors.dim('SSE (legacy):')}`);
+  lines.push('');
+  cfgSse.split('\n').forEach((l) => lines.push(`    ${l}`));
+  lines.push('');
+  lines.push(`  ${colors.dim('Stdio (subprocess — for CLI agents):')}`);
+  lines.push('');
+  cfgStdio.split('\n').forEach((l) => lines.push(`    ${l}`));
+  lines.push('');
+  lines.push(`  ${colors.dim('─'.repeat(56))}`);
+  lines.push(`  ${colors.primary('Agent Setup')}`);
+  lines.push(`  ${colors.dim(`${agents.length} of ${AGENT_DEFS.length} agents detected`)}`);
+  if (!showAll && agents.length < AGENT_DEFS.length) {
+    lines.push(`  ${colors.dim('Use --all to show all available agents')}`);
+  }
+  lines.push('');
+
+  for (const agent of agents) {
+    const cfg =
+      agent.config === 'streamableHttp'
+        ? cfgHttp
+        : agent.config === 'sse'
+          ? cfgSse
+          : agent.config === 'stdio'
+            ? cfgStdio
+            : null;
+    lines.push(`  ${colors.white(agent.name)}`);
+    lines.push(`    ${colors.dim('Platform:')}  ${colors.white(agent.platform)}`);
+    lines.push(`    ${colors.dim('Config:')}    ${colors.white(agent.file)}`);
+    if (agent.note) lines.push(`    ${colors.dim('Note:')}      ${colors.dim(agent.note)}`);
+    if (cfg) {
+      lines.push(`    ${colors.dim('JSON:')}`);
+      cfg.split('\n').forEach((l) => lines.push(`      ${l}`));
+    }
+    lines.push('');
+  }
+
+  lines.push(`  ${colors.dim('─'.repeat(56))}`);
+  return lines.join('\n');
+}
+
+program
+  .command('connect <name-or-id>')
+  .description('Show MCP config JSON and agent setup (auto-detects installed agents)')
+  .option('--all', 'Show all known agents, not just detected ones')
+  .action(async (idOrName: string, opts: { all?: boolean }) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
+      console.log(dimLine('List memories: memlink ls'));
+      return;
+    }
+    const { memory } = found;
+    const config = loadConfig();
+    const host = envHost() || config.serverHost || DEFAULT_HOST;
+    const port = envPort() || config.serverPort || DEFAULT_PORT;
+    const mcp = mcpUrl(host, port, memory.memoryId);
+
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+    console.log(info('Memory', `${memory.memoryName} (${memory.memoryId})`));
+    console.log(info('Server', `http://${host}:${port}`));
+    console.log();
+
+    console.log(agentConfigs(mcp, opts.all ?? false, memory.memoryName));
+
+    const copied = copyToClipboard(
+      JSON.stringify(
+        {
+          mcpServers: {
+            memlink: {
+              type: 'http',
+              url: mcp,
+            },
+          },
+        },
+        null,
+        2
+      )
+    );
+    if (copied) {
+      console.log();
+      console.log(okBadge('MCP config JSON copied to clipboard'));
+    }
+    console.log();
   });
 
 // ─── memlink ls (list) ─────────────────────────────────────────────────────
@@ -626,17 +1098,17 @@ program
 // ─── memlink show <memoryId> (sh) ─────────────────────────────────────────
 
 program
-  .command('show <memoryId>')
+  .command('show <name-or-id>')
   .description('Show memory contents as consolidated Markdown')
-  .action(async (memoryId: string) => {
-    const config = loadConfig();
-    const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
-
-    if (!memory) {
-      console.error(err(`Memory not found: ${memoryId}`));
+  .action(async (idOrName: string) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
       console.log(dimLine('List memories: memlink ls'));
       process.exit(1);
     }
+    const memory = found.memory;
+    const memoryId = memory.memoryId;
 
     try {
       const entries = readMemory(memoryId);
@@ -651,10 +1123,106 @@ program
       console.log();
       console.log(renderMemoryAsMarkdown(memoryId));
       console.log();
+      const exported = exportMemoryFormats(memoryId);
+      const shortFiles = exported.map((f) => path.relative(getMemlinkDir(), f));
+      console.log(okBadge(`Exported: ${shortFiles.join(', ')}`));
+      console.log();
     } catch (e) {
       console.error(err('Failed to read memory', String(e)));
       process.exit(1);
     }
+  });
+
+// ─── memlink export <name-or-id> ───────────────────────────────────────────
+
+program
+  .command('export <name-or-id>')
+  .description('Export memory to configured formats (md, txt, html, json)')
+  .action((idOrName: string) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
+      console.log(dimLine('List memories: memlink ls'));
+      process.exit(1);
+    }
+    const memory = found.memory;
+    const exported = exportMemoryFormats(memory.memoryId);
+    const shortFiles = exported.map((f) => path.relative(getMemlinkDir(), f));
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+    console.log(okBadge(`Exported: ${shortFiles.join(', ')}`));
+    console.log(dimLine(`Formats dir: ${getFormatsDir()}`));
+    console.log();
+  });
+
+// ─── memlink import <name-or-id> <file> ─────────────────────────────────────
+
+program
+  .command('import <name-or-id>')
+  .argument('<file>', 'JSON file to import')
+  .description('Import entries from a JSON file')
+  .option('--overwrite', 'Overwrite existing entries with same title')
+  .action((idOrName: string, file: string, opts: { overwrite?: boolean }) => {
+    const found = findMemory(idOrName);
+    if (!found) {
+      console.error(err(`Memory not found: ${idOrName}`));
+      console.log(dimLine('List memories: memlink ls'));
+      process.exit(1);
+    }
+    const memory = found.memory;
+    try {
+      const result = importFromFile(memory.memoryId, file, { overwrite: opts.overwrite });
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Imported ${result.imported} entries (${result.skipped} skipped)`));
+      console.log();
+    } catch (e) {
+      console.error(err(String(e)));
+      process.exit(1);
+    }
+  });
+
+// ─── memlink config ────────────────────────────────────────────────────────
+
+const configCmd = program.command('config').description('View or modify configuration');
+
+configCmd
+  .command('get [key]', { isDefault: true })
+  .description('Get config value (or all if no key)')
+  .action((key?: string) => {
+    const config = loadConfig();
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+    if (key) {
+      const val = (config as Record<string, unknown>)[key];
+      if (val === undefined) {
+        console.error(err(`Config key not found: ${key}`));
+        process.exit(1);
+      }
+      console.log(info(key, JSON.stringify(val, null, 2)));
+    } else {
+      console.log(JSON.stringify(config, null, 2));
+    }
+    console.log();
+  });
+
+configCmd
+  .command('set <key> <value>')
+  .description('Set a config value (JSON-encoded)')
+  .action((key: string, value: string) => {
+    const config = loadConfig();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = value;
+    }
+    (config as Record<string, unknown>)[key] = parsed;
+    saveConfig(config);
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+    console.log(okBadge(`Config updated: ${key} = ${JSON.stringify(parsed)}`));
+    console.log();
   });
 
 // ─── memlink skill ──────────────────────────────────────────────────────

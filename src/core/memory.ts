@@ -14,14 +14,6 @@ export interface MemoryFileData {
   entries: MemoryEntry[];
 }
 
-export interface MemoryExport {
-  version: string;
-  exportedAt: string;
-  memoryId: string;
-  memoryName?: string;
-  entries: MemoryEntry[];
-}
-
 export interface MemoryStats {
   memoryId: string;
   memoryName?: string;
@@ -71,7 +63,7 @@ export function getMemoryPath(memoryId: string): string {
   return path.join(getMemlinkDir(), `${memoryId}.memory.json`);
 }
 
-export function getLegacyMemoryPath(memoryId: string): string {
+function getLegacyMemoryPath(memoryId: string): string {
   return path.join(getMemlinkDir(), `${memoryId}.memory.md`);
 }
 
@@ -102,6 +94,7 @@ export function loadConfig(): MemlinkConfig {
 
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as MemlinkConfig;
   if (!raw.universalMemories) raw.universalMemories = [];
+  if (!raw.exportFormats) raw.exportFormats = ['md', 'txt', 'html'];
   return raw;
 }
 
@@ -112,9 +105,27 @@ export function saveConfig(config: MemlinkConfig): void {
 
 // ─── Universal Memory Management ──────────────────────────────────────────────
 
-export function createUniversalMemory(memoryName: string): UniversalMemory {
+export function validateMemoryName(name: string, config: MemlinkConfig): string {
+  const trimmed = name.trim();
+  const allowed = /^[a-zA-Z0-9_.-]+$/;
+  if (!allowed.test(trimmed)) {
+    throw new Error(
+      `Invalid memory name: "${name}". Only letters, numbers, and - _ . are allowed.`
+    );
+  }
+  const dup = config.universalMemories.find(
+    (m) => m.memoryName.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (dup) {
+    throw new Error(`Memory already exists: "${trimmed}" (ID: ${dup.memoryId})`);
+  }
+  return trimmed;
+}
+
+export function createUniversalMemory(rawName: string): UniversalMemory {
   ensureMemlinkDir();
   const config = loadConfig();
+  const memoryName = validateMemoryName(rawName, config);
 
   const memoryId = nanoid(12);
   const memory: UniversalMemory = {
@@ -296,7 +307,7 @@ function parseBookFormat(
       continue;
     }
 
-    if (trimmed === '## Indice') {
+    if (trimmed === '## Index') {
       inIndex = true;
       continue;
     }
@@ -359,7 +370,7 @@ export function renderMemoryAsMarkdown(memoryId: string): string {
     `> ID: ${data.memoryId} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}`
   );
   lines.push('');
-  lines.push('## Indice');
+  lines.push('## Index');
   lines.push('');
 
   data.entries.forEach((entry, i) => {
@@ -401,15 +412,97 @@ export function renderMemoryAsText(memoryId: string): string {
   return lines.join('\n');
 }
 
-export function renderEntryAsMarkdown(entry: MemoryEntry): string {
-  const lines: string[] = [];
-  lines.push(`## ${entry.title}`);
-  if (entry.tags && entry.tags.length > 0) {
-    lines.push(`_Tags: ${entry.tags.join(', ')}_`);
-    lines.push('');
+export function renderMemoryAsHtml(memoryId: string): string {
+  const data = loadMemoryFile(memoryId);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(data.memoryName)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #1a1a1a; background: #fafafa; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+    .meta { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+    .index { margin-bottom: 2rem; }
+    .index a { color: #2563eb; text-decoration: none; }
+    .index a:hover { text-decoration: underline; }
+    .entry { margin-bottom: 1.5rem; padding: 1rem; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .entry h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .tags { margin-bottom: 0.5rem; }
+    .tag { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.75rem; background: #e0e7ff; color: #4338ca; border-radius: 4px; margin-right: 0.25rem; }
+    .content { line-height: 1.6; }
+    hr { border: none; border-top: 1px solid #e5e5e5; margin: 1.5rem 0; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(data.memoryName)}</h1>
+  <p class="meta">ID: ${escapeHtml(data.memoryId)} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}</p>
+  <div class="index">
+    <h2>Index</h2>
+    <ol>
+      ${data.entries.map((entry, i) => `<li><a href="#entry-${i + 1}">${escapeHtml(entry.title)}</a></li>`).join('\n      ')}
+    </ol>
+  </div>
+  <hr>
+  ${data.entries.map((entry, i) => `<div id="entry-${i + 1}">${entry.tags?.length ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}<div class="entry"><h2>${escapeHtml(entry.title)}</h2><div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div></div></div>`).join('\n  ')}
+</body>
+</html>`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export function getFormatsDir(): string {
+  const dir = path.join(getMemlinkDir(), 'formats');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
-  lines.push(entry.content);
-  return lines.join('\n');
+  return dir;
+}
+
+export function exportMemoryFormats(memoryId: string): string[] {
+  const config = loadConfig();
+  const formats = config.exportFormats || ['md'];
+  const formatsDir = getFormatsDir();
+  const memory = getMemoryById(memoryId);
+  const name = memory?.memoryName || memoryId;
+  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+  const written: string[] = [];
+
+  if (formats.includes('json')) {
+    const data = loadMemoryFile(memoryId);
+    const p = path.join(formatsDir, `${safeName}.json`);
+    writeFileAtomic(p, JSON.stringify(data, null, 2));
+    written.push(p);
+  }
+
+  if (formats.includes('md')) {
+    const p = path.join(formatsDir, `${safeName}.md`);
+    writeFileAtomic(p, renderMemoryAsMarkdown(memoryId));
+    written.push(p);
+  }
+
+  if (formats.includes('txt')) {
+    const p = path.join(formatsDir, `${safeName}.txt`);
+    writeFileAtomic(p, renderMemoryAsText(memoryId));
+    written.push(p);
+  }
+
+  if (formats.includes('html')) {
+    const p = path.join(formatsDir, `${safeName}.html`);
+    writeFileAtomic(p, renderMemoryAsHtml(memoryId));
+    written.push(p);
+  }
+
+  return written;
 }
 
 // ─── CRUD operations ─────────────────────────────────────────────────────────
@@ -452,6 +545,7 @@ export function upsertMemoryEntry(
   saveMemoryFile(memoryId, data);
   saveBackup(memoryId);
   cleanupOldBackups(memoryId, 3);
+  exportMemoryFormats(memoryId);
 
   return entry;
 }
@@ -465,6 +559,7 @@ export function deleteMemoryEntry(memoryId: string, title: string): boolean {
   saveMemoryFile(memoryId, data);
   saveBackup(memoryId);
   cleanupOldBackups(memoryId, 3);
+  exportMemoryFormats(memoryId);
 
   return true;
 }
@@ -496,48 +591,7 @@ export function searchMemory(memoryId: string, query: string): MemoryEntry[] {
   });
 }
 
-// ─── Export/Import ──────────────────────────────────────────────────────────────
-
-export function exportMemory(memoryId: string): MemoryExport {
-  const memory = getUniversalMemoryById(memoryId);
-  if (!memory) throw new Error(`Memory not found: ${memoryId}`);
-
-  const data = loadMemoryFile(memoryId);
-
-  return {
-    version: MEMLINK_VERSION,
-    exportedAt: new Date().toISOString(),
-    memoryId,
-    memoryName: data.memoryName,
-    entries: data.entries,
-  };
-}
-
-export function importMemory(memoryId: string, data: MemoryExport): number {
-  const memory = getUniversalMemoryById(memoryId);
-  if (!memory) throw new Error(`Memory not found: ${memoryId}`);
-
-  const fileData = loadMemoryFile(memoryId);
-  const merged = new Map<string, MemoryEntry>();
-
-  for (const entry of fileData.entries) {
-    merged.set(entry.title.toLowerCase(), entry);
-  }
-
-  for (const entry of data.entries) {
-    merged.set(entry.title.toLowerCase(), {
-      ...entry,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  fileData.entries = Array.from(merged.values());
-  saveMemoryFile(memoryId, fileData);
-
-  return data.entries.length;
-}
-
-// ─── Statistics ───────────────────────────────────────────────────────────────
+// ─── Statistics ───────────────────────────────────────────────────────────────────
 
 export function getStats(memoryId: string): MemoryStats {
   const memory = getUniversalMemoryById(memoryId);
@@ -569,6 +623,79 @@ export function getStats(memoryId: string): MemoryStats {
     lastSeen: memory.lastSeen ?? null,
     createdAt: memory.createdAt,
   };
+}
+
+// ─── Import ─────────────────────────────────────────────────────────────────────
+
+export interface ImportOptions {
+  merge?: boolean;
+  overwrite?: boolean;
+}
+
+export function importFromFile(
+  memoryId: string,
+  filePath: string,
+  options?: ImportOptions
+): { imported: number; skipped: number } {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+
+  const raw = fs.readFileSync(filePath, 'utf-8');
+
+  const parsed = JSON.parse(raw);
+
+  const imported: { title: string; content: string; tags?: string[] }[] = Array.isArray(parsed)
+    ? parsed
+    : parsed.entries && Array.isArray(parsed.entries)
+      ? parsed.entries
+      : parsed.title && parsed.content !== undefined
+        ? [parsed]
+        : (() => {
+            throw new Error(
+              'Unrecognized import format. Expected an array of entries or { entries: [...] }.'
+            );
+          })();
+
+  const data = loadMemoryFile(memoryId);
+  let importedCount = 0;
+  let skippedCount = 0;
+
+  for (const entry of imported) {
+    if (!entry.title || entry.content === undefined) {
+      skippedCount++;
+      continue;
+    }
+    const existing = data.entries.findIndex(
+      (e) => e.title.toLowerCase() === entry.title.toLowerCase()
+    );
+    if (existing >= 0 && !options?.overwrite) {
+      skippedCount++;
+      continue;
+    }
+    const now = new Date().toISOString();
+    const newEntry: MemoryEntry = {
+      title: entry.title,
+      content: entry.content,
+      startLine: 0,
+      endLine: 0,
+      tags: entry.tags,
+      updatedAt: now,
+    };
+    if (existing >= 0) {
+      data.entries[existing] = newEntry;
+    } else {
+      data.entries.push(newEntry);
+    }
+    importedCount++;
+  }
+
+  saveMemoryFile(memoryId, data);
+  saveBackup(memoryId);
+  cleanupOldBackups(memoryId, 3);
+  exportMemoryFormats(memoryId);
+
+  return { imported: importedCount, skipped: skippedCount };
 }
 
 // ─── Backup & Restore ───────────────────────────────────────────────────────────
@@ -740,6 +867,7 @@ export function bulkDeleteMemories(
   const deletedEntries = data.entries.filter((e) => titlesLower.includes(e.title.toLowerCase()));
   data.entries = data.entries.filter((e) => !titlesLower.includes(e.title.toLowerCase()));
   saveMemoryFile(memoryId, data);
+  exportMemoryFormats(memoryId);
   return {
     deleted: deletedEntries.length,
     notFound: titles.filter(
@@ -761,6 +889,7 @@ export function bulkDeleteMemoriesByTags(
     (entry) => !entry.tags?.some((tag) => tagsLower.includes(tag.toLowerCase()))
   );
   saveMemoryFile(memoryId, data);
+  exportMemoryFormats(memoryId);
   return { deleted: deletedEntries.length, entries: deletedEntries };
 }
 
@@ -793,5 +922,6 @@ export function bulkDeleteMemoriesByPattern(
 
   data.entries = data.entries.filter((entry) => !deletedEntries.includes(entry));
   saveMemoryFile(memoryId, data);
+  exportMemoryFormats(memoryId);
   return { deleted: deletedEntries.length, entries: deletedEntries };
 }
