@@ -32,7 +32,7 @@
   "bugs": {
     "url": "https://github.com/rblez/memlink/issues"
   },
-  "homepage": "https://rblez.com/memlink",
+  "homepage": "https://github.com/rblez/memlink",
   "bin": {
     "memlink": "dist/cli/index.js"
   },

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import readline from 'readline';
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { Command } from 'commander';
 import { table } from 'table';
 import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD } from './output.ts';
@@ -14,9 +14,10 @@ import {
   getStats,
   renderMemoryAsMarkdown,
   revokeUniversalMemory,
+  getMemlinkDir,
 } from '../core/memory.ts';
 import { startServer } from '../server/index.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
+import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, CONFIG_DIR, CONFIG_FILE } from '../core/types.ts';
 
 // ─── TTY detection ──────────────────────────────────────────────────────────
 
@@ -129,6 +130,98 @@ function mcpUrl(host: string, port: number, memId: string): string {
   return `http://${host}:${port}/mcp?id=${memId}`;
 }
 
+// ─── Rich version output ──────────────────────────────────────────────────────
+
+function buildVersionString(): string {
+  const config = loadConfig();
+  const memCount = config.universalMemories.length;
+  let totalEntries = 0;
+  for (const m of config.universalMemories) {
+    try {
+      totalEntries += getStats(m.memoryId).entries;
+    } catch { /* skip */ }
+  }
+  const dataDir = getMemlinkDir();
+  const configPath = path.join(dataDir, CONFIG_FILE);
+  const parts = [
+    '',
+    `  ${colors.white('Memlink')} ${colors.primary(MEMLINK_VERSION)}`,
+    '',
+    `  ${colors.dim('Runtime:')}    ${colors.white(process.version)} ${colors.dim('·')} ${colors.white(process.platform)} (${colors.white(process.arch)})`,
+    `  ${colors.dim('Data dir:')}   ${colors.white(dataDir)}`,
+    `  ${colors.dim('Config:')}     ${colors.white(configPath)}`,
+    `  ${colors.dim('Memories:')}   ${colors.white(String(memCount))}`,
+    `  ${colors.dim('Entries:')}    ${colors.white(String(totalEntries))}`,
+    '',
+    `  ${colors.dim('Homepage:')}   ${colors.muted('https://github.com/rblez/memlink')}`,
+    `  ${colors.dim('Issues:')}     ${colors.muted('https://github.com/rblez/memlink/issues')}`,
+    '',
+  ];
+  return parts.join('\n');
+}
+
+// ─── Help sections ────────────────────────────────────────────────────────────
+
+function helpExamples(): string {
+  const lines = [
+    '',
+    `  ${colors.primary('Examples')}`,
+    '',
+    `    ${colors.dim('# Create a new memory named "project-alpha"')}`,
+    '    memlink init project-alpha',
+    '',
+    `    ${colors.dim('# Start the MCP server with custom port')}`,
+    '    memlink serve --port 4444',
+    '',
+    `    ${colors.dim('# Create and serve in one command')}`,
+    '    memlink init my-memory --serve',
+    '',
+    `    ${colors.dim('# List all memories')}`,
+    '    memlink ls',
+    '',
+    `    ${colors.dim('# Show memory content')}`,
+    '    memlink show <memory-id>',
+    '',
+    `    ${colors.dim('# Get MCP connection URL for an agent')}`,
+    '    memlink connect <memory-id>',
+    '',
+    `    ${colors.dim('# Delete a memory')}`,
+    '    memlink delete <memory-id>',
+    '',
+    `    ${colors.dim('# Install agent skill in this workspace')}`,
+    '    memlink skill',
+    '',
+    `    ${colors.dim('# Install agent skill globally')}`,
+    '    memlink skill --global',
+    '',
+  ];
+  return lines.join('\n');
+}
+
+function helpEnvVars(): string {
+  const lines = [
+    `  ${colors.primary('Environment Variables')}`,
+    '',
+    `    ${colors.white('MEMLINK_DIR')}`,
+    `      ${colors.dim('Override the data directory (default: ~/' + CONFIG_DIR + ')')}`,
+    '',
+    `    ${colors.white('MEMLINK_HOST')} ${colors.dim('/')} ${colors.white('HOST')}`,
+    `      ${colors.dim('Bind address for the MCP server (default: localhost)')}`,
+    '',
+    `    ${colors.white('MEMLINK_PORT')} ${colors.dim('/')} ${colors.white('PORT')}`,
+    `      ${colors.dim('Port for the MCP server (default: ' + DEFAULT_PORT + ')')}`,
+    '',
+    `    ${colors.white('MEMLINK_NO_COLOR')}`,
+    `      ${colors.dim('Disable colored output')}`,
+    '',
+  ];
+  return lines.join('\n');
+}
+
+function helpFooter(): string {
+  return `\n  ${colors.dim('─'.repeat(64))}\n  ${colors.dim('Documentation:')} ${colors.muted('https://github.com/rblez/memlink')}\n`;
+}
+
 // ─── Program ──────────────────────────────────────────────────────────────────
 
 const program = new Command();
@@ -136,8 +229,20 @@ const program = new Command();
 program
   .name('memlink')
   .description('Memlink — Universal memory for AI agents')
-  .version(MEMLINK_VERSION, '--version')
-  .addHelpText('before', logo());
+  .version(MEMLINK_VERSION, '-v, --version', 'Display version information')
+  .addHelpText('before', logo())
+  .addHelpText('after', helpExamples())
+  .addHelpText('after', helpEnvVars())
+  .addHelpText('after', helpFooter())
+  .configureOutput({
+    writeOut: (str) => {
+      if (str === `${MEMLINK_VERSION}\n`) {
+        process.stdout.write(buildVersionString() + '\n');
+      } else {
+        process.stdout.write(str);
+      }
+    },
+  });
 
 // ─── Default: system overview ──────────────────────────────────────────────
 
@@ -187,7 +292,7 @@ program.action(() => {
   console.log(kv('  skill', 'Install Memlink agent skill (workspace)'));
   console.log(kv('  bug', 'Report issue'));
   console.log();
-  console.log(dimLine('See Memlink --help for more'));
+  console.log(dimLine('See memlink --help for more'));
   console.log();
 });
 
@@ -195,34 +300,181 @@ function kv(key: string, value: string): string {
   return `  ${colors.dim(key)}${value ? `  ${colors.white(value)}` : ''}`;
 }
 
-// ─── memlink serve (s) ────────────────────────────────────────────────────────
+// ─── Daemon helpers ────────────────────────────────────────────────────────────
 
-program
-  .command('serve')
+function daemonPidPath(): string {
+  return path.join(getMemlinkDir(), 'serve.pid');
+}
+
+function writePid(pid: number): void {
+  fs.writeFileSync(daemonPidPath(), String(pid), 'utf-8');
+}
+
+function readPid(): number | null {
+  try {
+    const data = fs.readFileSync(daemonPidPath(), 'utf-8').trim();
+    const pid = parseInt(data, 10);
+    return isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ─── memlink serve ────────────────────────────────────────────────────────
+
+const serveCmd = program.command('serve');
+
+serveCmd
   .description('Start the Memlink MCP server')
   .option('--port <port>', 'Port to listen on', String(DEFAULT_PORT))
   .option('--host <host>', 'Host to bind to', DEFAULT_HOST)
   .option('--cors <origins>', 'CORS allowed origins (comma-separated or *)')
   .option('--read-only', 'Disable write operations')
+  .option('--log-level <level>', 'Log level: none, basic, verbose')
+  .option('--daemon', 'Run server in background as a daemon')
   .action(async (opts) => {
     const config = loadConfig();
     const port = parseInt(opts.port);
     const host = opts.host;
 
-    if (config.universalMemories.length > 0) {
-      for (const mem of config.universalMemories) {
-        console.log(info('MCP', mcpUrl(host, port, mem.memoryId)));
-      }
-    } else {
-      console.log(info('no memories', 'Create one with: Memlink init <name>'));
+    // Internal: child of daemon spawn — write PID and start server
+    if (process.env.MEMLINK_DAEMON_CHILD) {
+      writePid(process.pid);
+      await startServer(port, host, {
+        cors: opts.cors,
+        readOnly: opts.readOnly,
+        logLevel: opts.logLevel,
+      });
+      return;
     }
 
-    if (opts.cors) console.log(info('CORS', opts.cors));
-    if (opts.readOnly) console.log(info('mode', 'read-only'));
+    // Daemon mode: spawn detached child process
+    if (opts.daemon) {
+      const existingPid = readPid();
+      if (existingPid && isProcessRunning(existingPid)) {
+        console.log(err(`Server already running (PID ${existingPid})`));
+        console.log(dimLine('Stop: memlink stop'));
+        process.exit(1);
+      }
 
-    console.log(colors.dim('  ^c stop\n'));
+      const childArgs = ['serve', '--port', String(port), '--host', host];
+      if (opts.cors) childArgs.push('--cors', opts.cors);
+      if (opts.readOnly) childArgs.push('--read-only');
+      if (opts.logLevel) childArgs.push('--log-level', opts.logLevel);
 
-    await startServer(port, host, { cors: opts.cors, readOnly: opts.readOnly });
+      // Use the same binary (node/bun) with the same script
+      const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
+        stdio: 'ignore',
+        detached: true,
+        env: { ...process.env, MEMLINK_DAEMON_CHILD: '1' },
+      });
+
+      child.unref();
+
+      // Wait briefly to check if child started
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+
+      if (child.exitCode !== null && child.exitCode !== 0) {
+        console.log(err('Failed to start server'));
+        process.exit(1);
+      }
+
+      writePid(child.pid);
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Server started (PID ${child.pid})`));
+      console.log(info('URL', `http://${host}:${port}/mcp`));
+      console.log();
+      console.log(dimLine('Stop: memlink stop'));
+      console.log(dimLine('Status: memlink status'));
+      console.log();
+      return;
+    }
+
+    // Foreground mode: start server directly
+    await startServer(port, host, {
+      cors: opts.cors,
+      readOnly: opts.readOnly,
+      logLevel: opts.logLevel,
+    });
+  });
+
+// ─── memlink stop ─────────────────────────────────────────────────────────
+
+program
+  .command('stop')
+  .description('Stop the Memlink daemon server')
+  .action(async () => {
+    const pid = readPid();
+    if (!pid) {
+      console.log(logoSmall());
+      console.log();
+      console.log(info('not running', 'No server PID file found.'));
+      console.log();
+      return;
+    }
+
+    if (!isProcessRunning(pid)) {
+      console.log(logoSmall());
+      console.log();
+      console.log(info('not running', `Server PID ${pid} is not active.`));
+      try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+      console.log();
+      return;
+    }
+
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      try { process.kill(pid, 'SIGINT'); } catch { /* ignore */ }
+    }
+
+    // Wait for process to exit (poll up to 3s)
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      if (!isProcessRunning(pid)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    try { fs.unlinkSync(daemonPidPath()); } catch { /* ignore */ }
+
+    console.log(logoSmall());
+    console.log();
+    console.log(okBadge(`Server stopped (PID ${pid})`));
+    console.log();
+  });
+
+// ─── memlink status ───────────────────────────────────────────────────────
+
+program
+  .command('status')
+  .description('Check if the Memlink daemon server is running')
+  .action(() => {
+    const pid = readPid();
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+
+    if (pid && isProcessRunning(pid)) {
+      console.log(okBadge(`Server is running (PID ${pid})`));
+      const config = loadConfig();
+      const host = envHost() || config.serverHost || DEFAULT_HOST;
+      const port = envPort() || config.serverPort || DEFAULT_PORT;
+      console.log(info('URL', `http://${host}:${port}/mcp`));
+      console.log(count('memories', config.universalMemories.length));
+    } else {
+      console.log(info('not running', 'No server running.'));
+      console.log(dimLine('Start: memlink serve'));
+    }
+    console.log();
   });
 
 // ─── memlink init <name> (i) / create <name> (c) ─────────────────────────
@@ -249,7 +501,7 @@ function initAction(name: string, opts: { serve?: boolean; port?: string }) {
   }
 
   console.log();
-  console.log(dimLine('Connect: Memlink connect ' + memory.memoryId));
+  console.log(dimLine('Connect: memlink connect ' + memory.memoryId));
   console.log();
 
   if (opts.serve) {
@@ -288,7 +540,7 @@ program
 
     if (!memory) {
       console.error(err(`Memory not found: ${memoryId}`));
-      console.log(dimLine('List memories: Memlink ls'));
+      console.log(dimLine('List memories: memlink ls'));
       process.exit(1);
     }
 
@@ -315,8 +567,7 @@ program
 
     if (!memory) {
       console.error(err(`Memory not found: ${memoryId}`));
-      console.log(dimLine('List memories: Memlink ls'));
-      process.exit(1);
+      console.log(dimLine('List memories: memlink ls'));
     }
 
     const host = envHost() || config.serverHost || DEFAULT_HOST;
@@ -335,7 +586,7 @@ program
       console.log(okBadge('URL copied to clipboard'));
     }
     console.log();
-    console.log(dimLine('Start server: Memlink serve'));
+    console.log(dimLine('Start server: memlink serve'));
   });
 
 // ─── memlink ls (list) ─────────────────────────────────────────────────────
@@ -350,7 +601,7 @@ program
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
       console.log(info('no memories', 'No memories found.'));
-      console.log(dimLine('Create one: Memlink init <name>'));
+      console.log(dimLine('Create one: memlink init <name>'));
       return;
     }
 
@@ -383,7 +634,7 @@ program
 
     if (!memory) {
       console.error(err(`Memory not found: ${memoryId}`));
-      console.log(dimLine('List memories: Memlink ls'));
+      console.log(dimLine('List memories: memlink ls'));
       process.exit(1);
     }
 

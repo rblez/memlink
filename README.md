@@ -13,8 +13,6 @@
 
 Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
 
-No tokens. No headers. No OAuth. Just the URL.
-
 ## Installation
 
 [![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)](#npm)
@@ -73,7 +71,9 @@ memlink serve                        # Start MCP server
 | `memlink delete <id>` | Permanently delete a memory and its data |
 | `memlink ls` | List all memories (name, ID, size) |
 | `memlink show <id>` | Show full memory as consolidated Markdown |
-| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only` |
+| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only`, `--daemon`, `--log-level` |
+| `memlink stop` | Stop the daemon server |
+| `memlink status` | Check daemon server status |
 | `memlink connect <id>` | Get MCP connection details |
 | `memlink skill` | Install agent skill. `--global` or `-g` for all projects |
 | `memlink bug` | Open GitHub issue with pre-filled template |
@@ -87,7 +87,7 @@ Full documentation in [/docs](/docs):
 | [Installation](/docs/installation.md) | npm, pnpm, yarn, bun, from source |
 | [Quick Start](/docs/quickstart.md) | Get running in 2 minutes |
 | [CLI Reference](/docs/cli.md) | All commands and flags |
-| [MCP Server](/docs/server.md) | Server configuration |
+| [MCP Server](/docs/server.md) | Server configuration, auth, transports |
 | [MCP Tools](/docs/mcp-tools.md) | All MCP tool details |
 | [Agent Setup](/docs/agent-setup.md) | Connect Claude, Cursor, Windsurf, etc. |
 | [Skill](/docs/skill.md) | Agent skill installation |
@@ -98,9 +98,8 @@ Full documentation in [/docs](/docs):
 
 | Flag | Description |
 |------|-------------|
-| `--version` | Show version |
-| `-h, --help` | Show help |
-| `--json` | Scriptable JSON output (all commands) |
+| `-v, --version` | Show version with runtime info |
+| `-h, --help` | Show help with examples and env vars |
 
 ## Environment Variables
 
@@ -191,7 +190,7 @@ tests/
 bun test → bun run build → bun run format:check → bun run lint
 ```
 
-Releases trigger on `v*` tags → publishes to npm.
+Releases trigger on `v*` tags via PRs to `main` from `beta`. Publish manually: `npm publish --access public`.
 
 ## License
 
