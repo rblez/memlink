@@ -338,62 +338,6 @@ program
     console.log(dimLine('Start server: Memlink serve'));
   });
 
-// ─── memlink wsl-connect <memoryId> ───────────────────────────────────────
-
-function getWslGatewayIp(): string | null {
-  try {
-    if (process.platform === 'win32') {
-      const out = execSync('wsl -- ip route show default', { encoding: 'utf-8' });
-      const m = out.match(/default via (\S+)/);
-      return m ? m[1] : null;
-    }
-    const isWsl =
-      process.platform === 'linux' &&
-      fs.readFileSync('/proc/version', 'utf-8').toLowerCase().includes('microsoft');
-    if (isWsl) {
-      const out = execSync('ip route show default', { encoding: 'utf-8' });
-      const m = out.match(/default via (\S+)/);
-      return m ? m[1] : null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-program
-  .command('wsl-connect <memoryId>')
-  .description('Get MCP URL for agents in WSL (OpenCode, Devin)')
-  .action((memoryId: string) => {
-    const config = loadConfig();
-    const memory = config.universalMemories.find((m) => m.memoryId === memoryId);
-    if (!memory) {
-      console.error(err(`Memory not found: ${memoryId}`));
-      console.log(dimLine('List memories: Memlink ls'));
-      process.exit(1);
-    }
-
-    const gwIp = getWslGatewayIp();
-    if (!gwIp) {
-      console.error(err('Could not detect WSL gateway IP.'));
-      console.log(dimLine('This command only works on Windows with WSL installed.'));
-      process.exit(1);
-    }
-
-    const port = envPort() || config.serverPort || DEFAULT_PORT;
-    const url = `http://${gwIp}:${port}/mcp?id=${memory.memoryId}`;
-
-    const small = logoSmall();
-    if (small) console.log('\n' + small + '\n');
-    console.log(info('Name', memory.memoryName));
-    console.log(info('ID', memory.memoryId));
-    console.log(info('MCP', url));
-    console.log();
-    console.log(dimLine('Use this URL in your WSL agent with type "http".'));
-    console.log(dimLine('See docs/agent-setup.md for config examples.'));
-    console.log();
-  });
-
 // ─── memlink ls (list) ─────────────────────────────────────────────────────
 
 program
