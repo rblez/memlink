@@ -11,7 +11,11 @@ Agent → MCP Server → Core → ~/.memlink/*.memory.json
 
 ```
 ~/.memlink/
-├── config.json              # Global config (memories, port, host)
+├── config.json              # Global config (memories, port, host, exportFormats)
+├── formats/                 # Exported formats (md, txt, html, json)
+│   └── my-memory.md
+├── backups/                 # Auto-backups before every mutation
+│   └── abc123_2025-01-01.json
 └── abc123def456.memory.json # Memory file (JSON)
 
 ~/.agents/
@@ -24,20 +28,23 @@ Agent → MCP Server → Core → ~/.memlink/*.memory.json
 
 ```json
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "baseDir": "/home/user/.memlink",
   "universalMemories": [
     {
       "memoryId": "abc123def456",
       "memoryName": "my-project",
-      "memoryFile": "/home/user/.memlink/abc123def456.memory.json",
+      "memoryFile": "abc123def456.memory.json",
       "createdAt": "2025-01-01T00:00:00.000Z"
     }
   ],
   "serverPort": 4444,
-  "serverHost": "localhost"
+  "serverHost": "localhost",
+  "exportFormats": ["md", "txt", "html"]
 }
 ```
+
+The `exportFormats` array controls which formats are written to `~/.memlink/formats/` on every mutation or explicit export. Supported values: `md`, `txt`, `html`, `json`.
 
 ## Memory file format
 
@@ -45,7 +52,7 @@ Each memory is a JSON file at `~/.memlink/<id>.memory.json`:
 
 ```json
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "memoryId": "abc123def456",
   "memoryName": "my-project",
   "createdAt": "2025-01-01T00:00:00.000Z",
@@ -71,7 +78,7 @@ Memlink uses **Streamable HTTP** transport from the Model Context Protocol SDK. 
 - Standard HTTP methods (POST for tools, GET for health)
 - JSON-RPC 2.0 message format
 
-Legacy SSE transport is also available for agents that don't support Streamable HTTP.
+Legacy SSE and Stdio transports are also available for agents that don't support Streamable HTTP.
 
 ## Authentication
 
@@ -90,3 +97,7 @@ All file writes follow an atomic pattern to prevent corruption:
 ## Auto-backups
 
 Memlink automatically creates a backup before every mutation (create, update, delete). The last 3 backups are retained. Backups are stored in `~/.memlink/backups/`.
+
+## Auto-export
+
+Every mutation (create, update, delete via CLI or MCP) automatically exports the memory to configured formats in `~/.memlink/formats/`. To trigger export manually: `memlink export <name>`.

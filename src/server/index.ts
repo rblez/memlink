@@ -3,7 +3,10 @@ import rateLimit from 'express-rate-limit';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import {
   readMemory,
   readMemoryEntry,
@@ -22,6 +25,8 @@ import {
   getMemoryById,
   updateUniversalMemoryLastSeen,
   getStats,
+  exportMemoryFormats,
+  getMemlinkDir,
 } from '../core/memory.ts';
 import { loadConfig } from '../core/memory.ts';
 import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
@@ -117,7 +122,7 @@ Delete with memory_delete when the user wants to forget something.`;
 function buildMcpServer(memoryId: string, memoryName: string): McpServer {
   const server = new McpServer({
     name: 'memlink',
-    version: '1.0.0',
+    version: MEMLINK_VERSION,
   });
 
   server.resource('memlink://instructions', 'memlink://instructions', async () => ({
@@ -640,7 +645,7 @@ export function createApp(): express.Express {
     const config = loadConfig();
     res.json({
       status: 'ok',
-      version: '1.0.0',
+    version: MEMLINK_VERSION,
       memories: config.universalMemories.length,
       uptime: process.uptime(),
     });
@@ -764,12 +769,55 @@ export function createApp(): express.Express {
   return app;
 }
 
+// ─── Stdio server ────────────────────────────────────────────────────────────
+
+export async function startStdioServer(memoryId: string): Promise<void> {
+  const memoryInfo = getMemoryById(memoryId);
+  if (!memoryInfo) {
+    console.error(`Memory not found: ${memoryId}`);
+    process.exit(1);
+  }
+
+  logLevel = 'none'; // stdio must not write to stdout
+  const mcpServer = buildMcpServer(memoryInfo.memoryId, memoryInfo.memoryName);
+  const transport = new StdioServerTransport();
+
+  await mcpServer.connect(transport);
+  // Process will stay alive until stdin closes
+}
+
 // ─── Start server ─────────────────────────────────────────────────────────────
+
+async function watchMemlinkDir(): Promise<fs.FSWatcher> {
+  const dir = getMemlinkDir();
+  const memDir = path.dirname(dir);
+  const base = path.basename(dir);
+  const watcher = fs.watch(memDir, (eventType, filename) => {
+    if (!filename) return;
+    const fullPath = path.join(memDir, filename);
+    if (!fullPath.startsWith(dir)) return;
+    if (!filename.endsWith('.memory.json')) return;
+    if (eventType !== 'change') return;
+    const memoryId = filename.replace('.memory.json', '');
+    try {
+      exportMemoryFormats(memoryId);
+      if (logLevel === 'verbose') {
+        console.log(`  [watch] re-exported: ${memoryId}`);
+      }
+    } catch {
+      // ignore
+    }
+  });
+  if (logLevel !== 'none') {
+    console.log(`  Watching  ${dir}/*.memory.json`);
+  }
+  return watcher;
+}
 
 export async function startServer(
   port?: number,
   host?: string,
-  options?: { cors?: string; readOnly?: boolean; logLevel?: 'none' | 'basic' | 'verbose' }
+  options?: { cors?: string; readOnly?: boolean; logLevel?: 'none' | 'basic' | 'verbose'; watch?: boolean }
 ): Promise<void> {
   const config = loadConfig();
 
@@ -821,15 +869,24 @@ export async function startServer(
       }
       if (readOnly) console.log(`  Mode: read-only`);
       if (logLevel === 'verbose') console.log(`  Log level: verbose`);
+      if (options?.watch) {
+        watchMemlinkDir().then((watcher) => {
+          watchers.push(watcher);
+        });
+      }
       console.log(`  ${'─'.repeat(48)}`);
       console.log(`  ^C to stop\n`);
     });
 
+    const watchers: fs.FSWatcher[] = [];
     let shuttingDown = false;
 
     function shutdown() {
       if (shuttingDown) return;
       shuttingDown = true;
+      for (const w of watchers) {
+        try { w.close(); } catch { /* ignore */ }
+      }
 
       logLevel = 'none';
 

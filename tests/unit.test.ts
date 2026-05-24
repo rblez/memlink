@@ -1,13 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import {
   createUniversalMemory,
+  validateMemoryName,
   upsertMemoryEntry,
   readMemory,
   searchMemory,
   deleteMemoryEntry,
+  revokeUniversalMemory,
+  exportMemoryFormats,
+  renderMemoryAsMarkdown,
+  renderMemoryAsText,
+  renderMemoryAsHtml,
+  getFormatsDir,
+  loadConfig,
+  createBackup,
+  saveBackup,
+  restoreBackup,
+  listBackups,
+  deleteBackup,
+  cleanupOldBackups,
+  bulkDeleteMemories,
+  bulkDeleteMemoriesByTags,
+  bulkDeleteMemoriesByPattern,
+  importFromFile,
   getMemoryPath,
 } from '../src/core/memory.ts';
-import { unlinkSync, existsSync, mkdirSync } from 'fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -54,10 +72,7 @@ describe('Unit Tests - Core Functions', () => {
 
     afterEach(() => {
       try {
-        const memoryPath = getMemoryPath(memoryId);
-        if (existsSync(memoryPath)) {
-          unlinkSync(memoryPath);
-        }
+        revokeUniversalMemory(memoryId);
       } catch {
         // Ignore cleanup errors
       }
@@ -141,10 +156,7 @@ describe('Unit Tests - Core Functions', () => {
 
     afterEach(() => {
       try {
-        const memoryPath = getMemoryPath(memoryId);
-        if (existsSync(memoryPath)) {
-          unlinkSync(memoryPath);
-        }
+        revokeUniversalMemory(memoryId);
       } catch {
         // Ignore cleanup errors
       }
@@ -182,6 +194,314 @@ describe('Unit Tests - Core Functions', () => {
       upsertMemoryEntry(memoryId, 'Test', 'Content');
       const results = searchMemory(memoryId, 'nonexistent');
       expect(results).toHaveLength(0);
+    });
+  });
+
+  describe('validateMemoryName', () => {
+    it('should reject names with invalid characters', () => {
+      const config = loadConfig();
+      expect(() => validateMemoryName('test@name', config)).toThrow();
+      expect(() => validateMemoryName('name with spaces', config)).toThrow();
+      expect(() => validateMemoryName('name!', config)).toThrow();
+    });
+
+    it('should accept valid names', () => {
+      const config = loadConfig();
+      const result = validateMemoryName('my-memory', config);
+      expect(result).toBe('my-memory');
+    });
+
+    it('should accept dots, dashes and underscores', () => {
+      const config = loadConfig();
+      const result = validateMemoryName('my.memory-v1_alpha', config);
+      expect(result).toBe('my.memory-v1_alpha');
+    });
+
+    it('should reject duplicate names case-insensitively', () => {
+      const config = loadConfig();
+      createUniversalMemory('UniqueName');
+      expect(() => validateMemoryName('uniquename', loadConfig())).toThrow();
+      expect(() => validateMemoryName('UNIQUENAME', loadConfig())).toThrow();
+    });
+  });
+
+  describe('exportMemoryFormats', () => {
+    let memoryId: string;
+    let memoryName: string;
+
+    beforeEach(() => {
+      memoryName = `export-test-${nanoid(8)}`;
+      const memory = createUniversalMemory(memoryName);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'Entry1', 'Content 1', ['tag1']);
+    });
+
+    afterEach(() => {
+      try {
+        revokeUniversalMemory(memoryId);
+      } catch { /* ignore */ }
+    });
+
+    it('should export md file', () => {
+      const written = exportMemoryFormats(memoryId);
+      const mdFile = written.find((f) => f.endsWith('.md'));
+      expect(mdFile).toBeDefined();
+      const content = readFileSync(mdFile!, 'utf-8');
+      expect(content).toContain('Entry1');
+      expect(content).toContain('Content 1');
+    });
+
+    it('should export txt file', () => {
+      const written = exportMemoryFormats(memoryId);
+      const txtFile = written.find((f) => f.endsWith('.txt'));
+      expect(txtFile).toBeDefined();
+      const content = readFileSync(txtFile!, 'utf-8');
+      expect(content).toContain('Entry1');
+    });
+
+    it('should export html file', () => {
+      const written = exportMemoryFormats(memoryId);
+      const htmlFile = written.find((f) => f.endsWith('.html'));
+      expect(htmlFile).toBeDefined();
+      const content = readFileSync(htmlFile!, 'utf-8');
+      expect(content).toContain('<!DOCTYPE html>');
+      expect(content).toContain('Entry1');
+    });
+
+    it('should write files inside formats directory', () => {
+      const written = exportMemoryFormats(memoryId);
+      const formatsDir = getFormatsDir();
+      for (const f of written) {
+        expect(f.startsWith(formatsDir)).toBe(true);
+      }
+    });
+  });
+
+  describe('renderMemoryAsMarkdown', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`render-md-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'TestTitle', 'Test content body', ['tag-a']);
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('should produce markdown with title and content', () => {
+      const md = renderMemoryAsMarkdown(memoryId);
+      expect(md).toContain('## Index');
+      expect(md).toContain('**TestTitle**');
+      expect(md).toContain('Test content body');
+    });
+  });
+
+  describe('renderMemoryAsText', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`render-txt-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'TestTitle', 'Test content body', ['tag-a']);
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('should produce plain text with title and content', () => {
+      const txt = renderMemoryAsText(memoryId);
+      expect(txt).toContain('[1] TestTitle');
+      expect(txt).toContain('Test content body');
+    });
+  });
+
+  describe('renderMemoryAsHtml', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`render-html-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'TestTitle', 'Test content body', ['tag-a']);
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('should produce valid HTML with title and content', () => {
+      const html = renderMemoryAsHtml(memoryId);
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('TestTitle');
+      expect(html).toContain('Test content body');
+    });
+  });
+
+  describe('search by tags', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`search-tags-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'React', 'React components', ['frontend', 'ui']);
+      upsertMemoryEntry(memoryId, 'Config', 'Server config', ['backend']);
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('should find entries by tag', () => {
+      const results = searchMemory(memoryId, 'frontend');
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('React');
+    });
+
+    it('should find entries by partial tag match', () => {
+      const results = searchMemory(memoryId, 'back');
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Config');
+    });
+
+    it('should return empty for non-matching tag', () => {
+      const results = searchMemory(memoryId, 'nonexistent');
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  describe('Backup functions', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`backup-test-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'Entry1', 'Content 1');
+      upsertMemoryEntry(memoryId, 'Entry2', 'Content 2');
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('createBackup should return backup with entries', () => {
+      const backup = createBackup(memoryId);
+      expect(backup.metadata.entryCount).toBe(2);
+      expect(backup.entries).toHaveLength(2);
+    });
+
+    it('saveBackup should write a backup file', () => {
+      const filepath = saveBackup(memoryId);
+      expect(existsSync(filepath)).toBe(true);
+      const content = JSON.parse(readFileSync(filepath, 'utf-8'));
+      expect(content.metadata.entryCount).toBe(2);
+    });
+
+    it('listBackups should return saved backups', () => {
+      saveBackup(memoryId);
+      const backups = listBackups(memoryId);
+      expect(backups.length).toBeGreaterThanOrEqual(1);
+      expect(backups[0].memoryId).toBe(memoryId);
+    });
+
+    it('restoreBackup should restore entries', () => {
+      const backupPath = path.join(TEST_DIR, `manual-restore-test-${nanoid(6)}.json`);
+      const backup = createBackup(memoryId);
+      writeFileSync(backupPath, JSON.stringify(backup));
+      deleteMemoryEntry(memoryId, 'Entry1');
+      expect(readMemory(memoryId)).toHaveLength(1);
+      restoreBackup(backupPath, memoryId, true);
+      expect(readMemory(memoryId)).toHaveLength(2);
+    });
+
+    it('deleteBackup should remove backup file', () => {
+      const filepath = saveBackup(memoryId);
+      expect(existsSync(filepath)).toBe(true);
+      const deleted = deleteBackup(filepath);
+      expect(deleted).toBe(true);
+      expect(existsSync(filepath)).toBe(false);
+    });
+
+    it('cleanupOldBackups should delete old backups', () => {
+      const before = listBackups(memoryId).length;
+      expect(before).toBeGreaterThan(0);
+      const result = cleanupOldBackups(memoryId, 1);
+      expect(result.kept).toBe(1);
+      expect(listBackups(memoryId).length).toBe(1);
+      cleanupOldBackups(memoryId, 0);
+    });
+  });
+
+  describe('Bulk delete', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`bulk-test-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+      upsertMemoryEntry(memoryId, 'Alpha', 'First entry', ['a']);
+      upsertMemoryEntry(memoryId, 'Beta', 'Second entry', ['b']);
+      upsertMemoryEntry(memoryId, 'Gamma', 'Third entry', ['c']);
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('bulkDeleteMemories should delete by titles', () => {
+      const result = bulkDeleteMemories(memoryId, ['Alpha', 'Gamma']);
+      expect(result.deleted).toBe(2);
+      const entries = readMemory(memoryId);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].title).toBe('Beta');
+    });
+
+    it('bulkDeleteMemoriesByTags should delete by tags', () => {
+      const result = bulkDeleteMemoriesByTags(memoryId, ['a', 'c']);
+      expect(result.deleted).toBe(2);
+      const entries = readMemory(memoryId);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].title).toBe('Beta');
+    });
+
+    it('bulkDeleteMemoriesByPattern should delete by content pattern', () => {
+      const result = bulkDeleteMemoriesByPattern(memoryId, 'Second');
+      expect(result.deleted).toBe(1);
+      const entries = readMemory(memoryId);
+      expect(entries).toHaveLength(2);
+    });
+  });
+
+  describe('importFromFile', () => {
+    let memoryId: string;
+
+    beforeEach(() => {
+      const memory = createUniversalMemory(`import-test-${nanoid(8)}`);
+      memoryId = memory.memoryId;
+    });
+
+    afterEach(() => {
+      try { revokeUniversalMemory(memoryId); } catch { /* ignore */ }
+    });
+
+    it('should import entries from JSON array file', () => {
+      const filePath = path.join(TEST_DIR, 'import.json');
+      const entries = [
+        { title: 'Imported1', content: 'Content 1', tags: ['test'] },
+        { title: 'Imported2', content: 'Content 2' },
+      ];
+      writeFileSync(filePath, JSON.stringify(entries));
+
+      const result = importFromFile(memoryId, filePath);
+      expect(result.imported).toBe(2);
+      expect(result.skipped).toBe(0);
+
+      const memory = readMemory(memoryId);
+      expect(memory).toHaveLength(2);
+    });
+
+    it('should reject non-existent file', () => {
+      expect(() => importFromFile(memoryId, '/nonexistent/file.json')).toThrow();
     });
   });
 });
