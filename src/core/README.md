@@ -40,8 +40,7 @@ Memory operations and configuration management. The heart of memlink's data laye
 
 | Function | Description |
 |----------|-------------|
-| `createBackup(memoryId)` | Create timestamped backup |
-| `saveBackup(memoryId)` | Write backup to disk (atomic write) |
+| `saveBackup(memoryId)` | Create timestamped backup (atomic write) |
 | `listBackups(memoryId)` | List all backups |
 | `restoreBackup(memoryId, backupFile)` | Restore from backup |
 | `deleteBackup(memoryId, backupFile)` | Delete a backup |
@@ -94,6 +93,8 @@ interface MemlinkConfig {
   universalMemories: UniversalMemory[];
   serverPort: number;
   serverHost: string;
+  cors?: string;
+  readOnly?: boolean;
 }
 ```
 
@@ -101,7 +102,7 @@ interface MemlinkConfig {
 
 | Constant | Value |
 |----------|-------|
-| `MEMLINK_VERSION` | `"0.5.1"` |
+| `MEMLINK_VERSION` | `"1.0.8"` |
 | `DEFAULT_PORT` | `4444` |
 | `DEFAULT_HOST` | `"localhost"` |
 | `CONFIG_DIR` | `".memlink"` |
@@ -113,14 +114,15 @@ interface MemlinkConfig {
 ~/.memlink/
 ├── config.json              # Global config
 ├── backups/                 # Auto-backups (keeps last 3)
-└── vaJBhSjFY0Zn.memory.json # Universal memory (JSON)
+└── abc123def456.memory.json # Universal memory (JSON)
 ```
 
-Memory files are JSON (not markdown), with entries stored as an array:
+Memory files are JSON with entries stored as an array:
 
 ```json
 {
-  "version": "0.5.1",
+  "version": "1.0.8",
+  "memoryId": "abc123def456",
   "memoryName": "my-project",
   "createdAt": "2024-01-15T10:00:00.000Z",
   "entries": [

@@ -21,52 +21,48 @@ import {
   cleanupOldBackups,
   getMemoryById,
   updateUniversalMemoryLastSeen,
+  getStats,
 } from '../core/memory.ts';
 import { loadConfig } from '../core/memory.ts';
-import { DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
+import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
 
-let loggingEnabled = false;
+let logLevel: 'none' | 'basic' | 'verbose' = 'basic';
 let corsOrigins: string | null = null;
 let readOnly = false;
 
-function logRequest(
-  _req: Request,
-  memoryName: string,
-  method?: string,
-  _params?: Record<string, unknown>
-) {
-  if (!loggingEnabled) return;
+function timestamp(): string {
+  return new Date().toISOString().split('T')[1].split('.')[0];
+}
 
-  const timestamp = new Date().toISOString();
-  console.log(`  [${timestamp}] [ req ] ${memoryName}`);
-  if (method) {
-    const startTime = Date.now();
-    console.log(`  [ req ] ${method} · 200 · ${Date.now() - startTime}ms`);
+function log(
+  level: 'basic' | 'verbose',
+  prefix: string,
+  msg: string,
+  detail?: string
+) {
+  if (logLevel === 'none') return;
+  if (level === 'verbose' && logLevel !== 'verbose') return;
+  const line = `  ${prefix} ${msg}`;
+  if (detail && logLevel === 'verbose') {
+    console.log(`${line}  ${detail}`);
+  } else {
+    console.log(line);
   }
 }
 
-function logResponse(result: unknown, method?: string) {
-  if (!loggingEnabled) return;
+function logRequestStart(memoryName: string, method: string) {
+  log('basic', `[${timestamp()}]`, `${memoryName}  ${method}`);
+}
 
-  console.log(`  [ res ] ${method || 'Success'}`);
-  if (
-    result &&
-    typeof result === 'object' &&
-    'content' in result &&
-    Array.isArray(result.content)
-  ) {
-    const content = result.content[0];
-    if (
-      content &&
-      typeof content === 'object' &&
-      'text' in content &&
-      typeof content.text === 'string'
-    ) {
-      console.log(`  [ res ] ${content.text.substring(0, 80)}...`);
-    }
-  }
+function logRequestEnd(method: string, durationMs: number) {
+  log(
+    'verbose',
+    `[${timestamp()}]`,
+    `${' '.repeat(20)}  ${method}`,
+    `${durationMs}ms`
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -740,9 +736,9 @@ export function createApp(): express.Express {
 
     updateUniversalMemoryLastSeen(memoryId);
 
-    if (req.body && req.body.method) {
-      logRequest(req, memoryName, req.body.method, req.body.params);
-    }
+    const method = req.body?.method as string | undefined;
+    const startTime = Date.now();
+    if (method) logRequestStart(memoryName, method);
 
     try {
       const mcpServer = buildMcpServer(memoryId, memoryName);
@@ -750,20 +746,8 @@ export function createApp(): express.Express {
         sessionIdGenerator: undefined,
       });
 
-      const originalSend = res.send;
-      res.send = function (data: string | Buffer) {
-        if (loggingEnabled && data) {
-          try {
-            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-            logResponse(parsed, req.body?.method);
-          } catch {
-            /* ignore */
-          }
-        }
-        return originalSend.call(this, data);
-      };
-
       res.on('close', () => {
+        if (method) logRequestEnd(method, Date.now() - startTime);
         transport.close();
         mcpServer.close();
       });
@@ -785,7 +769,7 @@ export function createApp(): express.Express {
 export async function startServer(
   port?: number,
   host?: string,
-  options?: { cors?: string; readOnly?: boolean }
+  options?: { cors?: string; readOnly?: boolean; logLevel?: 'none' | 'basic' | 'verbose' }
 ): Promise<void> {
   const config = loadConfig();
 
@@ -802,13 +786,43 @@ export async function startServer(
 
   corsOrigins = options?.cors || config.cors || null;
   readOnly = options?.readOnly ?? config.readOnly ?? false;
-  loggingEnabled = true;
+  logLevel = options?.logLevel || (process.stdout.isTTY ? 'basic' : 'none');
 
   const app = createApp();
 
+  // Build memory list for startup output
+  const memories = config.universalMemories.map((m) => {
+    try {
+      const s = getStats(m.memoryId);
+      return { ...m, entries: s.entries, size: (s.size / 1024).toFixed(1) };
+    } catch {
+      return { ...m, entries: 0, size: '0.0' };
+    }
+  });
+
   return new Promise<void>((resolve) => {
     const server = app.listen(p, h, () => {
-      console.log(`  → http://${h}:${p}/mcp\n`);
+      console.log('');
+      console.log(`  Memlink  ${MEMLINK_VERSION}`);
+      console.log(`  ${'─'.repeat(48)}`);
+      console.log(`  Server   http://${h}:${p}`);
+      if (memories.length > 0) {
+        console.log('');
+        for (const m of memories) {
+          const url = `http://${h}:${p}/mcp?id=${m.memoryId}`;
+          console.log(`  ${m.memoryName}`);
+          console.log(`    MCP:     ${url}`);
+          console.log(`    Entries: ${m.entries}  ·  Size: ${m.size} KB`);
+          console.log('');
+        }
+      } else {
+        console.log(`  No memories. Create one: memlink init <name>`);
+        console.log('');
+      }
+      if (readOnly) console.log(`  Mode: read-only`);
+      if (logLevel === 'verbose') console.log(`  Log level: verbose`);
+      console.log(`  ${'─'.repeat(48)}`);
+      console.log(`  ^C to stop\n`);
     });
 
     let shuttingDown = false;
@@ -817,7 +831,7 @@ export async function startServer(
       if (shuttingDown) return;
       shuttingDown = true;
 
-      loggingEnabled = false;
+      logLevel = 'none';
 
       // Close SSE sessions
       const sessions = [...sseSessions.entries()];
@@ -826,6 +840,7 @@ export async function startServer(
       }
 
       server.close(() => {
+        console.log('\n  Server stopped.\n');
         resolve();
       });
 

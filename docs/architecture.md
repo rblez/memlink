@@ -24,7 +24,7 @@ Agent → MCP Server → Core → ~/.memlink/*.memory.json
 
 ```json
 {
-  "version": "0.5",
+  "version": "1.0.8",
   "baseDir": "/home/user/.memlink",
   "universalMemories": [
     {
@@ -45,7 +45,7 @@ Each memory is a JSON file at `~/.memlink/<id>.memory.json`:
 
 ```json
 {
-  "version": "0.5",
+  "version": "1.0.8",
   "memoryId": "abc123def456",
   "memoryName": "my-project",
   "createdAt": "2025-01-01T00:00:00.000Z",
@@ -70,6 +70,14 @@ Memlink uses **Streamable HTTP** transport from the Model Context Protocol SDK. 
 - Long-lived connections for streaming responses
 - Standard HTTP methods (POST for tools, GET for health)
 - JSON-RPC 2.0 message format
+
+Legacy SSE transport is also available for agents that don't support Streamable HTTP.
+
+## Authentication
+
+```
+http://localhost:4444/mcp?id=abc123def456
+```
 
 ## Atomic writes
 

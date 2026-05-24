@@ -25,7 +25,7 @@ The `memlink wsl-connect` command has been removed because the cross-environment
 
 ### Where is data stored?
 
-`~/.memlink/` — each memory is a `<memoryId>.memory.md` file in book format.
+`~/.memlink/` — each memory is a `<memoryId>.memory.json` file with entries stored as a JSON array.
 
 ### How do I update memlink?
 

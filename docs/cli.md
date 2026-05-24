@@ -4,9 +4,8 @@
 
 | Flag | Description |
 |------|-------------|
-| `--version` | Show version |
-| `-h, --help` | Show help |
-| `--json` | Scriptable JSON output (all commands) |
+| `-v, --version` | Show version with runtime info (Node, platform, config path) |
+| `-h, --help` | Show help with examples and environment variables |
 
 ## Commands
 
@@ -20,18 +19,26 @@ memlink
 
 ### `memlink serve`
 
-Start the MCP server.
+Start the MCP server. Supports Streamable HTTP and SSE transports.
 
 ```bash
 memlink serve
 memlink serve --port 4444
 memlink serve --host localhost
 memlink serve --port 8080 --host 0.0.0.0
+memlink serve --cors "*"
+memlink serve --read-only
+memlink serve --daemon                         # Run in background
+memlink serve --daemon --log-level verbose      # Daemon with verbose logging
 ```
 
 Options:
 - `--port <port>` — Port to listen on (default: 4444, env: `MEMLINK_PORT` or `PORT`)
 - `--host <host>` — Host to bind to (default: localhost, env: `MEMLINK_HOST` or `HOST`)
+- `--cors <origins>` — CORS allowed origins (comma-separated or `*`)
+- `--read-only` — Disable write operations
+- `--daemon` — Run server in background. Use `memlink stop` to stop
+- `--log-level <level>` — Log level: `none`, `basic` (default in TTY), or `verbose`
 
 ### `memlink init <name>`
 
@@ -77,7 +84,7 @@ memlink show abc123def456
 
 ### `memlink connect <id>`
 
-Display MCP connection details and JSON config for a memory.
+Display MCP connection details and URL for a memory.
 
 ```bash
 memlink connect abc123def456
@@ -91,6 +98,22 @@ Install the Memlink agent skill for OpenCode.
 memlink skill                  # Install in .agents/skills/memlink/ + tag in AGENTS.md
 memlink skill --global         # Install in ~/.agents/skills/memlink/ + tag in ~/.agents/AGENTS.md
 memlink skill -g               # Short flag for global
+```
+
+### `memlink stop`
+
+Stop the Memlink daemon server running in the background.
+
+```bash
+memlink stop
+```
+
+### `memlink status`
+
+Check if the Memlink daemon server is running.
+
+```bash
+memlink status
 ```
 
 ### `memlink bug`
