@@ -3,7 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import readline from 'readline';
-import { execSync, spawn } from 'child_process';
+import { spawn } from 'child_process';
+import open from 'open';
+import clipboardy from 'clipboardy';
 import { Command } from 'commander';
 import { table } from 'table';
 import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD } from './output.ts';
@@ -21,6 +23,7 @@ import {
   getMemlinkDir,
 } from '../core/memory.ts';
 import { startServer, startStdioServer } from '../server/index.ts';
+import { startWebServer } from '../web-server/index.ts';
 import {
   MEMLINK_VERSION,
   DEFAULT_PORT,
@@ -69,51 +72,10 @@ function navFooter(hints: string[]): string {
 
 function copyToClipboard(text: string): boolean {
   if (!isTTY) return false;
-  const tmpfile = os.tmpdir() + '/memlink-clipboard-' + Date.now() + '.txt';
   try {
-    fs.writeFileSync(tmpfile, text, 'utf-8');
-    const platform = process.platform;
-
-    if (platform === 'darwin') {
-      execSync(`cat '${tmpfile}' | pbcopy`, { stdio: 'ignore' });
-    } else if (platform === 'win32') {
-      execSync(`powershell -c "Set-Clipboard -Value (Get-Content '${tmpfile}' -Raw)"`, {
-        stdio: 'ignore',
-      });
-    } else {
-      try {
-        execSync('which termux-clipboard-set', { stdio: 'ignore' });
-        execSync(`cat '${tmpfile}' | termux-clipboard-set`, { stdio: 'ignore' });
-        fs.unlinkSync(tmpfile);
-        return true;
-      } catch {
-        for (const tool of ['wl-copy', 'xclip', 'xsel']) {
-          try {
-            execSync(`which ${tool}`, { stdio: 'ignore' });
-            if (tool === 'wl-copy') {
-              execSync(`cat '${tmpfile}' | ${tool}`, { stdio: 'ignore' });
-            } else if (tool === 'xclip') {
-              execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
-            } else {
-              execSync(`cat '${tmpfile}' | ${tool} --clipboard --input`, { stdio: 'ignore' });
-            }
-            fs.unlinkSync(tmpfile);
-            return true;
-          } catch {
-            continue;
-          }
-        }
-      }
-    }
-
-    fs.unlinkSync(tmpfile);
+    clipboardy.writeSync(text);
     return true;
   } catch {
-    try {
-      fs.unlinkSync(tmpfile);
-    } catch {
-      /* ignore */
-    }
     return false;
   }
 }
@@ -121,10 +83,8 @@ function copyToClipboard(text: string): boolean {
 // ─── Open URL helper ────────────────────────────────────────────────────────
 
 function openUrl(url: string): boolean {
-  const platform = process.platform;
-  const cmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start ""' : 'xdg-open';
   try {
-    execSync(`${cmd} "${url}"`, { stdio: 'ignore' });
+    open(url);
     return true;
   } catch {
     return false;
@@ -239,6 +199,10 @@ function helpExamples(): string {
     `    ${colors.white('status')}        Check if daemon server is running`,
     `                   ${colors.dim('memlink status')}`,
     '',
+    `    ${colors.white('web')}           Start the Web UI (React dashboard + REST API)`,
+    `                   ${colors.dim('memlink web')}`,
+    `                   ${colors.dim('memlink web --port 8888')}`,
+    '',
     `    ${colors.white('skill')}         Install Memlink agent skill`,
     `                   ${colors.dim('memlink skill')}         (workspace)`,
     `                   ${colors.dim('memlink skill --global')}  (global)`,
@@ -338,6 +302,13 @@ program.action(() => {
 
   console.log(kv('Essentials', 'serve · init · ls · show · connect · delete'));
   console.log(kv('More', 'info · export · config · stop · status · skill · bug'));
+  console.log();
+  console.log(
+    colors.primary('  ✦') +
+      colors.white('  memlink web') +
+      colors.dim('  — Web UI available now!') +
+      colors.dim('  http://localhost:8888')
+  );
   console.log();
   console.log(dimLine('Use memlink --help for full docs'));
   console.log();
@@ -494,6 +465,24 @@ serveCmd
       watch: opts.watch,
       bearerToken: opts.bearerToken,
     });
+  });
+
+// ─── memlink web ──────────────────────────────────────────────────────────
+
+program
+  .command('web')
+  .description('Start the Memlink Web UI (REST API + React dashboard)')
+  .option('--port <port>', 'Port for the web server', '8888')
+  .action(async (opts) => {
+    const port = parseInt(opts.port, 10);
+    const url = `http://localhost:${port}`;
+
+    console.log(dimLine(`Web UI: ${url}`));
+    console.log(dimLine(`API:   ${url}/api`));
+    console.log(dimLine('^C to stop'));
+    console.log();
+
+    await startWebServer(port);
   });
 
 // ─── memlink stop ─────────────────────────────────────────────────────────
@@ -1104,7 +1093,8 @@ program
 program
   .command('show <name-or-id>')
   .description('Show memory contents as consolidated Markdown')
-  .action(async (idOrName: string) => {
+  .option('-w, --web', 'Open in Web UI instead of terminal')
+  .action(async (idOrName: string, opts: { web?: boolean }) => {
     const found = findMemory(idOrName);
     if (!found) {
       console.error(err(`Memory not found: ${idOrName}`));
@@ -1113,6 +1103,28 @@ program
     }
     const memory = found.memory;
     const memoryId = memory.memoryId;
+
+    if (opts.web) {
+      const webPort = parseInt(process.env.WEB_PORT || process.env.PORT || '8888', 10);
+      const url = `http://localhost:${webPort}/${encodeURIComponent(memory.memoryId)}`;
+
+      let started = false;
+      try {
+        await startWebServer(webPort);
+        started = true;
+      } catch {
+        // Port in use — server already running
+      }
+
+      console.log(okBadge(`Opening ${memory.memoryName} in Web UI…`));
+      console.log(dimLine(url));
+      openUrl(url);
+      if (started) {
+        console.log(dimLine('^C to stop'));
+        await new Promise(() => {});
+      }
+      return;
+    }
 
     try {
       const entries = readMemory(memoryId);
