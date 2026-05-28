@@ -94,8 +94,8 @@ export function printLogo(): string {
 
   const colorStops = [
     { pos: 0, r: 0x00, g: 0xe5, b: 0xa0 },
-    { pos: 10, r: 0xff, g: 0xff, b: 0xff },
-    { pos: 20, r: 0xcc, g: 0x00, b: 0xcc },
+    { pos: 6, r: 0xff, g: 0xff, b: 0xff },
+    { pos: 11, r: 0xcc, g: 0x00, b: 0xcc },
   ];
 
   function getColorAt(pos: number): ChalkInstance {
