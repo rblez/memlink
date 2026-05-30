@@ -55,6 +55,10 @@ Show full memory contents as consolidated Markdown. No filter flags — prints t
 
 Opens GitHub issue form with pre-filled template. Prompts **Enter** before opening browser (TTY only).
 
+### `memlink changelog`
+
+Opens the changelog in your browser at `http://localhost:4444/changelogs`. Prompts **Enter** before opening browser (TTY only). Shows all versions from v0.1.0 to current.
+
 ## TTY Detection
 
 The CLI detects non-TTY environments (`process.stdout.isTTY`):
