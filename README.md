@@ -80,6 +80,7 @@ memlink serve                        # Start MCP server
 | `memlink config` | View or modify config (`get`, `set`) |
 | `memlink skill` | Install agent skill. `--global` or `-g` for all projects |
 | `memlink bug` | Open GitHub issue with pre-filled template |
+| `memlink changelog` | Open changelog in browser (`localhost:4444/changelogs`) |
 
 ## Documentation
 
@@ -184,6 +185,7 @@ src/
 ├── cli/index.ts       # CLI entrypoint (commands)
 ├── cli/output.ts      # Output formatting, colors, branding
 ├── server/index.ts    # MCP server (Express + @modelcontextprotocol/sdk)
+├── server/changelogs.ts  # Changelog HTML renderer
 ├── core/
 │   ├── memory.ts      # File I/O, CRUD, search, backup, bulk ops
 │   └── types.ts       # Types, constants

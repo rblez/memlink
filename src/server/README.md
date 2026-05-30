@@ -54,6 +54,8 @@ Default: `http://localhost:4444/mcp`
 | `/mcp` | POST | MCP protocol endpoint (streamable HTTP) |
 | `/health` | GET | Health check |
 | `/instructions` | GET | Agent system prompt for a memory |
+| `/changelogs` | GET | Release changelog (dark theme, Geist Pixel font) |
+| `/public/*` | GET | Static assets (fonts, images) |
 
 ## Agent Connection
 
