@@ -114,7 +114,9 @@ export function printLogo(): string {
     const r = Math.round(left.r + (right.r - left.r) * t);
     const g = Math.round(left.g + (right.g - left.g) * t);
     const b = Math.round(left.b + (right.b - left.b) * t);
-    return chalk.hex(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
+    return chalk.hex(
+      `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+    );
   }
 
   const artLines = art.map((line) => {
@@ -131,11 +133,13 @@ export function printLogo(): string {
 
   function gradientLine(left: string, dash: string, right: string): string {
     const chars = [left, ...dash.repeat(inner), right];
-    return chars.map((ch, i) => {
-      if (i === 0) return green(ch);
-      if (i === inner + 1) return magenta(ch);
-      return getColorAt(i - 1, inner - 1, 13)(ch);
-    }).join('');
+    return chars
+      .map((ch, i) => {
+        if (i === 0) return green(ch);
+        if (i === inner + 1) return magenta(ch);
+        return getColorAt(i - 1, inner - 1, 13)(ch);
+      })
+      .join('');
   }
 
   function sideLine(): string {
@@ -155,9 +159,7 @@ export function printLogo(): string {
     gradientLine('└', '─', '┘'),
   ];
 
-  return artLines
-    .map((line, i) => line + '  ' + boxLines[i])
-    .join('\n');
+  return artLines.map((line, i) => line + '  ' + boxLines[i]).join('\n');
 }
 
 export function navHint(hints: string[]): string {

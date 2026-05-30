@@ -369,9 +369,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
           if (isDryRun) {
             const memory = readMemory(memoryId);
             const titlesLower = titles.map((t) => t.toLowerCase());
-            const toDelete = memory.filter((e) =>
-              titlesLower.includes(e.title.toLowerCase())
-            );
+            const toDelete = memory.filter((e) => titlesLower.includes(e.title.toLowerCase()));
             return {
               content: [
                 {
@@ -423,9 +421,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
             if (use_regex) {
               try {
                 const regex = new RegExp(value, 'i');
-                toDelete = memory.filter(
-                  (e) => regex.test(e.title) || regex.test(e.content)
-                );
+                toDelete = memory.filter((e) => regex.test(e.title) || regex.test(e.content));
               } catch (error) {
                 return errorResult(`Invalid regex: ${error}`);
               }
@@ -589,7 +585,10 @@ export function createApp(): express.Express {
   app.use(express.json({ limit: '10mb' }));
 
   // Static assets (fonts, images)
-  app.use('/public', express.static(path.join(path.dirname(new URL(import.meta.url).pathname), '../../public')));
+  app.use(
+    '/public',
+    express.static(path.join(path.dirname(new URL(import.meta.url).pathname), '../../public'))
+  );
 
   // Rate limiting
   app.use(
@@ -670,7 +669,10 @@ export function createApp(): express.Express {
 
   // Changelog
   app.get('/changelogs', (_req, res) => {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'");
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; style-src 'self' 'unsafe-inline'"
+    );
     res.type('html').send(renderChangelog());
   });
 

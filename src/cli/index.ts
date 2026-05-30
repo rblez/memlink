@@ -6,7 +6,17 @@ import readline from 'readline';
 import { execSync, spawn } from 'child_process';
 import { Command } from 'commander';
 import { table } from 'table';
-import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD, kv } from './output.ts';
+import {
+  ok as okBadge,
+  err,
+  info,
+  count,
+  dimLine,
+  colors,
+  printLogo,
+  SKILL_MD,
+  kv,
+} from './output.ts';
 import {
   loadConfig,
   createUniversalMemory,
