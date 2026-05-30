@@ -423,31 +423,36 @@ export function renderMemoryAsHtml(memoryId: string): string {
   <title>${escapeHtml(data.memoryName)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #1a1a1a; background: #fafafa; }
-    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #e6edf3; background: #000; -webkit-font-smoothing: antialiased; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; font-weight: 600; }
     .meta { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
     .index { margin-bottom: 2rem; }
-    .index a { color: #2563eb; text-decoration: none; }
+    .index a { color: #00e5a0; text-decoration: none; }
     .index a:hover { text-decoration: underline; }
-    .entry { margin-bottom: 1.5rem; padding: 1rem; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .entry h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    article { margin-bottom: 1.5rem; padding: 1rem; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; }
+    article h2 { font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600; }
     .tags { margin-bottom: 0.5rem; }
-    .tag { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.75rem; background: #e0e7ff; color: #4338ca; border-radius: 4px; margin-right: 0.25rem; }
-    .content { line-height: 1.6; }
-    hr { border: none; border-top: 1px solid #e5e5e5; margin: 1.5rem 0; }
+    .tag { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.75rem; background: rgba(0, 229, 160, 0.08); color: #00e5a0; border: 1px solid rgba(0, 229, 160, 0.15); border-radius: 4px; margin-right: 0.25rem; }
+    .content { line-height: 1.6; color: #999; }
+    hr { border: none; border-top: 1px solid #1a1a1a; margin: 1.5rem 0; }
+    @media print { body { background: #fff; color: #000; } article { border-color: #ccc; background: #fff; } }
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(data.memoryName)}</h1>
-  <p class="meta">ID: ${escapeHtml(data.memoryId)} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}</p>
-  <div class="index">
+  <header>
+    <h1>${escapeHtml(data.memoryName)}</h1>
+    <p class="meta">ID: ${escapeHtml(data.memoryId)} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}</p>
+  </header>
+  <nav class="index">
     <h2>Index</h2>
     <ol>
       ${data.entries.map((entry, i) => `<li><a href="#entry-${i + 1}">${escapeHtml(entry.title)}</a></li>`).join('\n      ')}
     </ol>
-  </div>
+  </nav>
   <hr>
-  ${data.entries.map((entry, i) => `<div id="entry-${i + 1}">${entry.tags?.length ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}<div class="entry"><h2>${escapeHtml(entry.title)}</h2><div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div></div></div>`).join('\n  ')}
+  <main>
+    ${data.entries.map((entry, i) => `<section id="entry-${i + 1}">${entry.tags?.length ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}<article><h2>${escapeHtml(entry.title)}</h2><div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div></article></section>`).join('\n    ')}
+  </main>
 </body>
 </html>`;
 }

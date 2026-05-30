@@ -6,7 +6,7 @@ import readline from 'readline';
 import { execSync, spawn } from 'child_process';
 import { Command } from 'commander';
 import { table } from 'table';
-import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD } from './output.ts';
+import { ok as okBadge, err, info, count, dimLine, colors, printLogo, SKILL_MD, kv } from './output.ts';
 import {
   loadConfig,
   createUniversalMemory,
@@ -51,7 +51,7 @@ function envPort(): number | undefined {
 
 function logo(): string {
   if (!isTTY) return '';
-  return `\n${printLogo()}\n${colors.dim('  Universal Memory for AI Agents')}\n${colors.dim('  Self-hosted · Fast · Organized')}\n`;
+  return `\n${printLogo()}\n`;
 }
 
 function logoSmall(): string {
@@ -246,6 +246,9 @@ function helpExamples(): string {
     `    ${colors.white('bug')}           Report a bug or request a feature`,
     `                   ${colors.dim('memlink bug')}`,
     '',
+    `    ${colors.white('changelog')}     Open the changelog in your browser`,
+    `                   ${colors.dim('memlink changelog')}`,
+    '',
     `    ${colors.dim('Use -v, --version to show system overview')}`,
     '',
   ];
@@ -337,15 +340,11 @@ program.action(() => {
   console.log();
 
   console.log(kv('Essentials', 'serve · init · ls · show · connect · delete'));
-  console.log(kv('More', 'info · export · config · stop · status · skill · bug'));
+  console.log(kv('More', 'info · export · config · stop · status · skill · bug · changelog'));
   console.log();
   console.log(dimLine('Use memlink --help for full docs'));
   console.log();
 });
-
-function kv(key: string, value: string): string {
-  return `  ${colors.dim(key)}${value ? `  ${colors.white(value)}` : ''}`;
-}
 
 // ─── Daemon helpers ────────────────────────────────────────────────────────────
 
@@ -466,7 +465,7 @@ serveCmd
         process.exit(1);
       }
 
-      writePid(child.pid);
+      if (child.pid) writePid(child.pid);
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
       console.log(okBadge(`Server started (PID ${child.pid})`));
@@ -1198,7 +1197,7 @@ configCmd
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
     if (key) {
-      const val = (config as Record<string, unknown>)[key];
+      const val = (config as unknown as Record<string, unknown>)[key];
       if (val === undefined) {
         console.error(err(`Config key not found: ${key}`));
         process.exit(1);
@@ -1221,7 +1220,7 @@ configCmd
     } catch {
       parsed = value;
     }
-    (config as Record<string, unknown>)[key] = parsed;
+    (config as unknown as Record<string, unknown>)[key] = parsed;
     saveConfig(config);
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
@@ -1294,6 +1293,45 @@ program
         const opened = openUrl(url);
         if (opened) {
           console.log(okBadge('Opening GitHub issue form...'));
+        } else {
+          console.log(err('Could not open browser'));
+          console.log(dimLine(`Open manually: ${url}`));
+        }
+        console.log();
+      });
+    } else {
+      console.log(dimLine(`Copy and open: ${url}`));
+      console.log();
+    }
+  });
+
+// ─── memlink changelog ───────────────────────────────────────────────────────
+
+program
+  .command('changelog')
+  .description('Open the changelog in your browser')
+  .action(() => {
+    const config = loadConfig();
+    const host = envHost() || config.serverHost || DEFAULT_HOST;
+    const port = envPort() || config.serverPort || DEFAULT_PORT;
+    const url = `http://${host}:${port}/changelogs`;
+
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+
+    console.log(dimLine(`Changelog: ${url}`));
+    console.log();
+
+    if (isTTY) {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      rl.question('  Press Enter to open in your browser… ', () => {
+        rl.close();
+        const opened = openUrl(url);
+        if (opened) {
+          console.log(okBadge('Opening changelog...'));
         } else {
           console.log(err('Could not open browser'));
           console.log(dimLine(`Open manually: ${url}`));

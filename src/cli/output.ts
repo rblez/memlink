@@ -84,50 +84,79 @@ export function divider(): string {
 
 export function printLogo(): string {
   const art = [
-    '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⠘⠛⠛⠛⣶⣶⣶⡞⠛⠛⠛⣶⣶⣶⡞⠛⠛⠛⠀⠀⠀⠀',
-    '⢠⣤⣤⣤⣤⣤⣤⣤⣿⣿⣿⡇⠀⠀⠀⣿⣿⣿⣧⣤⣤⣤⣤⣤⣤⣤',
-    '⢸⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿',
-    '⠘⠛⠛⠛⠛⠛⠛⠛⣿⣿⣿⡇⠀⠀⠀⣿⣿⣿⡟⠛⠛⠛⠛⠛⠛⠛',
-    '⠀⠀⠀⠀⢠⣤⣤⣤⣿⣿⣿⣧⣤⣤⣤⣿⣿⣿⣧⣤⣤⣤⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⠘⠛⠛⠛⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠘⠛⠛⠛⠀⠀⠀⠀',
-    '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+    '⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⠀⠀',
+    '⠀⠀⠸⠿⣀⣀⠿⠿⣀⣀⠿⠇⠀⠀',
+    '⢠⣤⣤⣤⠿⠿⠀⠀⠿⠿⣤⣤⣤⡄',
+    '⠘⠛⠛⠛⣶⣶⠀⠀⣶⣶⠛⠛⠛⠃',
+    '⠀⠀⣿⣿⠉⠉⣿⣿⠉⠉⣿⣿⠀⠀',
+    '⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⠀⠀',
   ];
 
-  const colorStops = [
-    { pos: 0, r: 0x00, g: 0xe5, b: 0xa0 },
-    { pos: 13, r: 0xff, g: 0xff, b: 0xff },
-    { pos: 25, r: 0xcc, g: 0x00, b: 0xcc },
+  const stops = [
+    { p: 0, r: 0x00, g: 0xe5, b: 0xa0 },
+    { p: 7, r: 0xff, g: 0xff, b: 0xff },
+    { p: 13, r: 0xcc, g: 0x00, b: 0xcc },
   ];
 
-  function getColorAt(pos: number): ChalkInstance {
-    let left = colorStops[0];
-    let right = colorStops[colorStops.length - 1];
-    for (let i = 0; i < colorStops.length - 1; i++) {
-      if (pos >= colorStops[i].pos && pos <= colorStops[i + 1].pos) {
-        left = colorStops[i];
-        right = colorStops[i + 1];
+  function getColorAt(pos: number, maxPos: number, maxNorm = 27): ChalkInstance {
+    const norm = (pos / maxPos) * maxNorm;
+    let left = stops[0];
+    let right = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (norm >= stops[i].p && norm <= stops[i + 1].p) {
+        left = stops[i];
+        right = stops[i + 1];
         break;
       }
     }
-    const range = right.pos - left.pos;
-    const t = range === 0 ? 0 : (pos - left.pos) / range;
+    const range = right.p - left.p;
+    const t = range === 0 ? 0 : (norm - left.p) / range;
     const r = Math.round(left.r + (right.r - left.r) * t);
     const g = Math.round(left.g + (right.g - left.g) * t);
     const b = Math.round(left.b + (right.b - left.b) * t);
-    return chalk.hex(
-      `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-    );
+    return chalk.hex(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
   }
 
-  return art
-    .map((line) => {
-      const colored = [...line].map((ch, i) => getColorAt(i)(ch)).join('');
-      return `  ${colored}`;
-    })
+  const artLines = art.map((line) => {
+    const colored = [...line].map((ch, i) => getColorAt(i, 27)(ch)).join('');
+    return `  ${colored}`;
+  });
+
+  const tagline1 = 'Universal Memory for AI Agents';
+  const tagline2 = 'Self-hosted · Fast · Organized';
+  const inner = Math.max(tagline1.length, tagline2.length) + 4;
+  const white = colors.white;
+  const green = chalk.hex('#00E5A0');
+  const magenta = chalk.hex('#CC00CC');
+
+  function gradientLine(left: string, dash: string, right: string): string {
+    const chars = [left, ...dash.repeat(inner), right];
+    return chars.map((ch, i) => {
+      if (i === 0) return green(ch);
+      if (i === inner + 1) return magenta(ch);
+      return getColorAt(i - 1, inner - 1, 13)(ch);
+    }).join('');
+  }
+
+  function sideLine(): string {
+    return green('│') + white(' '.repeat(inner)) + magenta('│');
+  }
+
+  function textLine(text: string): string {
+    return green('│') + white('  ' + text.padEnd(tagline1.length) + '  ') + magenta('│');
+  }
+
+  const boxLines = [
+    gradientLine('┌', '─', '┐'),
+    sideLine(),
+    textLine(tagline1),
+    textLine(tagline2),
+    sideLine(),
+    gradientLine('└', '─', '┘'),
+  ];
+
+  return artLines
+    .map((line, i) => line + '  ' + boxLines[i])
     .join('\n');
 }
 
@@ -206,21 +235,4 @@ The memory ID is a 12-character alphanumeric string assigned when you create a m
 - **Tags**: Add categorical tags like \`project\`, \`config\`, \`preference\`, \`note\` for easy filtering
 - **Search before create**: Use \`memory_search\` with a keyword to check if something already exists before writing a new entry
 - **Backups**: Use \`backup_create\` before destructive operations
-`;
-
-export const README_MD = `# Memlink
-
-Universal memory for AI agents via MCP.
-
-\`\`\`
-http://localhost:4444/mcp?id=YOUR_MEMORY_ID
-\`\`\`
-
-## Tools
-
-- \`memory_read\` — Load all entries or by title
-- \`memory_edit\` — Save or update an entry
-- \`memory_delete\` — Remove an entry
-- \`memory_search\` — Search across entries
-- \`memory_sync\` — Validate and get stats
 `;

@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
+import { renderChangelog } from './changelogs.ts';
 import {
   readMemory,
   readMemoryEntry,
@@ -20,6 +21,7 @@ import {
   bulkDeleteMemoriesByPattern,
   saveBackup,
   restoreBackup,
+  deleteBackup,
   listBackups,
   cleanupOldBackups,
   getMemoryById,
@@ -27,8 +29,8 @@ import {
   getStats,
   exportMemoryFormats,
   getMemlinkDir,
+  loadConfig,
 } from '../core/memory.ts';
-import { loadConfig } from '../core/memory.ts';
 import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
@@ -367,7 +369,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
           if (isDryRun) {
             const memory = readMemory(memoryId);
             const titlesLower = titles.map((t) => t.toLowerCase());
-            const toDelete = memory.entries.filter((e) =>
+            const toDelete = memory.filter((e) =>
               titlesLower.includes(e.title.toLowerCase())
             );
             return {
@@ -393,7 +395,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
           if (isDryRun) {
             const memory = readMemory(memoryId);
             const tagsLower = tags.map((t) => t.toLowerCase());
-            const toDelete = memory.entries.filter((e) =>
+            const toDelete = memory.filter((e) =>
               e.tags?.some((tag) => tagsLower.includes(tag.toLowerCase()))
             );
             return {
@@ -421,7 +423,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
             if (use_regex) {
               try {
                 const regex = new RegExp(value, 'i');
-                toDelete = memory.entries.filter(
+                toDelete = memory.filter(
                   (e) => regex.test(e.title) || regex.test(e.content)
                 );
               } catch (error) {
@@ -429,7 +431,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
               }
             } else {
               const patternLower = value.toLowerCase();
-              toDelete = memory.entries.filter(
+              toDelete = memory.filter(
                 (e) =>
                   e.title.toLowerCase().includes(patternLower) ||
                   e.content.toLowerCase().includes(patternLower)
@@ -586,6 +588,9 @@ export function createApp(): express.Express {
 
   app.use(express.json({ limit: '10mb' }));
 
+  // Static assets (fonts, images)
+  app.use('/public', express.static(path.join(path.dirname(new URL(import.meta.url).pathname), '../../public')));
+
   // Rate limiting
   app.use(
     rateLimit({
@@ -597,16 +602,17 @@ export function createApp(): express.Express {
 
   // CORS
   if (corsOrigins) {
+    const origins = corsOrigins;
     app.use((req, res, next) => {
       const origin = req.headers.origin || '*';
       if (
-        corsOrigins === '*' ||
-        corsOrigins
+        origins === '*' ||
+        origins
           .split(',')
           .map((s) => s.trim())
           .includes(origin)
       ) {
-        res.setHeader('Access-Control-Allow-Origin', corsOrigins === '*' ? '*' : origin);
+        res.setHeader('Access-Control-Allow-Origin', origins === '*' ? '*' : origin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '86400');
@@ -660,6 +666,12 @@ export function createApp(): express.Express {
       memories: config.universalMemories.length,
       uptime: process.uptime(),
     });
+  });
+
+  // Changelog
+  app.get('/changelogs', (_req, res) => {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'");
+    res.type('html').send(renderChangelog());
   });
 
   // Instructions endpoint
