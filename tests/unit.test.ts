@@ -15,7 +15,9 @@ import {
   loadConfig,
   importFromFile,
   getMemoryPath,
+  ensureMemlinkDir,
 } from '../src/core/memory.ts';
+import { getMemlinkDir } from '../src/core/types.ts';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { nanoid } from 'nanoid';
 import path from 'path';
@@ -397,6 +399,29 @@ describe('Unit Tests - Core Functions', () => {
 
     it('should reject non-existent file', () => {
       expect(() => importFromFile(memoryId, '/nonexistent/file.json')).toThrow();
+    });
+  });
+
+  describe('Legacy Artifacts Cleanup', () => {
+    it('should automatically delete .legacy-backups and .legacy-formats on ensureMemlinkDir', () => {
+      const baseDir = getMemlinkDir();
+      const legacyBackupsPath = path.join(baseDir, '.legacy-backups');
+      const legacyFormatsPath = path.join(baseDir, '.legacy-formats');
+
+      // Create legacy directories
+      mkdirSync(legacyBackupsPath, { recursive: true });
+      mkdirSync(legacyFormatsPath, { recursive: true });
+
+      // Verify they exist
+      expect(existsSync(legacyBackupsPath)).toBe(true);
+      expect(existsSync(legacyFormatsPath)).toBe(true);
+
+      // Run ensureMemlinkDir (which should clean them up)
+      ensureMemlinkDir();
+
+      // Verify they are deleted
+      expect(existsSync(legacyBackupsPath)).toBe(false);
+      expect(existsSync(legacyFormatsPath)).toBe(false);
     });
   });
 });

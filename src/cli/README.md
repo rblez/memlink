@@ -9,27 +9,27 @@ Command-line interface for memlink. Built with Commander.js.
 
 ## Commands
 
-### `memlink init <name>` (alias `i` / `c`)
+### `memlink init <name>` (alias `create`)
 
 Create a new memory.
 
 - `<name>` is **required**
 - Creates `~/.memlink/<name>/index.json` (per-memory directory)
-- Flags: `-s, --serve` auto-start server, `-p, --port <port>` for auto-started server
+- Flags: `--serve` auto-start server, `--port <port>` for auto-started server
 
 ### `memlink serve`
 
 Start the MCP server.
 
 - Default: `http://localhost:4444/mcp`
-- Flags: `-p, --port <port>`, `-H, --host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`, `--wslink`
+- Flags: `--port <port>`, `--host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`, `--wslink`
 - Daemon mode: `memlink serve --daemon` runs in background, managed via `memlink stop` / `memlink status`
 
-### `memlink ls` (alias `list`)
+### `memlink ls`
 
 List all memories: Name, ID, Size.
 
-### `memlink show <name-or-id>` (alias `sh`)
+### `memlink show <name-or-id>`
 
 Show memory contents as Markdown.
 
@@ -45,17 +45,21 @@ Export memory as JSON to `~/.memlink/exports/<name>.json`.
 
 Import entries from a JSON file.
 
+- Flags: `--overwrite` overwrite existing entries with the same title
+
 ### `memlink delete <name-or-id>`
 
 Delete an entire memory (config entry + storage directory).
 
-### `memlink connect <name-or-id>` (alias `con`)
+### `memlink connect <name-or-id>`
 
 Show MCP connection details for an agent. Supports streamable HTTP, SSE, and stdio.
 
 ### `memlink config [get/set]`
 
-View or modify `settings.json`. Example: `config get serverPort`, `config set serverPort 5555`.
+View or modify `settings.json`.
+
+- Example: `memlink config get serverPort`, `memlink config set serverPort 5555`.
 
 ### `memlink doctor`
 
@@ -69,13 +73,9 @@ Install memlink agent skill to `~/.agents/skills/memlink/SKILL.md`.
 
 Stop the daemon or check if it's running.
 
-### `memlink bug` (alias `feedback`)
+### `memlink bug`
 
 Opens GitHub issue form.
-
-### `memlink changelog`
-
-Opens the changelog in browser.
 
 ## TTY Detection
 

@@ -84,6 +84,23 @@ export function ensureMemlinkDir(): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+  // Clean up legacy directories (.legacy-backups/ and .legacy-formats/) if they exist
+  const legacyBackups = path.join(dir, '.legacy-backups');
+  if (fs.existsSync(legacyBackups)) {
+    try {
+      fs.rmSync(legacyBackups, { recursive: true, force: true });
+    } catch {
+      // Ignore errors
+    }
+  }
+  const legacyFormats = path.join(dir, '.legacy-formats');
+  if (fs.existsSync(legacyFormats)) {
+    try {
+      fs.rmSync(legacyFormats, { recursive: true, force: true });
+    } catch {
+      // Ignore errors
+    }
+  }
 }
 
 export function loadConfig(): MemlinkConfig {
