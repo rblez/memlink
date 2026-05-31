@@ -9,29 +9,23 @@ import fs from 'fs';
 import path from 'path';
 import { renderChangelog } from './changelogs.ts';
 import {
-  readMemory,
-  readMemoryEntry,
-  upsertMemoryEntry,
-  deleteMemoryEntry,
-  syncMemory,
-  getMemoryIndex,
-  searchMemory,
-  bulkDeleteMemories,
-  bulkDeleteMemoriesByTags,
-  bulkDeleteMemoriesByPattern,
-  saveBackup,
-  restoreBackup,
-  deleteBackup,
-  listBackups,
-  cleanupOldBackups,
   getMemoryById,
   updateUniversalMemoryLastSeen,
   getStats,
   exportMemoryFormats,
-  getMemlinkDir,
   loadConfig,
 } from '../core/memory.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
+import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, getMemlinkDir } from '../core/types.ts';
+import type { StorageEntry } from '../core/types.ts';
+import {
+  readIndex,
+  readEntry,
+  findEntryByTitle,
+  createEntry,
+  readAllEntries,
+  searchEntries,
+  getStorageStats,
+} from '../core/storage.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
 
@@ -65,21 +59,7 @@ function logRequestEnd(method: string, durationMs: number) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatEntry(entry: {
-  title: string;
-  content: string;
-  tags?: string[];
-  updatedAt: string;
-}): string {
-  const lines = [`## ${entry.title}`];
-  if (entry.tags && entry.tags.length > 0) {
-    lines.push(`_Tags: ${entry.tags.join(', ')}_`);
-  }
-  lines.push('');
-  lines.push(entry.content);
-  lines.push(`_Updated: ${entry.updatedAt}_`);
-  return lines.join('\n');
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function errorResult(err: unknown) {
   return {
@@ -98,6 +78,11 @@ function readOnlyGuard() {
     };
   }
   return null;
+}
+
+function formatStorageEntry(e: StorageEntry): string {
+  const tags = e.tags?.length ? `Tags: ${e.tags.join(', ')}` : '';
+  return `# ${e.title}\n${e.content}\n${tags ? tags + '\n' : ''}Updated: ${e.updatedAt}`;
 }
 
 function AGENT_SYSTEM_PROMPT(name: string): string {
@@ -131,46 +116,82 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
   // ── TOOL: memory_read ─────────────────────────────────────────────────────
   server.tool(
     'memory_read',
-    'Read all memory entries or a specific one by title. Always call this at the start of a session to load context.',
+    'Read all memory entries or a specific one by title or id. Always call this at the start of a session to load context.',
     {
-      title: z
-        .string()
-        .optional()
-        .describe('Specific memory title to read. If omitted, returns all entries.'),
+      id: z.number().optional().describe('Entry ID to read'),
+      title: z.string().optional().describe('Specific memory title to read.'),
+      full: z.boolean().optional().describe('Read all entries with full content'),
     },
-    async ({ title }) => {
+    async ({ id, title, full }) => {
       try {
+        if (id !== undefined) {
+          const entry = readEntry(memoryName, id);
+          if (!entry) {
+            return { content: [{ type: 'text', text: `No memory found with id: ${id}` }] };
+          }
+          return { content: [{ type: 'text', text: formatStorageEntry(entry) }] };
+        }
+
         if (title) {
-          const entry = readMemoryEntry(memoryId, title);
+          const entry = findEntryByTitle(memoryName, title);
           if (!entry) {
             return {
               content: [{ type: 'text', text: `No memory found with title: '${title}'` }],
             };
           }
-          return {
-            content: [{ type: 'text', text: formatEntry(entry) }],
-          };
+          return { content: [{ type: 'text', text: formatStorageEntry(entry) }] };
         }
 
-        const entries = readMemory(memoryId);
-        if (entries.length === 0) {
+        if (full) {
+          const entries = readAllEntries(memoryName);
+          if (entries.length === 0) {
+            return {
+              content: [
+                { type: 'text', text: 'Memory is empty. Use memory_edit to add your first entry.' },
+              ],
+            };
+          }
+          const formatted = entries
+            .map((e) => formatStorageEntry(e))
+            .join('\n\n' + '─'.repeat(40) + '\n\n');
           return {
             content: [
               {
                 type: 'text',
-                text: `Memory is empty.\nUse memory_edit to add your first entry.`,
+                text: `# memlink Memory — ${memoryName}\n${entries.length} entries\n\n${formatted}`,
               },
             ],
           };
         }
 
-        const formatted = entries.map((e) => formatEntry(e)).join('\n\n' + '─'.repeat(40) + '\n\n');
+        // Default: show index
+        const index = readIndex(memoryName);
+        if (!index || index.entries.length === 0) {
+          return {
+            content: [
+              { type: 'text', text: 'Memory is empty. Use memory_edit to add your first entry.' },
+            ],
+          };
+        }
+
+        const lines = index.entries.map((e, i) => {
+          const titlePadded = e.title.padEnd(20);
+          const tagsStr = e.tags?.length ? `[${e.tags.join(', ')}]`.padEnd(20) : ''.padEnd(20);
+          const date = e.updatedAt.slice(0, 10);
+          return `${i + 1}. ${titlePadded} ${tagsStr} ${date}`;
+        });
 
         return {
           content: [
             {
               type: 'text',
-              text: `# memlink Memory — ${memoryName}\n${entries.length} entries\n\n${formatted}`,
+              text: [
+                `memlink — ${memoryName} (${index.entries.length} entries)`,
+                '',
+                'Call memory_read(id: N) for a specific entry, or memory_read(full: true) for all entries.',
+                '',
+                ...lines,
+              ].join('\n'),
             },
           ],
         };
@@ -205,69 +226,13 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
       try {
         const guard = readOnlyGuard();
         if (guard) return guard;
-        const entry = upsertMemoryEntry(memoryId, title, content, tags);
+        createEntry(memoryName, memoryId, title, content, tags);
+        const now = new Date().toISOString();
         return {
           content: [
             {
               type: 'text',
-              text: `[*] Memory saved: '${entry.title}'\nUpdated: ${entry.updatedAt}`,
-            },
-          ],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: memory_delete ───────────────────────────────────────────────────
-  server.tool(
-    'memory_delete',
-    "Delete a memory entry by title. Use when the user says 'forget X', 'remove X from memory', 'delete X'.",
-    {
-      title: z.string().describe('Title of the memory entry to delete.'),
-    },
-    async ({ title }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const deleted = deleteMemoryEntry(memoryId, title);
-        if (!deleted) {
-          return {
-            content: [{ type: 'text', text: `No memory found with title: '${title}'` }],
-          };
-        }
-        return {
-          content: [{ type: 'text', text: `[*] Memory deleted: '${title}'` }],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: memory_sync ─────────────────────────────────────────────────────
-  server.tool(
-    'memory_sync',
-    'Sync and validate memory integrity. Returns current stats.',
-    {},
-    async () => {
-      try {
-        const stats = syncMemory(memoryId);
-        const index = getMemoryIndex(memoryId);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: [
-                `# memlink Memory Sync`,
-                `Memory: ${memoryName}`,
-                `Entries: ${stats.entries}`,
-                `File size: ${(stats.size / 1024).toFixed(2)} KB`,
-                `Last updated: ${index.updatedAt}`,
-                `Status: [*] OK`,
-              ].join('\n'),
+              text: `[*] Memory saved: '${title}'\nUpdated: ${now}`,
             },
           ],
         };
@@ -286,15 +251,15 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ query }) => {
       try {
-        const results = searchMemory(memoryId, query);
+        const results = searchEntries(memoryName, query);
 
         if (results.length === 0) {
-          return {
-            content: [{ type: 'text', text: `No matches found for '${query}'` }],
-          };
+          return { content: [{ type: 'text', text: `No matches found for '${query}'` }] };
         }
 
-        const formatted = results.map((e) => formatEntry(e)).join('\n\n' + '─'.repeat(40) + '\n\n');
+        const formatted = results
+          .map((e) => formatStorageEntry(e))
+          .join('\n\n' + '─'.repeat(40) + '\n\n');
 
         return {
           content: [
@@ -310,254 +275,30 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     }
   );
 
-  // ── TOOL: memory_batch ─────────────────────────────────────────────────────
+  // ── TOOL: memory_sync ─────────────────────────────────────────────────────
   server.tool(
-    'memory_batch',
-    'Create or update multiple memory entries at once.',
-    {
-      entries: z
-        .array(
-          z.object({
-            title: z.string().describe('Entry title'),
-            content: z.string().describe('Entry content'),
-            tags: z.array(z.string()).optional().describe('Optional tags'),
-          })
-        )
-        .describe('Array of entries to create/update'),
-    },
-    async ({ entries }) => {
+    'memory_sync',
+    'Sync and validate memory integrity. Returns current stats.',
+    {},
+    async () => {
       try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const results: string[] = [];
-        for (const entry of entries) {
-          upsertMemoryEntry(memoryId, entry.title, entry.content, entry.tags);
-          results.push(`[*] ${entry.title}`);
+        const stats = getStorageStats(memoryName);
+        if (!stats) {
+          return { content: [{ type: 'text', text: 'No memory found.' }] };
         }
+
         return {
           content: [
             {
               type: 'text',
-              text: `# Batch Operation Complete\n\n${entries.length} entries processed:\n\n${results.join('\n')}`,
-            },
-          ],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: bulk_delete ─────────────────────────────────────────────────────
-  server.tool(
-    'bulk_delete',
-    'Delete multiple memory entries at once using titles, tags, or patterns.',
-    {
-      method: z.enum(['titles', 'tags', 'pattern']).describe('Deletion method'),
-      value: z.string().describe('Comma-separated titles/tags or search pattern'),
-      use_regex: z.boolean().optional().describe('Use pattern as regex'),
-      dry_run: z.boolean().optional().describe('Preview without deleting'),
-    },
-    async ({ method, value, use_regex, dry_run }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const isDryRun = dry_run || false;
-
-        if (method === 'titles') {
-          const titles = value.split(',').map((t) => t.trim());
-          if (isDryRun) {
-            const memory = readMemory(memoryId);
-            const titlesLower = titles.map((t) => t.toLowerCase());
-            const toDelete = memory.filter((e) => titlesLower.includes(e.title.toLowerCase()));
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `# Dry Run - Would delete ${toDelete.length} entries:\n\n${toDelete.map((e) => `- ${e.title}`).join('\n')}`,
-                },
-              ],
-            };
-          }
-          const result = bulkDeleteMemories(memoryId, titles);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries${result.notFound.length > 0 ? `\nNot found: ${result.notFound.join(', ')}` : ''}`,
-              },
-            ],
-          };
-        } else if (method === 'tags') {
-          const tags = value.split(',').map((t) => t.trim());
-          if (isDryRun) {
-            const memory = readMemory(memoryId);
-            const tagsLower = tags.map((t) => t.toLowerCase());
-            const toDelete = memory.filter((e) =>
-              e.tags?.some((tag) => tagsLower.includes(tag.toLowerCase()))
-            );
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `# Dry Run - Would delete ${toDelete.length} entries:\n\n${toDelete.map((e) => `- ${e.title} (tags: ${e.tags?.join(', ')})`).join('\n')}`,
-                },
-              ],
-            };
-          }
-          const result = bulkDeleteMemoriesByTags(memoryId, tags);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries`,
-              },
-            ],
-          };
-        } else {
-          if (isDryRun) {
-            const memory = readMemory(memoryId);
-            let toDelete;
-            if (use_regex) {
-              try {
-                const regex = new RegExp(value, 'i');
-                toDelete = memory.filter((e) => regex.test(e.title) || regex.test(e.content));
-              } catch (error) {
-                return errorResult(`Invalid regex: ${error}`);
-              }
-            } else {
-              const patternLower = value.toLowerCase();
-              toDelete = memory.filter(
-                (e) =>
-                  e.title.toLowerCase().includes(patternLower) ||
-                  e.content.toLowerCase().includes(patternLower)
-              );
-            }
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `# Dry Run - Would delete ${toDelete.length} entries:\n\n${toDelete.map((e) => `- ${e.title}`).join('\n')}`,
-                },
-              ],
-            };
-          }
-          const result = bulkDeleteMemoriesByPattern(memoryId, value, use_regex);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `# Bulk Delete Complete\n\nDeleted: ${result.deleted} entries`,
-              },
-            ],
-          };
-        }
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: backup_create ─────────────────────────────────────────────────────
-  server.tool(
-    'backup_create',
-    'Create a backup of the current memory.',
-    {
-      include_deleted: z.boolean().optional().describe('Include deleted entries'),
-    },
-    async ({ include_deleted: _include_deleted }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const path = saveBackup(memoryId);
-        return {
-          content: [{ type: 'text', text: `# Backup Created\n\nPath: ${path}` }],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: backup_restore ────────────────────────────────────────────────────
-  server.tool(
-    'backup_restore',
-    'Restore memory from a backup file.',
-    {
-      backup_path: z.string().describe('Path to backup file'),
-      overwrite: z.boolean().optional().describe('Overwrite existing memory'),
-    },
-    async ({ backup_path, overwrite }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const result = restoreBackup(backup_path, undefined, overwrite || false);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `# Backup Restored\n\nRestored: ${result.restored} entries\nMemory: ${result.memoryId}`,
-            },
-          ],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: backup_list ───────────────────────────────────────────────────────
-  server.tool('backup_list', 'List available backup files.', {}, async () => {
-    try {
-      const backups = listBackups(memoryId);
-      if (backups.length === 0) {
-        return { content: [{ type: 'text', text: 'No backups found.' }] };
-      }
-      const lines = backups.map(
-        (b) => `- ${b.filename} (${b.entryCount} entries, ${(b.size / 1024).toFixed(1)} KB)`
-      );
-      return {
-        content: [{ type: 'text', text: `# Available Backups\n\n${lines.join('\n')}` }],
-      };
-    } catch (err) {
-      return errorResult(err);
-    }
-  });
-
-  // ── TOOL: backup_delete ─────────────────────────────────────────────────────
-  server.tool(
-    'backup_delete',
-    'Delete a backup file.',
-    { backup_path: z.string().describe('Path to backup file') },
-    async ({ backup_path }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const ok = deleteBackup(backup_path);
-        return {
-          content: [{ type: 'text', text: ok ? 'Backup deleted.' : 'Backup not found.' }],
-        };
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  // ── TOOL: backup_cleanup ────────────────────────────────────────────────────
-  server.tool(
-    'backup_cleanup',
-    'Clean up old backups, keeping only the most recent ones.',
-    { keep_count: z.number().optional().describe('Number of backups to keep (default: 10)') },
-    async ({ keep_count }) => {
-      try {
-        const guard = readOnlyGuard();
-        if (guard) return guard;
-        const result = cleanupOldBackups(memoryId, keep_count || 10);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `# Cleanup Complete\n\nKept: ${result.kept}\nDeleted: ${result.deleted}`,
+              text: [
+                `# memlink Memory Sync`,
+                `Memory: ${memoryName}`,
+                `Entries: ${stats.entries}`,
+                `File size: ${(stats.size / 1024).toFixed(2)} KB`,
+                `Last updated: ${stats.lastUpdated ?? 'N/A'}`,
+                `Status: [*] OK`,
+              ].join('\n'),
             },
           ],
         };

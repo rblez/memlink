@@ -27,8 +27,10 @@ src/
 ├── cli/output.ts      # Output formatting, colors, branding, skill template
 ├── server/index.ts    # Express + @modelcontextprotocol/sdk (MCP over streamable HTTP + SSE)
 ├── core/
-│   ├── memory.ts      # File I/O, CRUD, search, export/import, backup, bulk ops
-│   └── types.ts       # Types, constants
+│   ├── storage.ts     # Index+N.json CRUD, auto-backups, migration
+│   ├── lock.ts        # .lock with TTL + withLock helper
+│   ├── memory.ts      # Legacy CRUD, CLI helpers, config
+│   └── types.ts       # Types, constants, getMemlinkDir
 tests/
 ├── memory.test.ts     # Core memory unit tests
 ├── server.test.ts     # MCP server integration tests
@@ -38,11 +40,11 @@ tests/
 ## Architecture
 
 ```
-User → CLI → Core → ~/.memlink/*.memory.json
-Agent → MCP Server → Core → ~/.memlink/*.memory.json
+User → CLI → Core → ~/.memlink/<name>/index.json + N.json
+Agent → MCP Server → Core → ~/.memlink/<name>/index.json + N.json
 ```
 
-Config: `~/.memlink/config.json`. Memory files are JSON arrays of entries. Server listens at `http://localhost:4444/mcp?id=<memory-id>`.
+Config: `~/.memlink/settings.json`. Each memory is a directory with per-entry files. Server listens at `http://localhost:4444/mcp?id=<memory-id>`.
 
 All commands that take `<name-or-id>` (`show`, `info`, `connect`, `delete`) accept either memory ID or memory name (case-insensitive).
 

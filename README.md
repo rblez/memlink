@@ -117,10 +117,17 @@ Full documentation in [/docs](/docs):
 
 ```
 ~/.memlink/
-├── config.json              # Global config (memories, port, host, exportFormats)
-├── formats/                 # Exported formats (md, txt, html, json)
-├── backups/                 # Auto-backups before every mutation
-└── abc123def456.memory.json # Memory file (JSON)
+├── settings.json              # Global config (memories, port, host)
+├── .serve.pid                 # Daemon PID (hidden)
+│
+└── test-memory/               # Per-memory directory
+    ├── .lock                  # Write lock (hidden)
+    ├── index.json             # Index (titles only, no content)
+    ├── 1.json                 # Entry 1
+    ├── 2.json                 # Entry 2
+    │
+    └── .backups/              # Auto-backups on every write
+        └── 1_1717112345.json
 ```
 
 Agents connect via MCP:
@@ -129,40 +136,20 @@ Agents connect via MCP:
 http://localhost:4444/mcp?id=MEMORY_ID
 ```
 
-Data flow:
-
-```
-User → CLI → Core → Memory Files (JSON)
-                             ↓ auto-export
-                    → formats/ (md, txt, html, json)
-Agent → MCP Server → Core → Memory Files (JSON)
-                             ↓ auto-export
-                    → formats/ (md, txt, html, json)
-```
-
 ## MCP Tools
 
-| Tool | Description |
-|------|-------------|
-| `memory_read` | Read all entries or by title |
-| `memory_edit` | Create or update an entry |
-| `memory_delete` | Delete an entry by title |
-| `memory_search` | Search by query |
-| `memory_sync` | Validate memory integrity |
-| `memory_batch` | Bulk create/update |
-| `bulk_delete` | Delete by titles/tags/pattern |
-| `backup_create` | Create backup |
-| `backup_restore` | Restore from backup |
-| `backup_list` | List backups |
-| `backup_delete` | Delete a backup |
-| `backup_cleanup` | Clean old backups |
-
-Full details: [MCP Tools Reference](/docs/mcp-tools.md)
+| Tool | Description | Params |
+|------|-------------|--------|
+| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?` |
+| `memory_edit` | Create or update an entry | `title`, `content`, `tags?` |
+| `memory_search` | Search by query | `query` |
+| `memory_sync` | Memory stats | — |
 
 ## Robustness
 
 - **Atomic writes**: files written to `.tmp` then renamed — no corruption on crash
-- **Auto-backups**: backups created automatically on every mutation, keeping last 3
+- **Auto-backups**: every edit creates a backup in `.backups/`
+- **File lock**: concurrent writes serialized via `.lock` with 10s TTL + retry
 - **TTY detection**: ASCII art and clipboard disabled in non-TTY (CI, Docker, pipes)
 - **Safe clipboard**: clipboard failures handled silently
 
@@ -183,12 +170,14 @@ npm run format           # Prettier
 ```
 src/
 ├── cli/index.ts       # CLI entrypoint (commands)
-├── cli/output.ts      # Output formatting, colors, branding
+├── cli/output.ts      # Output formatting, colors, branding, skill template
 ├── server/index.ts    # MCP server (Express + @modelcontextprotocol/sdk)
 ├── server/changelogs.ts  # Changelog HTML renderer
 ├── core/
-│   ├── memory.ts      # File I/O, CRUD, search, backup, bulk ops
-│   └── types.ts       # Types, constants
+│   ├── storage.ts     # Index+N.json CRUD, auto-backups, migration (new)
+│   ├── lock.ts        # .lock with TTL + withLock helper (new)
+│   ├── memory.ts      # Legacy CRUD, CLI helpers, config
+│   └── types.ts       # Types, constants, getMemlinkDir
 tests/
 ├── memory.test.ts     # Core memory unit tests
 ├── server.test.ts     # MCP server integration tests

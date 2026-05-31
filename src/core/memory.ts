@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { nanoid } from 'nanoid';
-import { MemlinkConfig, UniversalMemory, MemoryEntry } from './types.ts';
-import { MEMLINK_VERSION, CONFIG_DIR, CONFIG_FILE, DEFAULT_PORT, DEFAULT_HOST } from './types.ts';
+import {
+  MEMLINK_VERSION, CONFIG_FILE, DEFAULT_PORT, DEFAULT_HOST,
+  getMemlinkDir,
+  type MemoryEntry, type UniversalMemory, type MemlinkConfig,
+} from './types.ts';
 
 export interface MemoryFileData {
   version: string;
@@ -51,10 +53,6 @@ function writeFileAtomic(filePath: string, data: string): void {
 
 // ─── Path helpers ────────────────────────────────────────────────────────────
 
-export function getMemlinkDir(): string {
-  return process.env.MEMLINK_DIR || path.join(os.homedir(), CONFIG_DIR);
-}
-
 export function getConfigPath(): string {
   return path.join(getMemlinkDir(), CONFIG_FILE);
 }
@@ -94,7 +92,6 @@ export function loadConfig(): MemlinkConfig {
 
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as MemlinkConfig;
   if (!raw.universalMemories) raw.universalMemories = [];
-  if (!raw.exportFormats) raw.exportFormats = ['md', 'txt', 'html'];
   return raw;
 }
 
@@ -131,7 +128,6 @@ export function createUniversalMemory(rawName: string): UniversalMemory {
   const memory: UniversalMemory = {
     memoryId,
     memoryName,
-    memoryFile: `${memoryId}.memory.json`,
     createdAt: new Date().toISOString(),
   };
 
@@ -229,8 +225,8 @@ export function getMemoryIndex(memoryId: string): {
   updatedAt: string;
   entries: Array<{
     title: string;
-    startLine: number;
-    endLine: number;
+    startLine?: number;
+    endLine?: number;
     tags?: string[];
     updatedAt: string;
   }>;
@@ -474,38 +470,16 @@ export function getFormatsDir(): string {
 }
 
 export function exportMemoryFormats(memoryId: string): string[] {
-  const config = loadConfig();
-  const formats = config.exportFormats || ['md'];
   const formatsDir = getFormatsDir();
   const memory = getMemoryById(memoryId);
   const name = memory?.memoryName || memoryId;
   const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
   const written: string[] = [];
 
-  if (formats.includes('json')) {
-    const data = loadMemoryFile(memoryId);
-    const p = path.join(formatsDir, `${safeName}.json`);
-    writeFileAtomic(p, JSON.stringify(data, null, 2));
-    written.push(p);
-  }
-
-  if (formats.includes('md')) {
-    const p = path.join(formatsDir, `${safeName}.md`);
-    writeFileAtomic(p, renderMemoryAsMarkdown(memoryId));
-    written.push(p);
-  }
-
-  if (formats.includes('txt')) {
-    const p = path.join(formatsDir, `${safeName}.txt`);
-    writeFileAtomic(p, renderMemoryAsText(memoryId));
-    written.push(p);
-  }
-
-  if (formats.includes('html')) {
-    const p = path.join(formatsDir, `${safeName}.html`);
-    writeFileAtomic(p, renderMemoryAsHtml(memoryId));
-    written.push(p);
-  }
+  const data = loadMemoryFile(memoryId);
+  const p = path.join(formatsDir, `${safeName}.json`);
+  writeFileAtomic(p, JSON.stringify(data, null, 2));
+  written.push(p);
 
   return written;
 }
