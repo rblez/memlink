@@ -90,9 +90,8 @@ function AGENT_SYSTEM_PROMPT(name: string): string {
 
 Use the MCP tools to read, write, search, and manage memory.
 Always call memory_read at the start of a session to load context.
-Store important information with memory_edit.
-Search with memory_search when looking for specific entries.
-Delete with memory_delete when the user wants to forget something.`;
+Store important information with memory_edit. Use plain text only, no markdown or HTML.
+Search with memory_search when looking for specific entries.`;
 }
 
 // ─── Build MCP server for a specific memory ───────────────────────────────────
@@ -215,7 +214,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
         .string()
         .min(1, 'Content cannot be empty')
         .max(100000, 'Content too long (max 100000 characters)')
-        .describe('Full content for this memory block.'),
+        .describe('Full content as plain text (no markdown, no HTML).'),
       tags: z
         .array(z.string().min(1).max(50))
         .max(20, 'Too many tags (max 20)')

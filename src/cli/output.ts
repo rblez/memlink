@@ -189,38 +189,18 @@ If running inside WSL, the port is bridged to Windows automatically via \`wslink
 
 ## MCP Tools
 
-### Core
-
 | Tool | Description |
 |------|-------------|
-| \`memory_read\` | Read all entries or a specific one by title. Always call at session start. |
-| \`memory_edit\` | Create or update an entry. Params: \`title\` (PascalCase), \`content\`, \`tags\` (optional array). |
-| \`memory_delete\` | Delete an entry by title. |
+| \`memory_read\` | Read all entries or a specific one by title or id. Always call at session start. |
+| \`memory_edit\` | Create or update an entry. Params: \`title\` (PascalCase), \`content\` (plain text only, no markdown/HTML), \`tags\` (optional array). |
 | \`memory_search\` | Search across title, content, and tags. |
-| \`memory_sync\` | Validate integrity and return stats (entries, size, last updated). |
-
-### Batch & Bulk
-
-| Tool | Description |
-|------|-------------|
-| \`memory_batch\` | Create/update multiple entries at once. Accepts array of \`{title, content, tags?}\`. |
-| \`bulk_delete\` | Delete using titles (comma-separated), tags, or pattern (optionally regex). Supports \`dry_run\` for preview. |
-
-### Backup
-
-| Tool | Description |
-|------|-------------|
-| \`backup_create\` | Create a backup snapshot. \`include_deleted\` optional. |
-| \`backup_restore\` | Restore from a backup file. \`backup_path\` required, \`overwrite\` optional. |
-| \`backup_list\` | List all backups with entry count and size. |
-| \`backup_delete\` | Delete a specific backup. |
-| \`backup_cleanup\` | Remove old backups, keeping N most recent (default: 10). |
+| \`memory_sync\` | Memory stats (entries, size, last updated). |
 
 ## Best Practices
 
 - **Titles**: Use short, descriptive PascalCase or Title Case. E.g., \`DatabaseConfig\`, \`UserPreferences\`, \`ProjectTimeline\`
-- **Content**: Keep entries focused on one topic. Max 100K chars per entry.
+- **Content**: Store as plain text only — no markdown, no HTML. Keep focused on one topic. Max 100K chars.
 - **Tags**: Add categorical tags like \`project\`, \`config\`, \`preference\`, \`note\` for easy filtering
 - **Search before create**: Use \`memory_search\` with a keyword to check if something already exists before writing a new entry
-- **Backups**: Use \`backup_create\` before destructive operations
+- **Start with memory_read**: Always read memory at the start of every session to restore context
 `;
