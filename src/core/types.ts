@@ -54,7 +54,7 @@ export interface LockFile {
   lockedAt: number;
 }
 
-export const MEMLINK_VERSION = '1.0.11';
+export const MEMLINK_VERSION = '1.0.12';
 export const DEFAULT_PORT = 4444;
 export const DEFAULT_HOST = 'localhost';
 export const CONFIG_DIR = '.memlink';
