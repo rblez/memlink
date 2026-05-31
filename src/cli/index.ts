@@ -388,51 +388,6 @@ function isProcessRunning(pid: number): boolean {
 
 // ─── WSL bridge ───────────────────────────────────────────────────────────────
 
-function tryForwardWslPort(port: number): void {
-  if (process.platform !== 'win32') return;
-  try {
-    execSync('where wslink.exe', { stdio: 'ignore' });
-    const child = spawn('wslink', ['forward', String(port)], {
-      stdio: 'ignore',
-      detached: true,
-    });
-    child.unref();
-    console.log(info('wslink', `Forwarding WSL port ${port} → Windows`));
-  } catch {
-    // wslink not installed or failed
-  }
-}
-
-function forwardWslPortFromWsl(port: number): void {
-  if (process.platform !== 'linux') return;
-  try {
-    // From WSL, invoke wslink.exe on Windows via cmd.exe
-    const wslinkPath = execSync('cmd.exe /c "where wslink.exe"', {
-      stdio: 'pipe',
-      encoding: 'utf-8',
-      timeout: 5000,
-    })
-      .trim()
-      .split('\n')[0];
-
-    if (!wslinkPath) {
-      console.warn(err('wslink.exe not found on Windows PATH'));
-      return;
-    }
-
-    const child = spawn(wslinkPath, ['forward', String(port)], {
-      stdio: 'ignore',
-      detached: true,
-    });
-    child.unref();
-    console.log(info('wslink', `Port ${port} forwarded from Windows → WSL`));
-  } catch {
-    console.warn(
-      err('wslink forward failed. Install wslink.exe on Windows (github.com/memlinkdotdev/wslink)')
-    );
-  }
-}
-
 // ─── memlink serve ────────────────────────────────────────────────────────
 
 const serveCmd = program.command('serve');
@@ -452,7 +407,6 @@ serveCmd
   .option('--log-level <level>', 'Log level: none, basic, verbose')
   .option('--bearer-token <token>', 'Require Authorization: Bearer <token> for MCP endpoints')
   .option('--daemon', 'Run server in background as a daemon')
-  .option('--wslink', 'Auto-forward port to Windows via wslink (WSL only)')
   .action(async (opts) => {
     const port = parseInt(opts.port);
     const host = opts.host;
@@ -478,10 +432,6 @@ serveCmd
 
     // Internal: child of daemon spawn — write PID and start server
     if (process.env.MEMLINK_DAEMON_CHILD) {
-      if (opts.wslink) {
-        tryForwardWslPort(port);
-        forwardWslPortFromWsl(port);
-      }
       writePid(process.pid);
 
       await startServer(port, host, {
@@ -509,7 +459,6 @@ serveCmd
       if (opts.bearerToken) childArgs.push('--bearer-token', opts.bearerToken);
       if (opts.transport) childArgs.push('--transport', opts.transport);
       if (opts.memory) childArgs.push('--memory', opts.memory);
-      if (opts.wslink) childArgs.push('--wslink');
 
       // Use the same binary (node/bun) with the same script
       const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
@@ -547,11 +496,6 @@ serveCmd
     if (httpTransports.length === 0 && transports.includes('stdio')) {
       // Already handled above; this path won't be reached
       return;
-    }
-
-    if (opts.wslink) {
-      tryForwardWslPort(port);
-      forwardWslPortFromWsl(port);
     }
 
     await startServer(port, host, {
@@ -1413,15 +1357,6 @@ program
       check('Server', ok, `http://${host}:${port} → HTTP ${resp.status}`);
     } catch {
       check('Server', false, `http://${host}:${port} — not reachable`);
-    }
-
-    if (process.platform === 'win32') {
-      try {
-        const ver = execSync('wslink --version', { stdio: 'pipe', encoding: 'utf-8' }).trim();
-        check('wslink', true, ver);
-      } catch {
-        check('wslink', false, 'Not found in PATH');
-      }
     }
 
     check('Node.js', true, `${process.version} (${process.arch})`);

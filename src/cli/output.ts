@@ -185,7 +185,7 @@ Memlink is a self-hosted MCP server that gives you persistent, organized memory 
 
 The MCP server runs at \`http://localhost:4444/mcp?id=YOUR_MEMORY_ID\`.
 
-If running inside WSL, the port is bridged to Windows automatically via \`wslink\` — agents on Windows connect to \`localhost:4444\` as usual.
+If running inside WSL, you can bridge the port to Windows using \`wslink\` — allowing agents on Windows to connect to \`localhost:4444\` as usual.
 
 ## MCP Tools
 

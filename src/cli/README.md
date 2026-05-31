@@ -22,7 +22,7 @@ Create a new memory.
 Start the MCP server.
 
 - Default: `http://localhost:4444/mcp`
-- Flags: `--port <port>`, `--host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`, `--wslink`
+- Flags: `--port <port>`, `--host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`
 - Daemon mode: `memlink serve --daemon` runs in background, managed via `memlink stop` / `memlink status`
 
 ### `memlink ls`
