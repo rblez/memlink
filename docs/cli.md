@@ -2,10 +2,10 @@
 
 ## Global flags
 
-| Flag | Description |
-|------|-------------|
-| `-v, --version` | Show version with runtime info (Node, platform, config path) |
-| `-h, --help` | Show help with all commands, examples, and environment variables |
+| Flag            | Description                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| `-v, --version` | Show version with runtime info (Node, platform, config path)     |
+| `-h, --help`    | Show help with all commands, examples, and environment variables |
 
 ## Commands
 
@@ -34,6 +34,7 @@ memlink serve --watch                 # Auto-export on file changes
 ```
 
 Options:
+
 - `--port <port>` — Port to listen on (default: 4444, env: `MEMLINK_PORT` or `PORT`)
 - `--host <host>` — Host to bind to (default: localhost, env: `MEMLINK_HOST` or `HOST`)
 - `--cors <origins>` — CORS allowed origins (comma-separated or `*`)
@@ -57,6 +58,7 @@ memlink init my-project --serve --port 4444
 Name restrictions: only letters, numbers, `-`, `_`, `.`. No duplicates allowed.
 
 Options:
+
 - `--serve` — Auto-start the MCP server after creation
 - `--port <port>` — Port for auto-start server
 
@@ -108,6 +110,7 @@ memlink import my-project ./entries.json --overwrite
 Each entry must have `title` and `content`. Optional: `tags`. Existing entries with the same title are skipped unless `--overwrite` is used.
 
 Options:
+
 - `--overwrite` — Replace existing entries with matching titles
 
 ### `memlink connect <name-or-id>`
@@ -120,6 +123,7 @@ memlink connect my-project --all
 ```
 
 Options:
+
 - `--all` — Show all known agents, not just detected ones
 
 ### `memlink config`
@@ -177,24 +181,23 @@ memlink bug
 
 ## Configuration
 
-Config file at `~/.memlink/config.json`:
+Config file at `~/.memlink/settings.json`:
 
 ```json
 {
-  "version": "1.0.9",
+  "version": "1.0.12",
   "baseDir": "/home/user/.memlink",
   "universalMemories": [...],
   "serverPort": 4444,
-  "serverHost": "localhost",
-  "exportFormats": ["md", "txt", "html"]
+  "serverHost": "localhost"
 }
 ```
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMLINK_DIR` | Data directory | `~/.memlink` |
-| `MEMLINK_PORT` / `PORT` | Server port | `4444` |
-| `MEMLINK_HOST` / `HOST` | Server host | `localhost` |
-| `MEMLINK_NO_COLOR` | Disable colored output | — |
+| Variable                | Description            | Default      |
+| ----------------------- | ---------------------- | ------------ |
+| `MEMLINK_DIR`           | Data directory         | `~/.memlink` |
+| `MEMLINK_PORT` / `PORT` | Server port            | `4444`       |
+| `MEMLINK_HOST` / `HOST` | Server host            | `localhost`  |
+| `MEMLINK_NO_COLOR`      | Disable colored output | —            |
