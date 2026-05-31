@@ -478,11 +478,11 @@ serveCmd
 
     // Internal: child of daemon spawn — write PID and start server
     if (process.env.MEMLINK_DAEMON_CHILD) {
-      tryForwardWslPort(port);
-      forwardWslPortFromWsl(port);
+      if (opts.wslink) {
+        tryForwardWslPort(port);
+        forwardWslPortFromWsl(port);
+      }
       writePid(process.pid);
-      tryForwardWslPort(port);
-      forwardWslPortFromWsl(port);
 
       await startServer(port, host, {
         cors: opts.cors,
@@ -547,6 +547,11 @@ serveCmd
     if (httpTransports.length === 0 && transports.includes('stdio')) {
       // Already handled above; this path won't be reached
       return;
+    }
+
+    if (opts.wslink) {
+      tryForwardWslPort(port);
+      forwardWslPortFromWsl(port);
     }
 
     await startServer(port, host, {
