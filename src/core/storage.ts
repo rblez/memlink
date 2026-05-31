@@ -223,7 +223,8 @@ export function migrateLegacyFile(memoryId: string, memoryName: string): void {
   const raw = fs.readFileSync(legacyPath, 'utf-8');
   let entries: Array<{ title: string; content: string; tags?: string[]; updatedAt: string }>;
   try {
-    entries = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    entries = Array.isArray(parsed) ? parsed : parsed.entries;
     if (!Array.isArray(entries) || entries.length === 0) return;
   } catch {
     return;
