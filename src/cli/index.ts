@@ -223,7 +223,7 @@ function helpExamples(): string {
     `    ${colors.white('info')}          Memory details (name, ID, URL, stats)`,
     `                   ${colors.dim('memlink info my-memory')}`,
     '',
-    `    ${colors.white('export')}        Export memory to configured formats (md/txt/html/json)`,
+    `    ${colors.white('export')}        Export memory as JSON`,
     `                   ${colors.dim('memlink export my-memory')}`,
     '',
     `    ${colors.white('import')}        Import entries from a JSON file`,
@@ -240,8 +240,8 @@ function helpExamples(): string {
     '',
     `    ${colors.white('config')}        View or modify configuration`,
     `                   ${colors.dim('memlink config')}`,
-    `                   ${colors.dim('memlink config get exportFormats')}`,
-    `                   ${colors.dim('memlink config set exportFormats \'["md","html"]\'')}`,
+    `                   ${colors.dim('memlink config get serverPort')}`,
+    `                   ${colors.dim('memlink config set serverPort 4444')}`,
     '',
     `    ${colors.white('stop')}          Stop the daemon server`,
     `                   ${colors.dim('memlink stop')}`,
@@ -361,7 +361,7 @@ program.action(() => {
 // ─── Daemon helpers ────────────────────────────────────────────────────────────
 
 function daemonPidPath(): string {
-  return path.join(getMemlinkDir(), 'serve.pid');
+  return path.join(getMemlinkDir(), '.serve.pid');
 }
 
 function writePid(pid: number): void {
