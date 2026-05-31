@@ -404,18 +404,26 @@ function tryForwardWslPort(port: number): void {
 function forwardWslPortFromWsl(port: number): void {
   if (process.platform !== 'linux') return;
   try {
-    // Auto-detect running WSL distro from inside WSL
-    const distro = execSync('wsl.exe -l -q', { stdio: 'pipe', encoding: 'utf-8' })
+    // From WSL, invoke wslink.exe on Windows via cmd.exe
+    const wslinkPath = execSync('cmd.exe /c "where wslink.exe"', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 5000,
+    })
       .trim()
       .split('\n')[0];
-    if (!distro) {
-      console.warn(err('No WSL distro found'));
+
+    if (!wslinkPath) {
+      console.warn(err('wslink.exe not found on Windows PATH'));
       return;
     }
-    execSync(`wsl.exe -d "${distro}" wslink forward ${port}`, { stdio: 'inherit' });
-    console.log(info('wslink', `WSL → Windows bridge via ${distro}`));
+
+    execSync(`"${wslinkPath}" forward ${port}`, { stdio: 'inherit', timeout: 10000 });
+    console.log(info('wslink', `Port ${port} forwarded from Windows → WSL`));
   } catch {
-    console.warn(err('wslink forward failed. Is wslink.exe installed on Windows?'));
+    console.warn(
+      err('wslink forward failed. Install wslink.exe on Windows (github.com/memlinkdotdev/wslink)')
+    );
   }
 }
 
