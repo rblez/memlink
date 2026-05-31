@@ -196,7 +196,11 @@ export function searchEntries(memoryName: string, query: string): StorageEntry[]
   if (!index) return [];
 
   // First pass: match titles (fast, no disk reads)
-  const titleMatches = index.entries.filter((e) => e.title.toLowerCase().includes(q));
+  const titleMatches = index.entries.filter(
+    (e) =>
+      e.title.toLowerCase().includes(q) ||
+      (e.tags && e.tags.some((t) => t.toLowerCase().includes(q)))
+  );
   if (titleMatches.length > 0) {
     return titleMatches
       .map((e) => readEntry(memoryName, e.id))

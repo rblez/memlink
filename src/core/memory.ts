@@ -11,6 +11,13 @@ import {
   type UniversalMemory,
   type MemlinkConfig,
 } from './types.ts';
+import {
+  readAllEntries,
+  createEntry,
+  deleteEntry,
+  searchEntries,
+  getStorageStats,
+} from './storage.ts';
 
 export interface MemoryFileData {
   version: string;
@@ -175,6 +182,13 @@ export function revokeUniversalMemory(memoryId: string): boolean {
   const legacyPath = getLegacyMemoryPath(memoryId);
   if (fs.existsSync(legacyPath)) fs.unlinkSync(legacyPath);
 
+  // Clean up new storage directory
+  const name = config.universalMemories[idx].memoryName;
+  const newDir = path.join(getMemlinkDir(), name);
+  if (fs.existsSync(newDir)) {
+    fs.rmSync(newDir, { recursive: true, force: true });
+  }
+
   config.universalMemories.splice(idx, 1);
   saveConfig(config);
   return true;
@@ -183,19 +197,20 @@ export function revokeUniversalMemory(memoryId: string): boolean {
 // ─── Memory file format (JSON) ──────────────────────────────────────────────
 
 export function initMemoryFile(memoryId: string, memoryName?: string): void {
-  const memPath = getMemoryPath(memoryId);
-  if (!fs.existsSync(memPath)) {
-    const displayName = memoryName || memoryId;
-    const now = new Date().toISOString();
-    const data: MemoryFileData = {
-      version: MEMLINK_VERSION,
-      memoryId,
+  const displayName = memoryName || memoryId;
+  const memDir = path.join(getMemlinkDir(), displayName);
+  const indexPath = path.join(memDir, 'index.json');
+  if (!fs.existsSync(indexPath)) {
+    fs.mkdirSync(memDir, { recursive: true });
+    const index = {
       memoryName: displayName,
-      createdAt: now,
-      updatedAt: now,
+      memoryId,
+      nextId: 1,
       entries: [],
     };
-    writeFileAtomic(memPath, JSON.stringify(data, null, 2));
+    const tmp = indexPath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(index, null, 2), 'utf-8');
+    fs.renameSync(tmp, indexPath);
   }
 }
 
@@ -362,19 +377,19 @@ function parseBookFormat(
 // ─── Renderers ──────────────────────────────────────────────────────────────
 
 export function renderMemoryAsMarkdown(memoryId: string): string {
-  const data = loadMemoryFile(memoryId);
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return '# Memory not found';
+  const entries = readAllEntries(memory.memoryName);
   const lines: string[] = [];
 
-  lines.push(`# Memoria: ${data.memoryName}`);
+  lines.push(`# Memoria: ${memory.memoryName}`);
   lines.push('');
-  lines.push(
-    `> ID: ${data.memoryId} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}`
-  );
+  lines.push(`> ID: ${memory.memoryId} | Entries: ${entries.length}`);
   lines.push('');
   lines.push('## Index');
   lines.push('');
 
-  data.entries.forEach((entry, i) => {
+  entries.forEach((entry, i) => {
     const tagStr = entry.tags && entry.tags.length > 0 ? ` _${entry.tags.join(', ')}_` : '';
     lines.push(`${i + 1}. **${entry.title}**${tagStr}`);
   });
@@ -383,7 +398,7 @@ export function renderMemoryAsMarkdown(memoryId: string): string {
   lines.push('---');
   lines.push('');
 
-  data.entries.forEach((entry) => {
+  entries.forEach((entry) => {
     lines.push(`## ${entry.title}`);
     lines.push('');
     lines.push(entry.content);
@@ -394,14 +409,16 @@ export function renderMemoryAsMarkdown(memoryId: string): string {
 }
 
 export function renderMemoryAsText(memoryId: string): string {
-  const data = loadMemoryFile(memoryId);
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return 'Memory not found';
+  const entries = readAllEntries(memory.memoryName);
   const lines: string[] = [];
 
-  lines.push(`Memoria: ${data.memoryName}`);
-  lines.push(`ID: ${data.memoryId} | Entries: ${data.entries.length}`);
+  lines.push(`Memoria: ${memory.memoryName}`);
+  lines.push(`ID: ${memory.memoryId} | Entries: ${entries.length}`);
   lines.push('');
 
-  data.entries.forEach((entry, i) => {
+  entries.forEach((entry, i) => {
     lines.push(`[${i + 1}] ${entry.title}`);
     if (entry.tags && entry.tags.length > 0) {
       lines.push(`    Tags: ${entry.tags.join(', ')}`);
@@ -414,14 +431,16 @@ export function renderMemoryAsText(memoryId: string): string {
 }
 
 export function renderMemoryAsHtml(memoryId: string): string {
-  const data = loadMemoryFile(memoryId);
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return '<h1>Memory not found</h1>';
+  const entries = readAllEntries(memory.memoryName);
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(data.memoryName)}</title>
+  <title>${escapeHtml(memory.memoryName)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #e6edf3; background: #000; -webkit-font-smoothing: antialiased; }
@@ -441,18 +460,18 @@ export function renderMemoryAsHtml(memoryId: string): string {
 </head>
 <body>
   <header>
-    <h1>${escapeHtml(data.memoryName)}</h1>
-    <p class="meta">ID: ${escapeHtml(data.memoryId)} | Entries: ${data.entries.length} | Updated: ${data.updatedAt}</p>
+    <h1>${escapeHtml(memory.memoryName)}</h1>
+    <p class="meta">ID: ${escapeHtml(memory.memoryId)} | Entries: ${entries.length}</p>
   </header>
   <nav class="index">
     <h2>Index</h2>
     <ol>
-      ${data.entries.map((entry, i) => `<li><a href="#entry-${i + 1}">${escapeHtml(entry.title)}</a></li>`).join('\n      ')}
+      ${entries.map((entry, i) => `<li><a href="#entry-${i + 1}">${escapeHtml(entry.title)}</a></li>`).join('\n      ')}
     </ol>
   </nav>
   <hr>
   <main>
-    ${data.entries.map((entry, i) => `<section id="entry-${i + 1}">${entry.tags?.length ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}<article><h2>${escapeHtml(entry.title)}</h2><div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div></article></section>`).join('\n    ')}
+    ${entries.map((entry, i) => `<section id="entry-${i + 1}">${entry.tags?.length ? `<p class="tags">${entry.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}<article><h2>${escapeHtml(entry.title)}</h2><div class="content">${escapeHtml(entry.content).replace(/\n/g, '<br>')}</div></article></section>`).join('\n    ')}
   </main>
 </body>
 </html>`;
@@ -481,9 +500,9 @@ export function exportMemoryFormats(memoryId: string): string[] {
   const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
   const written: string[] = [];
 
-  const data = loadMemoryFile(memoryId);
+  const entries = readAllEntries(name);
   const p = path.join(formatsDir, `${safeName}.json`);
-  writeFileAtomic(p, JSON.stringify(data, null, 2));
+  writeFileAtomic(p, JSON.stringify({ memoryId, memoryName: name, entries }, null, 2));
   written.push(p);
 
   return written;
@@ -492,8 +511,9 @@ export function exportMemoryFormats(memoryId: string): string[] {
 // ─── CRUD operations ─────────────────────────────────────────────────────────
 
 export function readMemory(memoryId: string): MemoryEntry[] {
-  const data = loadMemoryFile(memoryId);
-  return data.entries;
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return [];
+  return readAllEntries(memory.memoryName);
 }
 
 export function readMemoryEntry(memoryId: string, title: string): MemoryEntry | undefined {
@@ -507,72 +527,32 @@ export function upsertMemoryEntry(
   content: string,
   tags?: string[]
 ): MemoryEntry {
-  const data = loadMemoryFile(memoryId);
-  const now = new Date().toISOString();
-  const existing = data.entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
-
-  const entry: MemoryEntry = {
-    title,
-    content,
-    startLine: 0,
-    endLine: 0,
-    tags,
-    updatedAt: now,
-  };
-
-  if (existing >= 0) {
-    data.entries[existing] = entry;
-  } else {
-    data.entries.push(entry);
-  }
-
-  saveMemoryFile(memoryId, data);
-  saveBackup(memoryId);
-  cleanupOldBackups(memoryId, 3);
-  exportMemoryFormats(memoryId);
-
-  return entry;
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) throw new Error(`Memory not found: ${memoryId}`);
+  createEntry(memory.memoryName, memoryId, title, content, tags);
+  return { title, content, tags, startLine: 0, endLine: 0, updatedAt: new Date().toISOString() };
 }
 
 export function deleteMemoryEntry(memoryId: string, title: string): boolean {
-  const data = loadMemoryFile(memoryId);
-  const idx = data.entries.findIndex((e) => e.title.toLowerCase() === title.toLowerCase());
-  if (idx === -1) return false;
-
-  data.entries.splice(idx, 1);
-  saveMemoryFile(memoryId, data);
-  saveBackup(memoryId);
-  cleanupOldBackups(memoryId, 3);
-  exportMemoryFormats(memoryId);
-
-  return true;
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return false;
+  return deleteEntry(memory.memoryName, title);
 }
 
 export function syncMemory(memoryId: string): { entries: number; size: number } {
-  const memPath = getMemoryPath(memoryId);
-  if (!fs.existsSync(memPath)) throw new Error('Memory file not found');
-
-  const data = loadMemoryFile(memoryId);
-  const stats = fs.statSync(memPath);
-
-  return {
-    entries: data.entries.length,
-    size: stats.size,
-  };
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) throw new Error(`Memory not found: ${memoryId}`);
+  const stats = getStorageStats(memory.memoryName);
+  if (!stats) throw new Error(`Memory not found: ${memoryId}`);
+  return { entries: stats.entries, size: stats.size };
 }
 
 // ─── Search ────────────────────────────────────────────────────────────────────
 
 export function searchMemory(memoryId: string, query: string): MemoryEntry[] {
-  const entries = readMemory(memoryId);
-  const lowerQuery = query.toLowerCase();
-
-  return entries.filter((entry) => {
-    const titleMatch = entry.title.toLowerCase().includes(lowerQuery);
-    const contentMatch = entry.content.toLowerCase().includes(lowerQuery);
-    const tagMatch = entry.tags?.some((t) => t.toLowerCase().includes(lowerQuery)) ?? false;
-    return titleMatch || contentMatch || tagMatch;
-  });
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) return [];
+  return searchEntries(memory.memoryName, query);
 }
 
 // ─── Statistics ───────────────────────────────────────────────────────────────────
@@ -581,14 +561,15 @@ export function getStats(memoryId: string): MemoryStats {
   const memory = getUniversalMemoryById(memoryId);
   if (!memory) throw new Error(`Memory not found: ${memoryId}`);
 
-  const data = loadMemoryFile(memoryId);
-  const stats = syncMemory(memoryId);
+  const stats = getStorageStats(memory.memoryName);
+  if (!stats) throw new Error(`Memory not found: ${memoryId}`);
 
+  const entries = readAllEntries(memory.memoryName);
   const allTags = new Set<string>();
   let oldest: string | null = null;
   let newest: string | null = null;
 
-  for (const entry of data.entries) {
+  for (const entry of entries) {
     if (entry.tags) {
       for (const tag of entry.tags) allTags.add(tag);
     }
@@ -641,43 +622,32 @@ export function importFromFile(
             );
           })();
 
-  const data = loadMemoryFile(memoryId);
+  const memory = getUniversalMemoryById(memoryId);
+  if (!memory) throw new Error(`Memory not found: ${memoryId}`);
   let importedCount = 0;
   let skippedCount = 0;
+
+  const readExisting = () => {
+    try {
+      return readAllEntries(memory.memoryName).map((e) => e.title.toLowerCase());
+    } catch {
+      return [] as string[];
+    }
+  };
 
   for (const entry of imported) {
     if (!entry.title || entry.content === undefined) {
       skippedCount++;
       continue;
     }
-    const existing = data.entries.findIndex(
-      (e) => e.title.toLowerCase() === entry.title.toLowerCase()
-    );
-    if (existing >= 0 && !options?.overwrite) {
+    const existingTitles = readExisting();
+    if (existingTitles.includes(entry.title.toLowerCase()) && !options?.overwrite) {
       skippedCount++;
       continue;
     }
-    const now = new Date().toISOString();
-    const newEntry: MemoryEntry = {
-      title: entry.title,
-      content: entry.content,
-      startLine: 0,
-      endLine: 0,
-      tags: entry.tags,
-      updatedAt: now,
-    };
-    if (existing >= 0) {
-      data.entries[existing] = newEntry;
-    } else {
-      data.entries.push(newEntry);
-    }
+    createEntry(memory.memoryName, memoryId, entry.title, entry.content, entry.tags);
     importedCount++;
   }
-
-  saveMemoryFile(memoryId, data);
-  saveBackup(memoryId);
-  cleanupOldBackups(memoryId, 3);
-  exportMemoryFormats(memoryId);
 
   return { imported: importedCount, skipped: skippedCount };
 }

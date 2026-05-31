@@ -13,15 +13,6 @@ import {
   renderMemoryAsHtml,
   getFormatsDir,
   loadConfig,
-  createBackup,
-  saveBackup,
-  restoreBackup,
-  listBackups,
-  deleteBackup,
-  cleanupOldBackups,
-  bulkDeleteMemories,
-  bulkDeleteMemoriesByTags,
-  bulkDeleteMemoriesByPattern,
   importFromFile,
   getMemoryPath,
 } from '../src/core/memory.ts';
@@ -369,115 +360,6 @@ describe('Unit Tests - Core Functions', () => {
     it('should return empty for non-matching tag', () => {
       const results = searchMemory(memoryId, 'nonexistent');
       expect(results).toHaveLength(0);
-    });
-  });
-
-  describe('Backup functions', () => {
-    let memoryId: string;
-
-    beforeEach(() => {
-      const memory = createUniversalMemory(`backup-test-${nanoid(8)}`);
-      memoryId = memory.memoryId;
-      upsertMemoryEntry(memoryId, 'Entry1', 'Content 1');
-      upsertMemoryEntry(memoryId, 'Entry2', 'Content 2');
-    });
-
-    afterEach(() => {
-      try {
-        revokeUniversalMemory(memoryId);
-      } catch {
-        /* ignore */
-      }
-    });
-
-    it('createBackup should return backup with entries', () => {
-      const backup = createBackup(memoryId);
-      expect(backup.metadata.entryCount).toBe(2);
-      expect(backup.entries).toHaveLength(2);
-    });
-
-    it('saveBackup should write a backup file', () => {
-      const filepath = saveBackup(memoryId);
-      expect(existsSync(filepath)).toBe(true);
-      const content = JSON.parse(readFileSync(filepath, 'utf-8'));
-      expect(content.metadata.entryCount).toBe(2);
-    });
-
-    it('listBackups should return saved backups', () => {
-      saveBackup(memoryId);
-      const backups = listBackups(memoryId);
-      expect(backups.length).toBeGreaterThanOrEqual(1);
-      expect(backups[0].memoryId).toBe(memoryId);
-    });
-
-    it('restoreBackup should restore entries', () => {
-      const backupPath = path.join(TEST_DIR, `manual-restore-test-${nanoid(6)}.json`);
-      const backup = createBackup(memoryId);
-      writeFileSync(backupPath, JSON.stringify(backup));
-      deleteMemoryEntry(memoryId, 'Entry1');
-      expect(readMemory(memoryId)).toHaveLength(1);
-      restoreBackup(backupPath, memoryId, true);
-      expect(readMemory(memoryId)).toHaveLength(2);
-    });
-
-    it('deleteBackup should remove backup file', () => {
-      const filepath = saveBackup(memoryId);
-      expect(existsSync(filepath)).toBe(true);
-      const deleted = deleteBackup(filepath);
-      expect(deleted).toBe(true);
-      expect(existsSync(filepath)).toBe(false);
-    });
-
-    it('cleanupOldBackups should delete old backups', () => {
-      const before = listBackups(memoryId).length;
-      expect(before).toBeGreaterThan(0);
-      const result = cleanupOldBackups(memoryId, 1);
-      expect(result.kept).toBe(1);
-      expect(listBackups(memoryId).length).toBe(1);
-      cleanupOldBackups(memoryId, 0);
-    });
-  });
-
-  describe('Bulk delete', () => {
-    let memoryId: string;
-
-    beforeEach(() => {
-      const memory = createUniversalMemory(`bulk-test-${nanoid(8)}`);
-      memoryId = memory.memoryId;
-      upsertMemoryEntry(memoryId, 'Alpha', 'First entry', ['a']);
-      upsertMemoryEntry(memoryId, 'Beta', 'Second entry', ['b']);
-      upsertMemoryEntry(memoryId, 'Gamma', 'Third entry', ['c']);
-    });
-
-    afterEach(() => {
-      try {
-        revokeUniversalMemory(memoryId);
-      } catch {
-        /* ignore */
-      }
-    });
-
-    it('bulkDeleteMemories should delete by titles', () => {
-      const result = bulkDeleteMemories(memoryId, ['Alpha', 'Gamma']);
-      expect(result.deleted).toBe(2);
-      const entries = readMemory(memoryId);
-      expect(entries).toHaveLength(1);
-      expect(entries[0].title).toBe('Beta');
-    });
-
-    it('bulkDeleteMemoriesByTags should delete by tags', () => {
-      const result = bulkDeleteMemoriesByTags(memoryId, ['a', 'c']);
-      expect(result.deleted).toBe(2);
-      const entries = readMemory(memoryId);
-      expect(entries).toHaveLength(1);
-      expect(entries[0].title).toBe('Beta');
-    });
-
-    it('bulkDeleteMemoriesByPattern should delete by content pattern', () => {
-      const result = bulkDeleteMemoriesByPattern(memoryId, 'Second');
-      expect(result.deleted).toBe(1);
-      const entries = readMemory(memoryId);
-      expect(entries).toHaveLength(2);
     });
   });
 
