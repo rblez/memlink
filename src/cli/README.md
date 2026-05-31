@@ -9,113 +9,121 @@ Command-line interface for memlink. Built with Commander.js.
 
 ## Commands
 
-### `memlink` (root)
-
-Show system overview: server URL, memory list, total entries, disk size, available commands.
-
-### `memlink init <name>` (alias `i`)
+### `memlink init <name>` (alias `i` / `c`)
 
 Create a new memory.
 
-- `<name>` is **required** — exits with error if missing
-- Creates memory file at `~/.memlink/<id>.memory.json`
-- Copies MCP URL to clipboard (TTY only)
+- `<name>` is **required**
+- Creates `~/.memlink/<name>/index.json` (per-memory directory)
 - Flags: `-s, --serve` auto-start server, `-p, --port <port>` for auto-started server
 
-### `memlink create <name>` (alias `c`)
-
-Alias for `init`. Identical behavior.
-
-### `memlink serve` (alias `s`)
+### `memlink serve`
 
 Start the MCP server.
 
 - Default: `http://localhost:4444/mcp`
-- Logs always on (no toggle flag)
-- Shows all memory URLs on startup
-- Flags: `-p, --port <port>`, `-H, --host <host>`
-
-### `memlink connect <memoryId>` (alias `con`)
-
-Get MCP connection details for a specific memory.
-
-- Shows URL, MCP JSON config
-- Copies URL to clipboard (TTY only)
-- No `navFooter`
+- Flags: `-p, --port <port>`, `-H, --host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`, `--wslink`
+- Daemon mode: `memlink serve --daemon` runs in background, managed via `memlink stop` / `memlink status`
 
 ### `memlink ls` (alias `list`)
 
-List all memories in a table: Name, ID, Size (KB). Top-level command (not nested under `memory`).
+List all memories: Name, ID, Size.
 
-### `memlink show <memoryId>` (alias `sh`)
+### `memlink show <name-or-id>` (alias `sh`)
 
-Show full memory contents as consolidated Markdown. No filter flags — prints the raw Markdown as agents see it. No `navFooter`.
+Show memory contents as Markdown.
+
+### `memlink info <name-or-id>`
+
+Show memory details: entries, tags, created/last-seen timestamps.
+
+### `memlink export <name-or-id>`
+
+Export memory as JSON to `~/.memlink/exports/<name>.json`.
+
+### `memlink import <name-or-id> <file>`
+
+Import entries from a JSON file.
+
+### `memlink delete <name-or-id>`
+
+Delete an entire memory (config entry + storage directory).
+
+### `memlink connect <name-or-id>` (alias `con`)
+
+Show MCP connection details for an agent. Supports streamable HTTP, SSE, and stdio.
+
+### `memlink config [get/set]`
+
+View or modify `settings.json`. Example: `config get serverPort`, `config set serverPort 5555`.
+
+### `memlink doctor`
+
+Run diagnostics: config file, data directory, server health, Node version, platform.
+
+### `memlink skill`
+
+Install memlink agent skill to `~/.agents/skills/memlink/SKILL.md`.
+
+### `memlink stop` / `memlink status`
+
+Stop the daemon or check if it's running.
 
 ### `memlink bug` (alias `feedback`)
 
-Opens GitHub issue form with pre-filled template. Prompts **Enter** before opening browser (TTY only).
+Opens GitHub issue form.
 
 ### `memlink changelog`
 
-Opens the changelog in your browser at `http://localhost:4444/changelogs`. Prompts **Enter** before opening browser (TTY only). Shows all versions from v0.1.0 to current.
+Opens the changelog in browser.
 
 ## TTY Detection
 
-The CLI detects non-TTY environments (`process.stdout.isTTY`):
+The CLI detects non-TTY environments:
 
-- ASCII art banners (`printLogo`) are skipped
+- ASCII art banners are skipped
 - Clipboard operations are skipped
-- Interactive prompts in `bug` are skipped (shows URL instead)
+- Interactive prompts are skipped
 
-This enables silent operation in CI, Docker, pipes, and scripts.
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `MEMLINK_DIR` | Override data directory (`~/.memlink`) |
+| `MEMLINK_PORT` / `PORT` | Server port (4444) |
+| `MEMLINK_HOST` / `HOST` | Server host (localhost) |
+| `MEMLINK_BEARER_TOKEN` | Bearer token for MCP endpoints |
+
+## Data Layout
+
+```
+~/.memlink/
+├── settings.json          # Global config
+├── .serve.pid             # Daemon PID (hidden)
+│
+└── my-memory/             # Per-memory directory
+    ├── index.json         # Index (titles, tags, timestamps)
+    ├── 1.json             # Entry 1 (full content)
+    ├── 2.json             # Entry 2
+    │
+    └── .backups/          # Auto-backups on every write
+```
 
 ## Output
 
 ### Branding
 
 - Logo: braille art with gradient (`#00E5A0 → #FFFFFF → #CC00CC`)
-- Symbols: `● ○ ❯  ─ * ↓ ↑ ↵` (no emojis)
+- Symbols: `● ○ ❯  ─` (no emojis)
 - Colors: `primary (#00E5A0)`, `accent (#CC00CC)`, `muted (#66B8A0)`, `white (#e8e8e8)`, `dim (#444)`
-
-### Nav Footer
-
-Only on `serve`:
-
-```
-  ────────────────────────────────────────────────────────────────
-  ^c stop
-```
-
-## Environment Variables
-
-| Variable | Used By | Description |
-|----------|---------|-------------|
-| `MEMLINK_DIR` | `memlink`, `connect`, `init`, `ls`, `show` | Override data directory |
-| `MEMLINK_PORT` / `PORT` | `memlink`, `connect`, `init -s` | Default server port |
-| `MEMLINK_HOST` / `HOST` | `memlink`, `connect`, `init -s` | Default server host |
-
-## Dependencies
-
-- `commander` — CLI framework
-- `chalk` — terminal colors
-- `table` — table formatting
-
-The `readline` module (Node built-in) is used for the `bug` command's Enter prompt.
 
 ## Usage
 
 ```bash
+# Dev
+bun run dev:cli
+
 # Build
 npm run build
-
-# Run
 node dist/cli/index.js --help
-node dist/cli/index.js init my-project
-node dist/cli/index.js serve
-```
-
-## Dev
-
-```bash
-bun run dev:cli
 ```
