@@ -18,18 +18,10 @@ http://localhost:4444/mcp?id=MEMORY_ID
 
 | Tool | Description | Params |
 |------|-------------|--------|
-| `memory_read` | Read all entries or by title | `title?` |
+| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?` |
 | `memory_edit` | Create or update entry | `title`, `content`, `tags?` |
-| `memory_delete` | Delete entry by title | `title` |
 | `memory_search` | Search by query | `query` |
-| `memory_sync` | Validate memory integrity | — |
-| `memory_batch` | Bulk create/update | `entries[]` |
-| `bulk_delete` | Delete by titles/tags/pattern | `titles?`, `tags?`, `pattern?` |
-| `backup_create` | Create backup | — |
-| `backup_restore` | Restore from backup | `backupFile` |
-| `backup_list` | List backups | — |
-| `backup_delete` | Delete a backup | `backupFile` |
-| `backup_cleanup` | Clean old backups | `keep?` |
+| `memory_sync` | Memory stats | — |
 
 ## MCP Resources
 

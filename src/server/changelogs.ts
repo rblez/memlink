@@ -26,7 +26,7 @@ const releases: Release[] = [
       'Optional bearer token authentication for MCP endpoints',
       'Landing page with bento grid and CLI feature screenshots',
       'Name-or-ID lookup for all commands',
-      'Auto-export on write via `exportFormats` config',
+      'JSON-only storage per memory directory',
       'Multiple entries support in `memory_read`',
     ],
   },
