@@ -11,7 +11,7 @@ import {
   renderMemoryAsMarkdown,
   renderMemoryAsText,
   renderMemoryAsHtml,
-  getFormatsDir,
+  getExportsDir,
   loadConfig,
   importFromFile,
   getMemoryPath,
@@ -246,9 +246,9 @@ describe('Unit Tests - Core Functions', () => {
 
     it('should write files inside formats directory', () => {
       const written = exportMemoryFormats(memoryId);
-      const formatsDir = getFormatsDir();
+      const exportsDir = getExportsDir();
       for (const f of written) {
-        expect(f.startsWith(formatsDir)).toBe(true);
+        expect(f.startsWith(exportsDir)).toBe(true);
       }
     });
   });

@@ -25,7 +25,7 @@ import {
   renderMemoryAsMarkdown,
   exportMemoryFormats,
   importFromFile,
-  getFormatsDir,
+  getExportsDir,
   saveConfig,
   revokeUniversalMemory,
 } from '../core/memory.ts';
@@ -1194,7 +1194,7 @@ program
 
 program
   .command('export <name-or-id>')
-  .description('Export memory to configured formats (md, txt, html, json)')
+  .description('Export memory as JSON')
   .action((idOrName: string) => {
     const found = findMemory(idOrName);
     if (!found) {
@@ -1208,7 +1208,7 @@ program
     const small = logoSmall();
     if (small) console.log('\n' + small + '\n');
     console.log(okBadge(`Exported: ${shortFiles.join(', ')}`));
-    console.log(dimLine(`Formats dir: ${getFormatsDir()}`));
+    console.log(dimLine(`Exports dir: ${getExportsDir()}`));
     console.log();
   });
 

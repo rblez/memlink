@@ -485,8 +485,8 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function getFormatsDir(): string {
-  const dir = path.join(getMemlinkDir(), 'formats');
+export function getExportsDir(): string {
+  const dir = path.join(getMemlinkDir(), 'exports');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -494,14 +494,14 @@ export function getFormatsDir(): string {
 }
 
 export function exportMemoryFormats(memoryId: string): string[] {
-  const formatsDir = getFormatsDir();
+  const exportsDir = getExportsDir();
   const memory = getMemoryById(memoryId);
   const name = memory?.memoryName || memoryId;
   const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
   const written: string[] = [];
 
   const entries = readAllEntries(name);
-  const p = path.join(formatsDir, `${safeName}.json`);
+  const p = path.join(exportsDir, `${safeName}.json`);
   writeFileAtomic(p, JSON.stringify({ memoryId, memoryName: name, entries }, null, 2));
   written.push(p);
 
