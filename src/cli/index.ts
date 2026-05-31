@@ -259,6 +259,9 @@ function helpExamples(): string {
     `    ${colors.white('changelog')}     Open the changelog in your browser`,
     `                   ${colors.dim('memlink changelog')}`,
     '',
+    `    ${colors.white('doctor')}       Run system diagnostics`,
+    `                   ${colors.dim('memlink doctor')}`,
+    '',
     `    ${colors.dim('Use -v, --version to show system overview')}`,
     '',
   ];
@@ -385,6 +388,33 @@ function isProcessRunning(pid: number): boolean {
   }
 }
 
+// ─── WSL bridge ───────────────────────────────────────────────────────────────
+
+function tryForwardWslPort(port: number): void {
+  if (process.platform !== 'win32') return;
+  try {
+    execSync('where wslink.exe', { stdio: 'ignore' });
+    execSync(`wslink forward ${port}`, { stdio: 'pipe' });
+    console.log(info('wslink', `Forwarding WSL port ${port} → Windows`));
+  } catch {
+    // wslink not installed or failed
+  }
+}
+
+function forwardWslPortFromWsl(port: number): void {
+  if (process.platform !== 'linux') return;
+  try {
+    // Auto-detect running WSL distro from inside WSL
+    const distro = execSync('wsl.exe -l -q', { stdio: 'pipe', encoding: 'utf-8' })
+      .trim().split('\n')[0];
+    if (!distro) { console.warn(err('No WSL distro found')); return; }
+    execSync(`wsl.exe -d "${distro}" wslink forward ${port}`, { stdio: 'inherit' });
+    console.log(info('wslink', `WSL → Windows bridge via ${distro}`));
+  } catch {
+    console.warn(err('wslink forward failed. Is wslink.exe installed on Windows?'));
+  }
+}
+
 // ─── memlink serve ────────────────────────────────────────────────────────
 
 const serveCmd = program.command('serve');
@@ -405,6 +435,7 @@ serveCmd
   .option('--bearer-token <token>', 'Require Authorization: Bearer <token> for MCP endpoints')
   .option('--daemon', 'Run server in background as a daemon')
   .option('--watch', 'Watch memory files and auto-export on change')
+  .option('--wslink', 'Auto-forward port to Windows via wslink (WSL only)')
   .action(async (opts) => {
     const port = parseInt(opts.port);
     const host = opts.host;
@@ -430,11 +461,17 @@ serveCmd
 
     // Internal: child of daemon spawn — write PID and start server
     if (process.env.MEMLINK_DAEMON_CHILD) {
+      tryForwardWslPort(port);
+      forwardWslPortFromWsl(port);
       writePid(process.pid);
-      await startServer(port, host, {
+    tryForwardWslPort(port);
+    forwardWslPortFromWsl(port);
+
+    await startServer(port, host, {
         cors: opts.cors,
         readOnly: opts.readOnly,
         logLevel: opts.logLevel,
+        watch: opts.watch,
         bearerToken: opts.bearerToken,
       });
       return;
@@ -457,6 +494,7 @@ serveCmd
       if (opts.transport) childArgs.push('--transport', opts.transport);
       if (opts.memory) childArgs.push('--memory', opts.memory);
       if (opts.watch) childArgs.push('--watch');
+      if (opts.wslink) childArgs.push('--wslink');
 
       // Use the same binary (node/bun) with the same script
       const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
@@ -1313,6 +1351,84 @@ program
       console.log(dimLine(`Copy and open: ${url}`));
       console.log();
     }
+  });
+
+// ─── memlink doctor ───────────────────────────────────────────────────────
+
+program
+  .command('doctor')
+  .description('Run system diagnostics')
+  .action(async () => {
+    const small = logoSmall();
+    if (small) console.log('\n' + small + '\n');
+
+    console.log(colors.white('memlink diagnostics\n'));
+
+    let allOk = true;
+    const check = (label: string, ok: boolean, detail?: string) => {
+      if (ok) {
+        console.log(`  ${okBadge('')} ${label}`);
+        if (detail) console.log(`    ${colors.dim(detail)}`);
+        console.log();
+      } else {
+        allOk = false;
+        console.log(`  ${err('✗')} ${label}`);
+        if (detail) console.log(`    ${colors.dim(detail)}`);
+        console.log();
+      }
+    };
+
+    const configPath = path.join(getMemlinkDir(), CONFIG_FILE);
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      try {
+        const cfg = JSON.parse(raw);
+        check('Config file', true, `${configPath} (${Object.keys(cfg).length} keys)`);
+      } catch {
+        check('Config file', false, `${configPath} — invalid JSON`);
+      }
+    } else {
+      check('Config file', false, `${configPath} — not found`);
+    }
+
+    const dir = getMemlinkDir();
+    if (fs.existsSync(dir)) {
+      const items = fs.readdirSync(dir).filter((f) => f.endsWith('.memory.json'));
+      check('Memlink directory', true, `${dir} (${items.length} memory files)`);
+    } else {
+      check('Memlink directory', false, `${dir} — not found`);
+    }
+
+    const host = envHost() || loadConfig().serverHost || DEFAULT_HOST;
+    const port = envPort() || loadConfig().serverPort || DEFAULT_PORT;
+    try {
+      const resp = await fetch(`http://${host}:${port}/health`);
+      const ok = resp.ok || resp.status === 404;
+      check('Server', ok, `http://${host}:${port} → HTTP ${resp.status}`);
+    } catch {
+      check('Server', false, `http://${host}:${port} — not reachable`);
+    }
+
+    if (process.platform === 'win32') {
+      try {
+        const ver = execSync('wslink --version', { stdio: 'pipe', encoding: 'utf-8' }).trim();
+        check('wslink', true, ver);
+      } catch {
+        check('wslink', false, 'Not found in PATH');
+      }
+    }
+
+    check('Node.js', true, `${process.version} (${process.arch})`);
+    check('Platform', true, `${process.platform} ${os.release()}`);
+
+    console.log(colors.dim('─'.repeat(30)));
+    console.log();
+    if (allOk) {
+      console.log(okBadge('All checks passed'));
+    } else {
+      console.log(err('Some checks failed'));
+    }
+    console.log();
   });
 
 // ─── memlink changelog ───────────────────────────────────────────────────────
