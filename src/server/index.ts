@@ -28,10 +28,9 @@ import {
   updateUniversalMemoryLastSeen,
   getStats,
   exportMemoryFormats,
-  getMemlinkDir,
   loadConfig,
 } from '../core/memory.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
+import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, getMemlinkDir } from '../core/types.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
 

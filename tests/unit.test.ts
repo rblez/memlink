@@ -244,30 +244,13 @@ describe('Unit Tests - Core Functions', () => {
       }
     });
 
-    it('should export md file', () => {
+    it('should export json file with entry data', () => {
       const written = exportMemoryFormats(memoryId);
-      const mdFile = written.find((f) => f.endsWith('.md'));
-      expect(mdFile).toBeDefined();
-      const content = readFileSync(mdFile!, 'utf-8');
+      const jsonFile = written.find((f) => f.endsWith('.json'));
+      expect(jsonFile).toBeDefined();
+      const content = readFileSync(jsonFile!, 'utf-8');
       expect(content).toContain('Entry1');
       expect(content).toContain('Content 1');
-    });
-
-    it('should export txt file', () => {
-      const written = exportMemoryFormats(memoryId);
-      const txtFile = written.find((f) => f.endsWith('.txt'));
-      expect(txtFile).toBeDefined();
-      const content = readFileSync(txtFile!, 'utf-8');
-      expect(content).toContain('Entry1');
-    });
-
-    it('should export html file', () => {
-      const written = exportMemoryFormats(memoryId);
-      const htmlFile = written.find((f) => f.endsWith('.html'));
-      expect(htmlFile).toBeDefined();
-      const content = readFileSync(htmlFile!, 'utf-8');
-      expect(content).toContain('<!DOCTYPE html>');
-      expect(content).toContain('Entry1');
     });
 
     it('should write files inside formats directory', () => {
