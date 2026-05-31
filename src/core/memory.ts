@@ -2,9 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { nanoid } from 'nanoid';
 import {
-  MEMLINK_VERSION, CONFIG_FILE, DEFAULT_PORT, DEFAULT_HOST,
+  MEMLINK_VERSION,
+  CONFIG_FILE,
+  DEFAULT_PORT,
+  DEFAULT_HOST,
   getMemlinkDir,
-  type MemoryEntry, type UniversalMemory, type MemlinkConfig,
+  type MemoryEntry,
+  type UniversalMemory,
+  type MemlinkConfig,
 } from './types.ts';
 
 export interface MemoryFileData {

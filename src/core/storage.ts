@@ -54,9 +54,7 @@ export function readEntry(memoryName: string, id: number): StorageEntry | null {
 export function findEntryByTitle(memoryName: string, title: string): StorageEntry | null {
   const index = readIndex(memoryName);
   if (!index) return null;
-  const found = index.entries.find(
-    (e) => e.title.toLowerCase() === title.toLowerCase()
-  );
+  const found = index.entries.find((e) => e.title.toLowerCase() === title.toLowerCase());
   if (!found) return null;
   return readEntry(memoryName, found.id);
 }
@@ -93,9 +91,7 @@ export function createEntry(
     }
 
     // Check if title already exists — update instead
-    const existing = index.entries.find(
-      (e) => e.title.toLowerCase() === title.toLowerCase()
-    );
+    const existing = index.entries.find((e) => e.title.toLowerCase() === title.toLowerCase());
     if (existing) {
       const entry = readEntry(memoryName, existing.id);
       if (entry) {
@@ -164,9 +160,7 @@ export function deleteEntry(memoryName: string, idOrTitle: number | string): boo
     if (typeof idOrTitle === 'number') {
       id = idOrTitle;
     } else {
-      const found = index.entries.find(
-        (e) => e.title.toLowerCase() === idOrTitle.toLowerCase()
-      );
+      const found = index.entries.find((e) => e.title.toLowerCase() === idOrTitle.toLowerCase());
       if (!found) return false;
       id = found.id;
     }
@@ -202,9 +196,7 @@ export function searchEntries(memoryName: string, query: string): StorageEntry[]
   if (!index) return [];
 
   // First pass: match titles (fast, no disk reads)
-  const titleMatches = index.entries.filter((e) =>
-    e.title.toLowerCase().includes(q)
-  );
+  const titleMatches = index.entries.filter((e) => e.title.toLowerCase().includes(q));
   if (titleMatches.length > 0) {
     return titleMatches
       .map((e) => readEntry(memoryName, e.id))

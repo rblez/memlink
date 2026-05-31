@@ -33,7 +33,11 @@ export function acquireLock(memoryDir: string, _ttl: number = LOCK_TTL): boolean
   // Check for stale lock first
   const existing = readLock(memoryDir);
   if (existing && isStale(existing.lockedAt)) {
-    try { fs.unlinkSync(lockPath(memoryDir)); } catch { /* race */ }
+    try {
+      fs.unlinkSync(lockPath(memoryDir));
+    } catch {
+      /* race */
+    }
   }
 
   // Try exclusive create
