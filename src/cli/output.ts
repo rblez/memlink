@@ -170,36 +170,22 @@ export function navHint(hints: string[]): string {
 
 export const SKILL_MD = `# Memlink — Universal Memory for AI Agents
 
-Memlink is a self-hosted MCP server that gives you persistent, organized memory across sessions. One URL, any agent connects.
+Memlink is a self-hosted MCP server that gives you persistent, organized memory across sessions.
+
+## ⚠️ Mandatory: Use MCP at every session start
+
+\`\`\`
+1. Connect to the memlink MCP server (configured in your MCP settings)
+2. Call memory_read immediately to load all stored context
+3. During the session, call memory_edit whenever the user asks to save/remember something
+4. Search with memory_search before creating new entries to avoid duplicates
+\`\`\`
 
 ## Connection
 
-The MCP server runs at:
+The MCP server runs at \`http://localhost:4444/mcp?id=YOUR_MEMORY_ID\`.
 
-\`\`\`
-http://localhost:4444/mcp?id=YOUR_MEMORY_ID
-\`\`\`
-
-The memory ID is a 12-character alphanumeric string assigned when you create a memory via \`memlink init <name>\`.
-
-### MCP config
-
-\`\`\`json
-{
-  "mcpServers": {
-    "memlink": {
-      "type": "http",
-      "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
-    }
-  }
-}
-\`\`\`
-
-## Session Workflow
-
-1. **Start of session** — Always call \`memory_read\` to load existing context
-2. **During session** — Call \`memory_edit\` whenever the user asks to save/remember something; search before creating new entries to avoid duplicates
-3. **End of session** — Optionally call \`memory_sync\` to validate integrity
+If running inside WSL, the port is bridged to Windows automatically via \`wslink\` — agents on Windows connect to \`localhost:4444\` as usual.
 
 ## MCP Tools
 
