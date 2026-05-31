@@ -4,65 +4,6 @@ Business logic for memory management, configuration, and data persistence.
 
 ## Files
 
-### `memory.ts`
-
-Memory operations and configuration management. The heart of memlink's data layer.
-
-#### Configuration
-
-| Function | Description |
-|----------|-------------|
-| `loadConfig()` | Load `~/.memlink/config.json` (or `$MEMLINK_DIR/config.json`) |
-| `saveConfig(config)` | Save config to disk (atomic write) |
-| `getMemlinkDir()` | Get data directory path (`$MEMLINK_DIR` or `~/.memlink`) |
-| `ensureMemlinkDir()` | Create dir if not exists |
-
-#### Universal Memory
-
-| Function | Description |
-|----------|-------------|
-| `createUniversalMemory(name)` | Create new memory, returns `{memoryId, memoryName, memoryFile}` |
-| `readMemory(memoryId)` | Read all entries from memory file |
-| `readMemoryEntry(memoryId, title)` | Read specific entry by title |
-| `upsertMemoryEntry(memoryId, title, content, tags?)` | Create or update entry (auto-backup) |
-| `deleteMemoryEntry(memoryId, title)` | Delete entry by title (auto-backup) |
-| `searchMemory(memoryId, query)` | Search by title, content, or tags |
-| `getStats(memoryId)` | Get entry count + file size |
-
-#### Render
-
-| Function | Description |
-|----------|-------------|
-| `renderMemoryAsMarkdown(memoryId)` | Full memory as markdown |
-| `renderEntryAsMarkdown(entry)` | Single entry as markdown |
-
-#### Backup
-
-| Function | Description |
-|----------|-------------|
-| `saveBackup(memoryId)` | Create timestamped backup (atomic write) |
-| `listBackups(memoryId)` | List all backups |
-| `restoreBackup(memoryId, backupFile)` | Restore from backup |
-| `deleteBackup(memoryId, backupFile)` | Delete a backup |
-| `cleanupOldBackups(memoryId, keepCount)` | Remove old backups (default keep 3) |
-
-Auto-backups: `upsertMemoryEntry` and `deleteMemoryEntry` automatically call `saveBackup` + `cleanupOldBackups(memoryId, 3)` after each mutation.
-
-#### Bulk Operations
-
-| Function | Description |
-|----------|-------------|
-| `bulkDeleteMemories(memoryId, titles)` | Delete by title list |
-| `bulkDeleteMemoriesByTags(memoryId, tags)` | Delete entries matching tags |
-| `bulkDeleteMemoriesByPattern(memoryId, pattern)` | Delete entries matching pattern |
-
-#### Export/Import
-
-| Function | Description |
-|----------|-------------|
-| `exportMemory(memoryId)` | Export to JSON |
-| `importMemory(memoryId, data)` | Import from JSON |
-
 ### `types.ts`
 
 TypeScript interfaces and constants.
@@ -71,18 +12,37 @@ TypeScript interfaces and constants.
 
 ```typescript
 interface MemoryEntry {
+  id?: number;
   title: string;
   content: string;
-  startLine: number;
-  endLine: number;
   tags?: string[];
   updatedAt: string;
+}
+
+interface StorageEntry {
+  id: number;
+  title: string;
+  content: string;
+  tags?: string[];
+  updatedAt: string;
+}
+
+interface StorageIndex {
+  memoryName: string;
+  memoryId: string;
+  nextId: number;
+  entries: Array<{ id: number; title: string; tags?: string[]; updatedAt: string }>;
+}
+
+interface LockFile {
+  pid: number;
+  hostname: string;
+  lockedAt: number;
 }
 
 interface UniversalMemory {
   memoryId: string;
   memoryName: string;
-  memoryFile: string;
   createdAt: string;
   lastSeen?: string;
 }
@@ -102,38 +62,76 @@ interface MemlinkConfig {
 
 | Constant | Value |
 |----------|-------|
-| `MEMLINK_VERSION` | `"1.0.8"` |
+| `MEMLINK_VERSION` | `"1.0.11"` |
 | `DEFAULT_PORT` | `4444` |
 | `DEFAULT_HOST` | `"localhost"` |
 | `CONFIG_DIR` | `".memlink"` |
-| `CONFIG_FILE` | `"config.json"` |
+| `CONFIG_FILE` | `"settings.json"` |
+| `LOCK_TTL` | `10000` |
+
+### `getMemlinkDir()`
+
+Returns `$MEMLINK_DIR` or `~/.memlink`.
+
+### `memory.ts`
+
+Legacy memory operations (kept for backward compat during migration). New code uses `storage.ts`.
+
+| Function | Description |
+|----------|-------------|
+| `loadConfig()` | Load `~/.memlink/settings.json` |
+| `saveConfig(config)` | Save config to disk (atomic write) |
+| `createUniversalMemory(name)` | Create new memory |
+| `readMemory(memoryId)` | Read all entries (legacy format) |
+| `exportMemoryFormats(memoryId)` | Export memory as JSON only |
+
+### `storage.ts`
+
+New storage system — each memory gets its own directory with per-entry files.
+
+#### Functions
+
+| Function | Description |
+|----------|-------------|
+| `readIndex(memoryName)` | `index.json` (titles + tags + dates, no content) |
+| `readEntry(memoryName, id)` | Single entry by ID |
+| `findEntryByTitle(memoryName, title)` | Find entry by title |
+| `createEntry(memoryName, memoryId, title, content, tags?)` | Create or update (upserts by title) |
+| `readAllEntries(memoryName)` | All entries with content |
+| `searchEntries(memoryName, query)` | Search titles first, then content |
+| `getStorageStats(memoryName)` | Entry count + last update |
+| `migrateLegacyFile(memoryId, memoryName)` | Convert old `.memory.json` to new format |
+
+### `lock.ts`
+
+File-based mutex for write operations. Uses exclusive file create (`wx`) + TTL.
+
+| Function | Description |
+|----------|-------------|
+| `acquireLock(memoryDir)` | Blocking (up to 5s), returns true/false |
+| `releaseLock(memoryDir)` | Release if owned by this PID |
+| `withLock(memoryDir, fn)` | Acquire → execute → release, or throw |
+| `isLocked(memoryDir)` | Check if lock is held (non-stale) |
 
 ## Data Storage
 
 ```
 ~/.memlink/
-├── config.json              # Global config
-├── backups/                 # Auto-backups (keeps last 3)
-└── abc123def456.memory.json # Universal memory (JSON)
-```
-
-Memory files are JSON with entries stored as an array:
-
-```json
-{
-  "version": "1.0.8",
-  "memoryId": "abc123def456",
-  "memoryName": "my-project",
-  "createdAt": "2024-01-15T10:00:00.000Z",
-  "entries": [
-    {
-      "title": "ProjectContext",
-      "content": "...",
-      "tags": ["context"],
-      "updatedAt": "2024-01-15T10:05:00.000Z"
-    }
-  ]
-}
+├── settings.json              # Global config (renamed from config.json)
+├── .serve.pid                 # Daemon PID file (hidden)
+│
+├── test-memory/               # Directory per memory
+│   ├── .lock                  # Write lock (hidden)
+│   ├── index.json             # Index (titles only)
+│   ├── 1.json                 # Entry 1 (with content)
+│   ├── 2.json                 # Entry 2
+│   │
+│   └── .backups/              # Auto-backups on every edit
+│       ├── 1_1717112345.json
+│       └── index_1717112355.json
+│
+└── otra-memoria/
+    └── ...
 ```
 
 ## Environment Variables
@@ -144,31 +142,6 @@ Memory files are JSON with entries stored as an array:
 
 ## Robustness
 
-- **Atomic writes**: all file writes use `writeFileAtomic()` — write to `.tmp` then `fs.renameSync()`. Eliminates corruption risk on crash.
-- **Auto-backups**: every `upsertMemoryEntry` and `deleteMemoryEntry` creates a timestamped backup in `backups/`. Only the 3 most recent per memory are kept.
-- **Safe clipboard**: clipboard failures in the CLI are caught silently.
-
-## Usage
-
-```typescript
-import {
-  loadConfig,
-  createUniversalMemory,
-  readMemory,
-  upsertMemoryEntry,
-  searchMemory,
-} from './core/memory.ts';
-
-const config = loadConfig();
-const memory = createUniversalMemory('my-project');
-const entries = readMemory(memory.memoryId);
-upsertMemoryEntry(memory.memoryId, 'ProjectContext', 'Content...', ['context']);
-const results = searchMemory(memory.memoryId, 'project');
-```
-
-## Error Handling
-
-- File not found → create new file
-- Invalid JSON → throw error
-- Missing directory → create directory
-- Memory not found → throw error
+- **Atomic writes**: all file writes use `.tmp` + `fs.renameSync()`. Eliminates corruption risk on crash.
+- **Auto-backups**: every `createEntry` / `updateEntry` creates a timestamped backup in `.backups/`.
+- **File lock**: concurrent writes from multiple agents are serialized via `.lock` with 10s TTL + retry.
