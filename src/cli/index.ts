@@ -406,8 +406,12 @@ function forwardWslPortFromWsl(port: number): void {
   try {
     // Auto-detect running WSL distro from inside WSL
     const distro = execSync('wsl.exe -l -q', { stdio: 'pipe', encoding: 'utf-8' })
-      .trim().split('\n')[0];
-    if (!distro) { console.warn(err('No WSL distro found')); return; }
+      .trim()
+      .split('\n')[0];
+    if (!distro) {
+      console.warn(err('No WSL distro found'));
+      return;
+    }
     execSync(`wsl.exe -d "${distro}" wslink forward ${port}`, { stdio: 'inherit' });
     console.log(info('wslink', `WSL → Windows bridge via ${distro}`));
   } catch {
@@ -464,10 +468,10 @@ serveCmd
       tryForwardWslPort(port);
       forwardWslPortFromWsl(port);
       writePid(process.pid);
-    tryForwardWslPort(port);
-    forwardWslPortFromWsl(port);
+      tryForwardWslPort(port);
+      forwardWslPortFromWsl(port);
 
-    await startServer(port, host, {
+      await startServer(port, host, {
         cors: opts.cors,
         readOnly: opts.readOnly,
         logLevel: opts.logLevel,
