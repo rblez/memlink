@@ -5,17 +5,10 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import fs from 'fs';
 import path from 'path';
 import { renderChangelog } from './changelogs.ts';
-import {
-  getMemoryById,
-  updateUniversalMemoryLastSeen,
-  getStats,
-  exportMemoryFormats,
-  loadConfig,
-} from '../core/memory.ts';
-import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, getMemlinkDir } from '../core/types.ts';
+import { getMemoryById, updateUniversalMemoryLastSeen, loadConfig } from '../core/memory.ts';
+import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 import type { StorageEntry } from '../core/types.ts';
 import {
   readIndex,
@@ -553,31 +546,6 @@ export async function startStdioServer(memoryId: string): Promise<void> {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-async function watchMemlinkDir(): Promise<fs.FSWatcher> {
-  const dir = getMemlinkDir();
-  const memDir = path.dirname(dir);
-  const watcher = fs.watch(memDir, (eventType, filename) => {
-    if (!filename) return;
-    const fullPath = path.join(memDir, filename);
-    if (!fullPath.startsWith(dir)) return;
-    if (!filename.endsWith('.memory.json')) return;
-    if (eventType !== 'change') return;
-    const memoryId = filename.replace('.memory.json', '');
-    try {
-      exportMemoryFormats(memoryId);
-      if (logLevel === 'verbose') {
-        console.log(`  [watch] re-exported: ${memoryId}`);
-      }
-    } catch {
-      // ignore
-    }
-  });
-  if (logLevel !== 'none') {
-    console.log(`  Watching  ${dir}/*.memory.json`);
-  }
-  return watcher;
-}
-
 export async function startServer(
   port?: number,
   host?: string,
@@ -585,7 +553,6 @@ export async function startServer(
     cors?: string;
     readOnly?: boolean;
     logLevel?: 'none' | 'basic' | 'verbose';
-    watch?: boolean;
     bearerToken?: string;
   }
 ): Promise<void> {
@@ -612,11 +579,14 @@ export async function startServer(
   // Build memory list for startup output
   const memories = config.universalMemories.map((m) => {
     try {
-      const s = getStats(m.memoryId);
-      return { ...m, entries: s.entries, size: (s.size / 1024).toFixed(1) };
+      const s = getStorageStats(m.memoryName);
+      if (s) {
+        return { ...m, entries: s.entries, size: (s.size / 1024).toFixed(1) };
+      }
     } catch {
-      return { ...m, entries: 0, size: '0.0' };
+      // fall through
     }
+    return { ...m, entries: 0, size: '0.0' };
   });
 
   return new Promise<void>((resolve) => {
@@ -640,28 +610,15 @@ export async function startServer(
       }
       if (readOnly) console.log(`  Mode: read-only`);
       if (logLevel === 'verbose') console.log(`  Log level: verbose`);
-      if (options?.watch) {
-        watchMemlinkDir().then((watcher) => {
-          watchers.push(watcher);
-        });
-      }
       console.log(`  ${'─'.repeat(48)}`);
       console.log(`  ^C to stop\n`);
     });
 
-    const watchers: fs.FSWatcher[] = [];
     let shuttingDown = false;
 
     function shutdown() {
       if (shuttingDown) return;
       shuttingDown = true;
-      for (const w of watchers) {
-        try {
-          w.close();
-        } catch {
-          /* ignore */
-        }
-      }
 
       logLevel = 'none';
 

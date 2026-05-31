@@ -206,7 +206,6 @@ function helpExamples(): string {
     `                   ${colors.dim('memlink serve')}`,
     `                   ${colors.dim('memlink serve --port 4444 --cors *')}`,
     `                   ${colors.dim('memlink serve --daemon')}`,
-    `                   ${colors.dim('memlink serve --watch')}`,
     `                   ${colors.dim('memlink serve --transport stdio --memory my-mem')}`,
     '',
     `    ${colors.white('init')}          Create a new memory (alias: create)`,
@@ -445,7 +444,6 @@ serveCmd
   .option('--log-level <level>', 'Log level: none, basic, verbose')
   .option('--bearer-token <token>', 'Require Authorization: Bearer <token> for MCP endpoints')
   .option('--daemon', 'Run server in background as a daemon')
-  .option('--watch', 'Watch memory files and auto-export on change')
   .option('--wslink', 'Auto-forward port to Windows via wslink (WSL only)')
   .action(async (opts) => {
     const port = parseInt(opts.port);
@@ -482,7 +480,6 @@ serveCmd
         cors: opts.cors,
         readOnly: opts.readOnly,
         logLevel: opts.logLevel,
-        watch: opts.watch,
         bearerToken: opts.bearerToken,
       });
       return;
@@ -504,7 +501,6 @@ serveCmd
       if (opts.bearerToken) childArgs.push('--bearer-token', opts.bearerToken);
       if (opts.transport) childArgs.push('--transport', opts.transport);
       if (opts.memory) childArgs.push('--memory', opts.memory);
-      if (opts.watch) childArgs.push('--watch');
       if (opts.wslink) childArgs.push('--wslink');
 
       // Use the same binary (node/bun) with the same script
@@ -549,7 +545,6 @@ serveCmd
       cors: opts.cors,
       readOnly: opts.readOnly,
       logLevel: opts.logLevel,
-      watch: opts.watch,
       bearerToken: opts.bearerToken,
     });
   });
