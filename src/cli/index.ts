@@ -392,7 +392,11 @@ function tryForwardWslPort(port: number): void {
   if (process.platform !== 'win32') return;
   try {
     execSync('where wslink.exe', { stdio: 'ignore' });
-    execSync(`wslink forward ${port}`, { stdio: 'pipe' });
+    const child = spawn('wslink', ['forward', String(port)], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    child.unref();
     console.log(info('wslink', `Forwarding WSL port ${port} → Windows`));
   } catch {
     // wslink not installed or failed
@@ -416,7 +420,11 @@ function forwardWslPortFromWsl(port: number): void {
       return;
     }
 
-    execSync(`"${wslinkPath}" forward ${port}`, { stdio: 'inherit', timeout: 10000 });
+    const child = spawn(wslinkPath, ['forward', String(port)], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    child.unref();
     console.log(info('wslink', `Port ${port} forwarded from Windows → WSL`));
   } catch {
     console.warn(
