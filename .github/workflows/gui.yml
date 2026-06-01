@@ -47,32 +47,35 @@ jobs:
             librsvg2-dev \
             libxdo-dev
 
-      - name: Build frontend
-        run: npm install && npm run build
+      - name: Install deps & build Tauri app
+        run: |
+          npm install
+          npx tauri build --ci
         working-directory: rs
-
-      - name: Build Rust binary
-        id: build
-        run: cargo build --release
-        working-directory: rs/src-tauri
 
       - name: Upload artifact (ubuntu)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-linux
-          path: rs/target/release/memlink-gui
+          path: |
+            rs/target/release/memlink-gui
+            rs/target/release/bundle/
 
       - name: Upload artifact (macos)
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-macos
-          path: rs/target/release/memlink-gui
+          path: |
+            rs/target/release/memlink-gui
+            rs/target/release/bundle/
 
       - name: Upload artifact (windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-windows
-          path: rs/target/release/memlink-gui.exe
+          path: |
+            rs/target/release/memlink-gui.exe
+            rs/target/release/bundle/
