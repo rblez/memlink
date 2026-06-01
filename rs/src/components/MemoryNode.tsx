@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "reactflow";
 import { CubeIcon } from "@heroicons/react/24/outline";
 import type { UniversalMemory } from "../lib/api";
 
@@ -8,9 +8,7 @@ export type MemoryData = {
   onSelect: () => void;
 };
 
-export type MemoryNode = Node<MemoryData, "memory">;
-
-function MemoryNodeComponent({ data }: NodeProps<MemoryNode>) {
+function MemoryNodeComponent({ data }: NodeProps<MemoryData>) {
   const { memory, onSelect } = data;
 
   return (

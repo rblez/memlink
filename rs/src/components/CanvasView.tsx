@@ -1,18 +1,18 @@
 import { useMemo } from "react";
-import {
-  ReactFlow,
+import ReactFlow, {
   Background,
   Controls,
   MiniMap,
   type Node,
   type Edge,
   MarkerType,
-} from "@xyflow/react";
+} from "reactflow";
+import "reactflow/dist/style.css";
 import MemoryNodeComponent from "./MemoryNode";
 import EntryNodeComponent from "./EntryNode";
 import type { UniversalMemory, StorageEntry } from "../lib/api";
-import type { MemoryNode } from "./MemoryNode";
-import type { EntryNode } from "./EntryNode";
+import type { MemoryData } from "./MemoryNode";
+import type { EntryData } from "./EntryNode";
 
 interface Props {
   memories: UniversalMemory[];
@@ -37,7 +37,7 @@ export default function CanvasView({
   onEditEntry,
 }: Props) {
   const { nodes, edges } = useMemo(() => {
-    const result: Node[] = [];
+    const result: Node<MemoryData | EntryData>[] = [];
     const edgeList: Edge[] = [];
 
     const gapX = 220;
@@ -57,8 +57,7 @@ export default function CanvasView({
         type: "memory",
         position: { x: mx, y: startY },
         data: { memory: mem, onSelect: () => onSelectMemory(mem) },
-        draggable: true,
-      } as MemoryNode);
+      });
 
       if (selectedMemory?.memory_id === mem.memory_id) {
         const filtered = entries.filter((e) => {
@@ -78,8 +77,7 @@ export default function CanvasView({
             type: "entry",
             position: { x: mx + 30, y: ey },
             data: { entry, onEdit: () => onEditEntry(entry) },
-            draggable: true,
-          } as EntryNode);
+          });
 
           edgeList.push({
             id: `edge-${mem.memory_id}-${entry.id}`,

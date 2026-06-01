@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "reactflow";
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
 import type { StorageEntry } from "../lib/api";
 
@@ -8,9 +8,7 @@ export type EntryData = {
   onEdit: () => void;
 };
 
-export type EntryNode = Node<EntryData, "entry">;
-
-function EntryNodeComponent({ data }: NodeProps<EntryNode>) {
+function EntryNodeComponent({ data }: NodeProps<EntryData>) {
   const { entry, onEdit } = data;
   const preview = entry.content.slice(0, 60);
 
