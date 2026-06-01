@@ -1,14 +1,16 @@
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
 import type { StorageEntry } from "../lib/api";
 
-interface EntryNodeData {
+export type EntryData = {
   entry: StorageEntry;
   onEdit: () => void;
-}
+};
 
-function EntryNode({ data }: NodeProps<EntryNodeData>) {
+export type EntryNode = Node<EntryData, "entry">;
+
+function EntryNodeComponent({ data }: NodeProps<EntryNode>) {
   const { entry, onEdit } = data;
   const preview = entry.content.slice(0, 60);
 
@@ -26,7 +28,7 @@ function EntryNode({ data }: NodeProps<EntryNodeData>) {
       </div>
       {entry.tags && entry.tags.length > 0 && (
         <div className="flex gap-1 mt-1 flex-wrap">
-          {entry.tags.map((t) => (
+          {entry.tags.map((t: string) => (
             <span
               key={t}
               className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400"
@@ -46,4 +48,4 @@ function EntryNode({ data }: NodeProps<EntryNodeData>) {
   );
 }
 
-export default memo(EntryNode);
+export default memo(EntryNodeComponent);

@@ -1,14 +1,16 @@
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CubeIcon } from "@heroicons/react/24/outline";
 import type { UniversalMemory } from "../lib/api";
 
-interface MemoryNodeData {
+export type MemoryData = {
   memory: UniversalMemory;
   onSelect: () => void;
-}
+};
 
-function MemoryNode({ data }: NodeProps<MemoryNodeData>) {
+export type MemoryNode = Node<MemoryData, "memory">;
+
+function MemoryNodeComponent({ data }: NodeProps<MemoryNode>) {
   const { memory, onSelect } = data;
 
   return (
@@ -30,4 +32,4 @@ function MemoryNode({ data }: NodeProps<MemoryNodeData>) {
   );
 }
 
-export default memo(MemoryNode);
+export default memo(MemoryNodeComponent);

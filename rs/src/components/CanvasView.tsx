@@ -6,12 +6,13 @@ import {
   MiniMap,
   type Node,
   type Edge,
-  type NodeTypes,
   MarkerType,
 } from "@xyflow/react";
-import MemoryNode from "./MemoryNode";
-import EntryNode from "./EntryNode";
+import MemoryNodeComponent from "./MemoryNode";
+import EntryNodeComponent from "./EntryNode";
 import type { UniversalMemory, StorageEntry } from "../lib/api";
+import type { MemoryNode } from "./MemoryNode";
+import type { EntryNode } from "./EntryNode";
 
 interface Props {
   memories: UniversalMemory[];
@@ -22,9 +23,9 @@ interface Props {
   onEditEntry: (e: StorageEntry) => void;
 }
 
-const nodeTypes: NodeTypes = {
-  memory: MemoryNode,
-  entry: EntryNode,
+const nodeTypes = {
+  memory: MemoryNodeComponent,
+  entry: EntryNodeComponent,
 };
 
 export default function CanvasView({
@@ -57,7 +58,7 @@ export default function CanvasView({
         position: { x: mx, y: startY },
         data: { memory: mem, onSelect: () => onSelectMemory(mem) },
         draggable: true,
-      });
+      } as MemoryNode);
 
       if (selectedMemory?.memory_id === mem.memory_id) {
         const filtered = entries.filter((e) => {
@@ -78,7 +79,7 @@ export default function CanvasView({
             position: { x: mx + 30, y: ey },
             data: { entry, onEdit: () => onEditEntry(entry) },
             draggable: true,
-          });
+          } as EntryNode);
 
           edgeList.push({
             id: `edge-${mem.memory_id}-${entry.id}`,
