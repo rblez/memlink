@@ -9,7 +9,7 @@ use app::MemlinkApp;
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let mcp_mode = args.iter().any(|a| a == "--mcp");
+    let _mcp_mode = args.iter().any(|a| a == "--mcp");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

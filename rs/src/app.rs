@@ -7,7 +7,7 @@ pub struct MemlinkApp {
     // data
     memories: Vec<UniversalMemory>,
     selected_memory: Option<usize>,
-    entries: Vec<storage::StorageEntry>,
+    entries: Vec<StorageEntry>,
     selected_entry: Option<usize>,
 
     // edit state
@@ -179,9 +179,12 @@ impl eframe::App for MemlinkApp {
                     ui.label("no memories");
                 }
 
-                for (i, mem) in self.memories.iter().enumerate() {
+                for i in 0..self.memories.len() {
                     let selected = self.selected_memory == Some(i);
-                    let label = format!("{}  ({})", mem.memory_name, mem.memory_id.get(..6).unwrap_or("?"));
+                    let label = {
+                        let mem = &self.memories[i];
+                        format!("{}  ({})", mem.memory_name, mem.memory_id.get(..6).unwrap_or("?"))
+                    };
 
                     if ui.selectable_label(selected, &label).clicked() {
                         self.select_memory(i);
@@ -248,32 +251,38 @@ impl MemlinkApp {
     }
 
     fn show_entry_detail(&mut self, ui: &mut egui::Ui, idx: usize) {
-        if let Some(entry) = self.entries.get(idx) {
-            ui.horizontal(|ui| {
-                ui.strong(&entry.title);
-                if ui.button("✎ edit").clicked() {
-                    self.start_edit_entry(idx);
-                }
-                if ui.button("✕ delete").clicked() {
-                    self.delete_selected_entry();
-                }
-            });
+        if idx >= self.entries.len() { return; }
+        let title = self.entries[idx].title.clone();
+        let tags = self.entries[idx].tags.clone();
+        let content = self.entries[idx].content.clone();
+        let updated_at = self.entries[idx].updated_at.clone();
 
-            if let Some(tags) = &entry.tags {
-                if !tags.is_empty() {
-                    ui.label(format!("tags: {}", tags.join(", ")));
-                }
+        let mut clicked_edit = false;
+        let mut clicked_delete = false;
+
+        ui.horizontal(|ui| {
+            ui.strong(&title);
+            if ui.button("✎ edit").clicked() { clicked_edit = true; }
+            if ui.button("✕ delete").clicked() { clicked_delete = true; }
+        });
+
+        if clicked_edit { self.start_edit_entry(idx); }
+        if clicked_delete { self.delete_selected_entry(); }
+
+        if let Some(tags) = &tags {
+            if !tags.is_empty() {
+                ui.label(format!("tags: {}", tags.join(", ")));
             }
-
-            ui.separator();
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.label(&entry.content);
-            });
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.label(format!("Updated: {}", entry.updated_at.get(..10).unwrap_or("?")));
-            });
         }
+
+        ui.separator();
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.label(&content);
+        });
+
+        ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+            ui.label(format!("Updated: {}", updated_at.get(..10).unwrap_or("?")));
+        });
     }
 
     fn show_edit_panel(&mut self, ui: &mut egui::Ui) {
