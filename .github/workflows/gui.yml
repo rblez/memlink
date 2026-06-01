@@ -21,39 +21,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo dependencies
+      - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: rs
+          workspaces: rs/src-tauri
 
-      - name: Build (default)
-        run: cargo build --release
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev
+
+      - name: Install frontend deps
+        run: npm install
         working-directory: rs
 
-      - name: Build (mcp feature)
-        run: cargo build --release --features mcp
+      - name: Build Tauri app
+        run: npm run tauri build -- --ci
         working-directory: rs
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
 
       - name: Upload artifact (ubuntu)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-linux
-          path: rs/target/release/memlink-gui
+          path: rs/src-tauri/target/release/bundle/
 
       - name: Upload artifact (macos)
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-macos
-          path: rs/target/release/memlink-gui
+          path: rs/src-tauri/target/release/bundle/
 
       - name: Upload artifact (windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-windows
-          path: rs/target/release/memlink-gui.exe
+          path: rs/src-tauri/target/release/bundle/
