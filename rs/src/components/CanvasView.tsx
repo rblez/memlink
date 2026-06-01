@@ -105,6 +105,7 @@ export default function CanvasView({
       maxZoom={2}
       panOnDrag={[1, 2]}
       selectNodesOnDrag={false}
+      proOptions={{ hideAttribution: true }}
       className="bg-gray-950"
     >
       <Background color="#1e293b" gap={20} />
