@@ -60,8 +60,7 @@ export default function TopBar({
 
       <button
         onClick={onNewEntry}
-        disabled={!selectedMemory}
-        className="flex items-center gap-1 text-sm bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded px-3 py-1.5 transition"
+        className="flex items-center gap-1 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded px-3 py-1.5 transition"
       >
         <PlusIcon className="size-4" />
         New

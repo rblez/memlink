@@ -39,10 +39,20 @@ export default function App() {
     loadMemories();
   }, [loadMemories]);
 
+  // auto-select first memory
+  useEffect(() => {
+    if (memories.length > 0 && !selectedMemory) {
+      loadEntries(memories[0]);
+    }
+  }, [memories, selectedMemory, loadEntries]);
+
   const handleStartNew = useCallback(() => {
+    const mem = selectedMemory ?? memories[0];
+    if (!mem) return;
+    if (!selectedMemory) loadEntries(mem);
     setEditingEntry(null);
     setEditorOpen(true);
-  }, []);
+  }, [selectedMemory, memories, loadEntries]);
 
   const handleEditEntry = useCallback((entry: StorageEntry) => {
     setEditingEntry(entry);
