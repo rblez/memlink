@@ -46,34 +46,43 @@ jobs:
             librsvg2-dev \
             libxdo-dev
 
-      - name: Install frontend deps
-        run: npm install
+      - name: Install deps & build
+        run: |
+          npm install
+          npx tauri build --ci
         working-directory: rs
 
-      - name: Build Tauri app
-        run: npm run tauri build -- --ci
-        working-directory: rs
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ""
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+      - name: Locate artifacts
+        shell: bash
+        run: |
+          echo "=== target contents ==="
+          find rs/src-tauri/target/release -maxdepth 2 -type f -name "memlink-gui*" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.dmg" -o -name "*.msi" -o -name "*.exe" 2>/dev/null || true
+          echo "=== bundle dir ==="
+          ls -R rs/src-tauri/target/release/bundle/ 2>/dev/null || echo "no bundle dir"
 
       - name: Upload artifact (ubuntu)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-linux
-          path: rs/src-tauri/target/release/bundle/
+          path: |
+            rs/src-tauri/target/release/memlink-gui
+            rs/src-tauri/target/release/bundle/
 
       - name: Upload artifact (macos)
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-macos
-          path: rs/src-tauri/target/release/bundle/
+          path: |
+            rs/src-tauri/target/release/memlink-gui
+            rs/src-tauri/target/release/bundle/
 
       - name: Upload artifact (windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: memlink-gui-windows
-          path: rs/src-tauri/target/release/bundle/
+          path: |
+            rs/src-tauri/target/release/memlink-gui.exe
+            rs/src-tauri/target/release/bundle/
