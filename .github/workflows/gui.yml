@@ -1,0 +1,59 @@
+name: GUI
+
+on:
+  push:
+    branches: [gui/**]
+  pull_request:
+    branches: [main, beta]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build memlink-gui
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rs
+
+      - name: Build (default)
+        run: cargo build --release
+        working-directory: rs
+
+      - name: Build (mcp feature)
+        run: cargo build --release --features mcp
+        working-directory: rs
+
+      - name: Upload artifact (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memlink-gui-linux
+          path: rs/target/release/memlink-gui
+
+      - name: Upload artifact (macos)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memlink-gui-macos
+          path: rs/target/release/memlink-gui
+
+      - name: Upload artifact (windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memlink-gui-windows
+          path: rs/target/release/memlink-gui.exe
