@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { ReactFlowProvider } from "reactflow";
 import TopBar from "./components/TopBar";
 import CanvasView from "./components/CanvasView";
 import EntryEditor from "./components/EntryEditor";
