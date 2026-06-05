@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { createUniversalMemory, getMemoryPath } from '../src/core/memory.ts';
 import { createApp } from '../src/server/index.ts';
-import { unlinkSync, existsSync, mkdirSync } from 'fs';
+import { initRouting } from '../src/core/routing.ts';
+import { ensureDefaultMemory } from '../src/core/meta.ts';
+import { createEntry, readAllEntries } from '../src/core/storage.ts';
+import { existsSync, rmSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -12,16 +15,14 @@ const TEST_PORT = 4454;
 
 describe('MCP Server', () => {
   let server: Server;
-  let memoryId: string;
-  let memoryName: string;
 
   beforeEach(async () => {
     process.env.MEMLINK_DIR = TEST_DIR;
     mkdirSync(TEST_DIR, { recursive: true });
 
-    memoryName = `test-server-${Date.now()}`;
-    const memory = createUniversalMemory(memoryName);
-    memoryId = memory.memoryId;
+    // Set up default memory
+    ensureDefaultMemory();
+    initRouting();
 
     const app = createApp();
     server = app.listen(TEST_PORT);
@@ -31,12 +32,10 @@ describe('MCP Server', () => {
   afterEach(() => {
     delete process.env.MEMLINK_DIR;
     if (server) server.close();
-
     try {
-      const memoryPath = getMemoryPath(memoryId);
-      if (existsSync(memoryPath)) unlinkSync(memoryPath);
+      if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true, force: true });
     } catch {
-      // Ignore cleanup errors
+      // ignore
     }
   });
 
@@ -65,7 +64,7 @@ describe('MCP Server', () => {
         },
       };
 
-      const response = await fetch(`http://localhost:${TEST_PORT}/mcp?id=${memoryId}`, {
+      const response = await fetch(`http://localhost:${TEST_PORT}/mcp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,8 +81,8 @@ describe('MCP Server', () => {
       expect(body).toContain('"protocolVersion":"2024-11-05"');
     });
 
-    it('should reject requests without memory ID', async () => {
-      const response = await fetch(`http://localhost:${TEST_PORT}/mcp`, {
+    it('should reject requests with invalid token', async () => {
+      const response = await fetch(`http://localhost:${TEST_PORT}/mcp?t=invalid-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -91,17 +90,46 @@ describe('MCP Server', () => {
 
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toContain('Missing authentication');
+      expect(data.error).toContain('Invalid token');
     });
 
-    it('should reject requests with invalid memory ID', async () => {
-      const response = await fetch(`http://localhost:${TEST_PORT}/mcp?id=invalid123`, {
+    it('should serve default memory without token', async () => {
+      const mcpRequest = {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'resources/list',
+        params: {},
+      };
+
+      // First, add an entry to default via the API to verify it works
+      const editRequest = {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'memory_edit',
+          arguments: {
+            title: 'TestEntry',
+            content: 'Test content',
+          },
+        },
+      };
+
+      const response = await fetch(`http://localhost:${TEST_PORT}/mcp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify(editRequest),
       });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
+
+      // Verify it was stored
+      const entries = readAllEntries('default');
+      expect(entries.length).toBe(1);
+      expect(entries[0].title).toBe('TestEntry');
     });
   });
 });

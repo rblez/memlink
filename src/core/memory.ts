@@ -11,6 +11,7 @@ import {
   type UniversalMemory,
   type MemlinkConfig,
 } from './types.ts';
+import { findMemoryNameById, readMeta } from './meta.ts';
 import {
   readAllEntries,
   createEntry,
@@ -170,7 +171,17 @@ export function createUniversalMemory(rawName: string): UniversalMemory {
 
 export function getUniversalMemoryById(memoryId: string): UniversalMemory | undefined {
   const config = loadConfig();
-  return config.universalMemories.find((m) => m.memoryId === memoryId);
+  const fromConfig = config.universalMemories.find((m) => m.memoryId === memoryId);
+  if (fromConfig) return fromConfig;
+  // Fallback: scan meta.json directories
+  const name = findMemoryNameById(memoryId);
+  if (name) {
+    const meta = readMeta(name);
+    if (meta) {
+      return { memoryId: meta.id, memoryName: name, createdAt: meta.createdAt };
+    }
+  }
+  return undefined;
 }
 
 export function getMemoryById(memId: string): { memoryId: string; memoryName: string } | undefined {

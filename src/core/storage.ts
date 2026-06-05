@@ -12,13 +12,111 @@ function indexPath(memoryName: string): string {
 }
 
 function entryPath(memoryName: string, id: number): string {
-  return path.join(memoryDir(memoryName), `${id}.json`);
+  return path.join(memoryDir(memoryName), `${id}.md`);
 }
 
 function backupsDir(memoryName: string): string {
   const dir = path.join(memoryDir(memoryName), '.backups');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+// ── Frontmatter serialization ──────────────────────────────────────────────────
+
+function serializeYamlValue(val: unknown): string {
+  if (val === null || val === undefined) return 'null';
+  if (typeof val === 'string') return JSON.stringify(val);
+  if (Array.isArray(val)) return `[${val.map((v) => serializeYamlValue(v)).join(', ')}]`;
+  return String(val);
+}
+
+function serializeFrontmatter(entry: StorageEntry): string {
+  const lines = ['---'];
+  lines.push(`id: ${entry.id}`);
+  lines.push(`title: ${serializeYamlValue(entry.title)}`);
+  if (entry.tags && entry.tags.length > 0) {
+    lines.push(`tags: ${serializeYamlValue(entry.tags)}`);
+  }
+  lines.push(`updatedAt: ${serializeYamlValue(entry.updatedAt)}`);
+  lines.push('---');
+  lines.push('');
+  lines.push(entry.content);
+  return lines.join('\n');
+}
+
+function parseFrontmatter(raw: string): StorageEntry {
+  const parts = raw.split('---');
+  // parts[0] = empty or whitespace before first ---
+  // parts[1] = frontmatter
+  // parts[2..] = body (rejoin with ---)
+  if (parts.length < 3) {
+    const cleaned = raw.startsWith('\n') ? raw.slice(1) : raw;
+    return {
+      id: 0,
+      title: '',
+      content: cleaned,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const frontmatter = parts[1].trim();
+  const body = parts.slice(2).join('---').trim();
+
+  const entry: StorageEntry = {
+    id: 0,
+    title: '',
+    content: body,
+    updatedAt: new Date().toISOString(),
+  };
+
+  for (const line of frontmatter.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = trimmed.slice(0, colonIdx).trim();
+    const rawVal = trimmed.slice(colonIdx + 1).trim();
+
+    switch (key) {
+      case 'id':
+        entry.id = parseInt(rawVal, 10) || 0;
+        break;
+      case 'title':
+        entry.title = parseYamlString(rawVal);
+        break;
+      case 'tags':
+        entry.tags = parseYamlArray(rawVal);
+        break;
+      case 'updatedAt':
+        entry.updatedAt = parseYamlString(rawVal);
+        break;
+    }
+  }
+
+  return entry;
+}
+
+function parseYamlString(val: string): string {
+  if (val.length >= 2 && val.startsWith('"') && val.endsWith('"')) {
+    return val.slice(1, -1);
+  }
+  if (val.length >= 2 && val.startsWith("'") && val.endsWith("'")) {
+    return val.slice(1, -1);
+  }
+  return val;
+}
+
+function parseYamlArray(val: string): string[] | undefined {
+  val = val.trim();
+  if (val.startsWith('[') && val.endsWith(']')) {
+    const inner = val.slice(1, -1).trim();
+    if (!inner) return [];
+    return inner
+      .split(',')
+      .map((s) => parseYamlString(s.trim()))
+      .filter(Boolean);
+  }
+  return undefined;
 }
 
 // ── Index ────────────────────────────────────────────────────────────────────
@@ -45,7 +143,7 @@ function writeIndex(memoryName: string, index: StorageIndex): void {
 export function readEntry(memoryName: string, id: number): StorageEntry | null {
   try {
     const raw = fs.readFileSync(entryPath(memoryName, id), 'utf-8');
-    return JSON.parse(raw);
+    return parseFrontmatter(raw);
   } catch {
     return null;
   }
@@ -63,7 +161,7 @@ function writeEntryRaw(memoryName: string, entry: StorageEntry): void {
   const dir = memoryDir(memoryName);
   fs.mkdirSync(dir, { recursive: true });
   const tmp = entryPath(memoryName, entry.id) + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(entry, null, 2), 'utf-8');
+  fs.writeFileSync(tmp, serializeFrontmatter(entry), 'utf-8');
   fs.renameSync(tmp, entryPath(memoryName, entry.id));
 }
 
@@ -71,8 +169,8 @@ function backupEntry(memoryName: string, id: number): void {
   const entry = readEntry(memoryName, id);
   if (!entry) return;
   const dir = backupsDir(memoryName);
-  const file = path.join(dir, `${id}_${Date.now()}.json`);
-  fs.writeFileSync(file, JSON.stringify(entry, null, 2), 'utf-8');
+  const file = path.join(dir, `${id}_${Date.now()}.md`);
+  fs.writeFileSync(file, serializeFrontmatter(entry), 'utf-8');
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -281,7 +379,7 @@ export function getStorageStats(memoryName: string): {
 
   return {
     entries: index.entries.length,
-    size: index.entries.length * 2, // rough estimate in KB
+    size: index.entries.length * 2,
     lastUpdated: sorted[0]?.updatedAt ?? null,
   };
 }

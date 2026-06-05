@@ -170,22 +170,59 @@ export function navHint(hints: string[]): string {
 
 export const SKILL_MD = `# Memlink — Universal Memory for AI Agents
 
-Memlink is a self-hosted MCP server that gives you persistent, organized memory across sessions.
+Memlink is an MCP server (Model Context Protocol) that gives AI agents persistent, organized memory across sessions. It runs in two modes:
 
-## ⚠️ Mandatory: Use MCP at every session start
+- **Local CLI** (\`memlink serve\`) — self-hosted on your machine
+- **Cloud** (\`mcp.memlink.cloud\`) — managed SaaS (coming in Phase 2)
+
+Both are MCP servers. The tools are identical. This skill applies to both.
+
+## Mandatory: Use MCP at every session start
+
+1. Connect to the memlink MCP server in your agent's MCP settings
+2. Call \`memory_read\` immediately to load all stored context
+3. During the session, call \`memory_edit\` whenever the user asks to save/remember something
+4. Search with \`memory_search\` before creating new entries to avoid duplicates
+
+## Connection (Local CLI)
+
+The local server runs at:
 
 \`\`\`
-1. Connect to the memlink MCP server (configured in your MCP settings)
-2. Call memory_read immediately to load all stored context
-3. During the session, call memory_edit whenever the user asks to save/remember something
-4. Search with memory_search before creating new entries to avoid duplicates
+Default memory:  http://localhost:4444/mcp
+Isolated memory: http://localhost:4444/mcp?t=YOUR_TOKEN
 \`\`\`
 
-## Connection
+### MCP config JSON
 
-The MCP server runs at \`http://localhost:4444/mcp?id=YOUR_MEMORY_ID\`.
+Add this to your agent's MCP settings (\`claude_desktop_config.json\`, \`.cursor/mcp.json\`, etc.):
 
-If running inside WSL, you can bridge the port to Windows using \`wslink\` — allowing agents on Windows to connect to \`localhost:4444\` as usual.
+\`\`\`json
+{
+  "mcpServers": {
+    "memlink": {
+      "type": "http",
+      "url": "http://localhost:4444/mcp"
+    }
+  }
+}
+\`\`\`
+
+For stdio transport (CLI agents like Claude Code, Aider):
+
+\`\`\`json
+{
+  "mcpServers": {
+    "memlink": {
+      "type": "stdio",
+      "command": "memlink",
+      "args": ["serve", "--transport", "stdio", "--memory", "default"]
+    }
+  }
+}
+\`\`\`
+
+Run \`memlink url\` from the terminal to see the URL. Run \`memlink info <name>\` for memory details.
 
 ## MCP Tools
 
@@ -198,9 +235,20 @@ If running inside WSL, you can bridge the port to Windows using \`wslink\` — a
 
 ## Best Practices
 
+- **Start with memory_read**: Always read memory at the start of every session to restore context
 - **Titles**: Use short, descriptive PascalCase or Title Case. E.g., \`DatabaseConfig\`, \`UserPreferences\`, \`ProjectTimeline\`
 - **Content**: Store as plain text only — no markdown, no HTML. Keep focused on one topic. Max 100K chars.
 - **Tags**: Add categorical tags like \`project\`, \`config\`, \`preference\`, \`note\` for easy filtering
 - **Search before create**: Use \`memory_search\` with a keyword to check if something already exists before writing a new entry
-- **Start with memory_read**: Always read memory at the start of every session to restore context
+- **No duplication**: If a topic already exists, update it with \`memory_edit\` rather than creating a new entry
+
+## WSL Bridge
+
+If running inside WSL, agents on Windows can connect via \`wslink\`:
+
+\`\`\`bash
+# In WSL:
+wslink forward 4444
+# Now Windows agents can use http://localhost:4444/mcp
+\`\`\`
 `;
