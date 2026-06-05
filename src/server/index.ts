@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import path from 'path';
 import { renderChangelog } from './changelogs.ts';
-import { getMemoryById, updateUniversalMemoryLastSeen, loadConfig } from '../core/memory.ts';
+import { loadConfig } from '../core/memory.ts';
 import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST } from '../core/types.ts';
 import type { StorageEntry } from '../core/types.ts';
 import {
@@ -19,6 +19,10 @@ import {
   searchEntries,
   getStorageStats,
 } from '../core/storage.ts';
+import { initRouting, getRoute } from '../core/routing.ts';
+import { recordConnection, recordRead, recordWrite } from '../core/session.ts';
+import { startHealthTicker, stopHealthTicker } from '../core/health.ts';
+import { readMeta } from '../core/meta.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
 
@@ -49,8 +53,6 @@ function logRequestStart(memoryName: string, method: string) {
 function logRequestEnd(method: string, durationMs: number) {
   log('verbose', `[${timestamp()}]`, `${' '.repeat(20)}  ${method}`, `${durationMs}ms`);
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,6 +118,8 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
     },
     async ({ id, title, full }) => {
       try {
+        recordRead(memoryName);
+
         if (id !== undefined) {
           const entry = readEntry(memoryName, id);
           if (!entry) {
@@ -219,6 +223,7 @@ function buildMcpServer(memoryId: string, memoryName: string): McpServer {
         const guard = readOnlyGuard();
         if (guard) return guard;
         createEntry(memoryName, memoryId, title, content, tags);
+        recordWrite(memoryName);
         const now = new Date().toISOString();
         return {
           content: [
@@ -310,6 +315,14 @@ const sseSessions = new Map<
   { transport: SSEServerTransport; memoryId: string; mcpServer: McpServer }
 >();
 
+// ─── Auth helper ────────────────────────────────────────────────────────────────
+
+function resolveMemory(token?: string): { memoryId: string; memoryName: string } | null {
+  const route = getRoute(token);
+  if (!route) return null;
+  return { memoryId: route.memoryId, memoryName: route.memoryName };
+}
+
 // ─── Create Express app ────────────────────────────────────────────────────────
 
 export function createApp(): express.Express {
@@ -391,11 +404,9 @@ export function createApp(): express.Express {
 
   // Health check
   app.get('/health', (_req, res) => {
-    const config = loadConfig();
     res.json({
       status: 'ok',
       version: MEMLINK_VERSION,
-      memories: config.universalMemories.length,
       uptime: process.uptime(),
     });
   });
@@ -411,9 +422,9 @@ export function createApp(): express.Express {
 
   // Instructions endpoint
   app.get('/instructions', (req, res) => {
-    const memoryId = (req.query.id as string) || '';
-    const memory = memoryId ? getMemoryById(memoryId) : undefined;
-    const name = memory?.memoryName || 'Agent';
+    const token = req.query.t as string | undefined;
+    const memory = resolveMemory(token);
+    const name = memory?.memoryName || 'default';
     res.json({
       type: 'system_prompt',
       memory: name,
@@ -423,19 +434,16 @@ export function createApp(): express.Express {
 
   // SSE endpoint (for SSE-based MCP clients)
   app.get('/sse', async (req: Request, res: Response) => {
-    const memId = (req.query.id as string) || (req.query.mem_id as string);
-    if (!memId) {
-      res.status(401).json({ error: 'Missing memory ID. Use ?id=<memory_id>' });
+    const token = req.query.t as string | undefined;
+    const memory = resolveMemory(token);
+
+    if (!memory) {
+      res.status(401).json({ error: 'Invalid or missing token. Use ?t=<token>' });
       return;
     }
-    const memoryInfo = getMemoryById(memId);
-    if (!memoryInfo) {
-      res.status(403).json({ error: 'Invalid memory ID.' });
-      return;
-    }
-    const memoryId = memoryInfo.memoryId;
-    const memoryName = memoryInfo.memoryName;
-    updateUniversalMemoryLastSeen(memoryId);
+
+    const { memoryId, memoryName } = memory;
+    recordConnection(memoryName);
 
     const mcpServer = buildMcpServer(memoryId, memoryName);
     const transport = new SSEServerTransport('/messages', res);
@@ -477,27 +485,22 @@ export function createApp(): express.Express {
     }
   });
 
-  // MCP endpoint — auth via query string (?id=MEMORY_ID)
+  // MCP endpoint — auth via query string (?t=token or no token = default)
   app.all('/mcp', async (req: Request, res: Response) => {
-    const memId = (req.query.id as string) || (req.query.mem_id as string);
+    const token = req.query.t as string | undefined;
+    const memory = resolveMemory(token);
 
-    if (!memId) {
+    if (!memory) {
       res.status(401).json({
-        error: 'Missing authentication. Use ?id=<memory_id>',
+        error: token
+          ? 'Invalid token. Use a valid ?t=<token>'
+          : 'Default memory is not available. Use ?t=<token>',
       });
       return;
     }
 
-    const memoryInfo = getMemoryById(memId);
-    if (!memoryInfo) {
-      res.status(403).json({ error: 'Invalid memory ID. Memory not found.' });
-      return;
-    }
-
-    const memoryId = memoryInfo.memoryId;
-    const memoryName = memoryInfo.memoryName;
-
-    updateUniversalMemoryLastSeen(memoryId);
+    const { memoryId, memoryName } = memory;
+    recordConnection(memoryName);
 
     const method = req.body?.method as string | undefined;
     const startTime = Date.now();
@@ -529,15 +532,15 @@ export function createApp(): express.Express {
 
 // ─── Stdio server ────────────────────────────────────────────────────────────
 
-export async function startStdioServer(memoryId: string): Promise<void> {
-  const memoryInfo = getMemoryById(memoryId);
-  if (!memoryInfo) {
-    console.error(`Memory not found: ${memoryId}`);
+export async function startStdioServer(memoryName: string): Promise<void> {
+  const route = getRoute(undefined);
+  if (!route) {
+    console.error(`Default memory not found`);
     process.exit(1);
   }
 
   logLevel = 'none'; // stdio must not write to stdout
-  const mcpServer = buildMcpServer(memoryInfo.memoryId, memoryInfo.memoryName);
+  const mcpServer = buildMcpServer(route.memoryId, memoryName);
   const transport = new StdioServerTransport();
 
   await mcpServer.connect(transport);
@@ -574,20 +577,29 @@ export async function startServer(
   logLevel = options?.logLevel || (process.stdout.isTTY ? 'basic' : 'none');
   bearerToken = options?.bearerToken ?? process.env.MEMLINK_BEARER_TOKEN ?? null;
 
-  const app = createApp();
+  // Initialize routing table
+  initRouting();
 
-  // Build memory list for startup output
-  const memories = config.universalMemories.map((m) => {
+  // Start health ticker
+  startHealthTicker();
+
+  // Record memory stats for startup output
+  const defaultMeta = readMeta('default');
+  let entryCount = 0;
+  let sizeStr = '0.0';
+  if (defaultMeta) {
     try {
-      const s = getStorageStats(m.memoryName);
-      if (s) {
-        return { ...m, entries: s.entries, size: (s.size / 1024).toFixed(1) };
+      const stats = getStorageStats('default');
+      if (stats) {
+        entryCount = stats.entries;
+        sizeStr = (stats.size / 1024).toFixed(1);
       }
     } catch {
       // fall through
     }
-    return { ...m, entries: 0, size: '0.0' };
-  });
+  }
+
+  const app = createApp();
 
   return new Promise<void>((resolve) => {
     const server = app.listen(p, h, () => {
@@ -595,19 +607,11 @@ export async function startServer(
       console.log(`  Memlink  ${MEMLINK_VERSION}`);
       console.log(`  ${'─'.repeat(48)}`);
       console.log(`  Server   http://${h}:${p}`);
-      if (memories.length > 0) {
-        console.log('');
-        for (const m of memories) {
-          const url = `http://${h}:${p}/mcp?id=${m.memoryId}`;
-          console.log(`  ${m.memoryName}`);
-          console.log(`    MCP:     ${url}`);
-          console.log(`    Entries: ${m.entries}  ·  Size: ${m.size} KB`);
-          console.log('');
-        }
-      } else {
-        console.log(`  No memories. Create one: memlink init <name>`);
-        console.log('');
-      }
+      console.log('');
+      console.log(`  default`);
+      console.log(`    MCP:     http://${h}:${p}/mcp`);
+      console.log(`    Entries: ${entryCount}  ·  Size: ${sizeStr} KB`);
+      console.log('');
       if (readOnly) console.log(`  Mode: read-only`);
       if (logLevel === 'verbose') console.log(`  Log level: verbose`);
       console.log(`  ${'─'.repeat(48)}`);
@@ -621,6 +625,7 @@ export async function startServer(
       shuttingDown = true;
 
       logLevel = 'none';
+      stopHealthTicker();
 
       // Close SSE sessions
       const sessions = [...sseSessions.entries()];

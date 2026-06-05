@@ -296,11 +296,11 @@ ${changes}
     <header class="header">
       <div>
         <h1>Changelog</h1>
-        <p class="subtitle">Memlink · <a href="https://github.com/rblez/memlink/issues">Report a bug</a></p>
+        <p class="subtitle">Memlink · <a href="https://github.com/memlinkdotdev/cli/issues">Report a bug</a></p>
       </div>
       <div class="social">
         <a href="https://x.com/memlinkdotdev" target="_blank" rel="noopener" aria-label="X (formerly Twitter)">${ICON_X}</a>
-        <a href="https://github.com/rblez/memlink" target="_blank" rel="noopener" aria-label="GitHub">${ICON_GH}</a>
+        <a href="https://github.com/memlinkdotdev/cli" target="_blank" rel="noopener" aria-label="GitHub">${ICON_GH}</a>
       </div>
     </header>
 

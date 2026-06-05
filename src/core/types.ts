@@ -54,13 +54,41 @@ export interface LockFile {
   lockedAt: number;
 }
 
+export interface MemoryMeta {
+  id: string;
+  token?: string;
+  status: 'active' | 'paused' | 'stopped';
+  createdAt: string;
+  lastServedAt?: string;
+}
+
+export interface AuthData {
+  local: {
+    token: string;
+    createdAt: string;
+  } | null;
+  cloud: {
+    userId: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: string;
+  } | null;
+}
+
 export const MEMLINK_VERSION = '1.0.12';
 export const DEFAULT_PORT = 4444;
 export const DEFAULT_HOST = 'localhost';
 export const CONFIG_DIR = '.memlink';
 export const CONFIG_FILE = 'settings.json';
+export const AUTH_FILE = 'auth.json';
+export const DEFAULT_MEMORY = 'default';
 export const LOCK_TTL = 10_000;
+export const HEALTH_TTL = 30_000;
 
 export function getMemlinkDir(): string {
   return process.env.MEMLINK_DIR || path.join(os.homedir(), CONFIG_DIR);
+}
+
+export function memoryDir(memoryName: string): string {
+  return path.join(getMemlinkDir(), memoryName);
 }

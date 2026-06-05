@@ -27,12 +27,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rblez/memlink.git"
+    "url": "git+https://github.com/memlinkdotdev/cli.git"
   },
   "bugs": {
-    "url": "https://github.com/rblez/memlink/issues"
+    "url": "https://github.com/memlinkdotdev/cli/issues"
   },
-  "homepage": "https://github.com/rblez/memlink",
+  "homepage": "https://github.com/memlinkdotdev/cli",
   "bin": {
     "memlink": "dist/cli/index.js"
   },
