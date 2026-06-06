@@ -202,70 +202,29 @@ function memlinkWindowsCommand(): string {
 
 function installWindows(): void {
   const bin = memlinkWindowsCommand();
-  const dataDir = getMemlinkDir();
   const taskName = 'MemlinkDaemon';
-  const xmlPath = path.join(os.tmpdir(), 'memlink-task.xml');
+  const batPath = path.join(os.tmpdir(), 'memlink-install-task.bat');
 
-  const xml = `<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Description>Memlink — Universal memory for AI agents</Description>
-  </RegistrationInfo>
-  <Triggers>
-    <LogonTrigger>
-      <Enabled>true</Enabled>
-    </LogonTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <LogonType>InteractiveToken</LogonType>
-      <RunLevel>LeastPrivilege</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <Enabled>true</Enabled>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <RestartOnFailure>
-      <Interval>PT1M</Interval>
-      <Count>3</Count>
-    </RestartOnFailure>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>cmd.exe</Command>
-      <Arguments>/c "${bin} serve --daemon"</Arguments>
-    </Exec>
-  </Actions>
-  <EnvironmentVariables>
-    <Variable>
-      <Name>MEMLINK_DIR</Name>
-      <Value>${dataDir}</Value>
-    </Variable>
-  </EnvironmentVariables>
-</Task>`;
-
-  const u16le = Buffer.from(xml, 'utf-16le');
-  const bom = Buffer.from([0xff, 0xfe]);
-  fs.writeFileSync(xmlPath, Buffer.concat([bom, u16le]));
+  const bat = `@echo off
+schtasks /Create /SC ONLOGON /TN "${taskName}" /TR "${bin} serve --daemon" /F /IT
+schtasks /Run /TN "${taskName}"
+`;
+  fs.writeFileSync(batPath, bat, 'utf-8');
 
   try {
     execSync(
-      `schtasks /Create /XML "${xmlPath}" /TN "${taskName}" /F`,
-      { stdio: 'pipe' }
-    );
-    execSync(
-      `schtasks /Run /TN "${taskName}"`,
-      { stdio: 'pipe' }
+      `powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/c \"${batPath}\"' -Verb RunAs -Wait"`,
+      { stdio: 'pipe', timeout: 60000 }
     );
   } catch (e) {
-    console.log(err('Failed to create/start scheduled task', String(e)));
+    console.log(err('Failed to create scheduled task', String(e)));
+    try { fs.unlinkSync(batPath); } catch { /* ignore */ }
+    console.log(dimLine('Open PowerShell as Administrator and run:'));
+    console.log(dimLine(`  schtasks /Create /SC ONLOGON /TN "${taskName}" /TR "${bin} serve --daemon" /F /IT`));
+    return;
   }
 
-  try {
-    fs.unlinkSync(xmlPath);
-  } catch {
-    // ignore
-  }
+  try { fs.unlinkSync(batPath); } catch { /* ignore */ }
 
   console.log(ok('memlink installed as Windows Scheduled Task'));
   console.log(info('Task', taskName));
@@ -274,15 +233,23 @@ function installWindows(): void {
 
 function uninstallWindows(): void {
   const taskName = 'MemlinkDaemon';
+  const batPath = path.join(os.tmpdir(), 'memlink-uninstall-task.bat');
+
+  const bat = `@echo off
+schtasks /End /TN "${taskName}" >nul 2>&1
+schtasks /Delete /TN "${taskName}" /F
+`;
+  fs.writeFileSync(batPath, bat, 'utf-8');
+
   try {
-    execSync(`schtasks /End /TN "${taskName}"`, { stdio: 'pipe' });
+    execSync(
+      `powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/c \"${batPath}\"' -Verb RunAs -Wait"`,
+      { stdio: 'pipe', timeout: 30000 }
+    );
   } catch {
-    // ignore
+    // ignore (task may not exist)
   }
-  try {
-    execSync(`schtasks /Delete /TN "${taskName}" /F`, { stdio: 'pipe' });
-  } catch {
-    // ignore
-  }
+
+  try { fs.unlinkSync(batPath); } catch { /* ignore */ }
   console.log(ok('memlink scheduled task removed'));
 }
