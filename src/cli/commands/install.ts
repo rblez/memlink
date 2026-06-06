@@ -40,6 +40,8 @@ export function installCommand(): void {
     installLinux();
   } else if (platform === 'darwin') {
     installMacOS();
+  } else if (platform === 'win32') {
+    installWindows();
   } else {
     console.log(err(`Platform not supported yet: ${platform}`));
     console.log(dimLine('Manual setup: run memlink serve --daemon'));
@@ -53,6 +55,8 @@ export function uninstallCommand(): void {
     uninstallLinux();
   } else if (platform === 'darwin') {
     uninstallMacOS();
+  } else if (platform === 'win32') {
+    uninstallWindows();
   } else {
     console.log(err(`Platform not supported yet: ${platform}`));
   }
@@ -177,4 +181,106 @@ function uninstallMacOS(): void {
     fs.unlinkSync(plistPath);
   }
   console.log(ok('memlink LaunchAgent removed'));
+}
+
+function memlinkWindowsCommand(): string {
+  if (process.argv[1]?.includes('src/cli/index.ts')) {
+    return `bun ${process.argv[1]}`;
+  }
+  try {
+    const result = execSync('where memlink 2>nul || where memlink.cmd 2>nul', {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+    const line = result.trim().split('\n')[0];
+    if (line) return `"${line}"`;
+  } catch {
+    // not found
+  }
+  return 'memlink';
+}
+
+function installWindows(): void {
+  const bin = memlinkWindowsCommand();
+  const dataDir = getMemlinkDir();
+  const taskName = 'MemlinkDaemon';
+  const xmlPath = path.join(os.tmpdir(), 'memlink-task.xml');
+
+  const xml = `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Memlink — Universal memory for AI agents</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <Enabled>true</Enabled>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>3</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <Arguments>/c "${bin} serve --daemon"</Arguments>
+    </Exec>
+  </Actions>
+  <EnvironmentVariables>
+    <Variable>
+      <Name>MEMLINK_DIR</Name>
+      <Value>${dataDir}</Value>
+    </Variable>
+  </EnvironmentVariables>
+</Task>`;
+
+  fs.writeFileSync(xmlPath, xml, 'utf-16le');
+
+  try {
+    execSync(
+      `schtasks /Create /XML "${xmlPath}" /TN "${taskName}" /F`,
+      { stdio: 'pipe' }
+    );
+    execSync(
+      `schtasks /Run /TN "${taskName}"`,
+      { stdio: 'pipe' }
+    );
+  } catch (e) {
+    console.log(err('Failed to create/start scheduled task', String(e)));
+  }
+
+  try {
+    fs.unlinkSync(xmlPath);
+  } catch {
+    // ignore
+  }
+
+  console.log(ok('memlink installed as Windows Scheduled Task'));
+  console.log(info('Task', taskName));
+  console.log(dimLine('Manage: taskschd.msc → Task Scheduler Library → MemlinkDaemon'));
+}
+
+function uninstallWindows(): void {
+  const taskName = 'MemlinkDaemon';
+  try {
+    execSync(`schtasks /End /TN "${taskName}"`, { stdio: 'pipe' });
+  } catch {
+    // ignore
+  }
+  try {
+    execSync(`schtasks /Delete /TN "${taskName}" /F`, { stdio: 'pipe' });
+  } catch {
+    // ignore
+  }
+  console.log(ok('memlink scheduled task removed'));
 }

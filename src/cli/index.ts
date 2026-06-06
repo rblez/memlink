@@ -20,10 +20,13 @@ import { entriesCommand } from './commands/entries.ts';
 import { searchCommand } from './commands/search.ts';
 import { urlCommand } from './commands/url.ts';
 import { tokenGenerateCommand, tokenListCommand, tokenRevokeCommand } from './commands/token.ts';
-import { pauseCommand, resumeCommand } from './commands/pause.ts';
+import { pauseCommand, resumeCommand, stopMemoryCommand } from './commands/pause.ts';
 import { connectCommand, disconnectCommand } from './commands/cloud.ts';
 import { isDaemonAlive } from '../core/health.ts';
-import { ensureDefaultMemory } from '../core/meta.ts';
+import { ensureDefaultMemory, readMeta, createMemoryMeta } from '../core/meta.ts';
+import { registerMemoryRoute } from '../core/routing.ts';
+import { ensureLocalToken } from '../core/auth.ts';
+import * as admin from './admin.ts';
 
 // ─── TTY detection ──────────────────────────────────────────────────────────
 
@@ -405,6 +408,46 @@ serveCmd
       return;
     }
 
+    // Serve a named memory: register with running daemon or create meta + start
+    if (opts.memory) {
+      const existing = readMeta(opts.memory);
+      if (existing) {
+        console.log(err(`Memory "${opts.memory}" already exists.`));
+        process.exit(1);
+      }
+
+      ensureLocalToken();
+      const token = await admin.registerMemory(opts.memory);
+
+      if (token.ok) {
+        const data = token.data as { token: string };
+        console.log(logoSmall());
+        console.log(okBadge(`Memory registered: ${opts.memory}`));
+        console.log(info('Token', data.token));
+        console.log(info('MCP URL', `http://${host}:${port}/mcp?t=${data.token}`));
+        console.log();
+        return;
+      }
+
+      // Daemon not running — create locally and start foreground (same process)
+      const newToken = (await import('nanoid')).nanoid(32);
+      createMemoryMeta(opts.memory, newToken);
+      registerMemoryRoute(opts.memory, newToken);
+      console.log(okBadge(`Memory created: ${opts.memory}`));
+      console.log(info('Token', newToken));
+      console.log(info('MCP URL', `http://${host}:${port}/mcp?t=${newToken}`));
+      console.log(dimLine('Starting server (foreground)...'));
+      console.log();
+
+      await startServer(port, host, {
+        cors: opts.cors,
+        readOnly: opts.readOnly,
+        logLevel: opts.logLevel,
+        bearerToken: opts.bearerToken,
+      });
+      return;
+    }
+
     // Foreground mode
     await startServer(port, host, {
       cors: opts.cors,
@@ -412,62 +455,6 @@ serveCmd
       logLevel: opts.logLevel,
       bearerToken: opts.bearerToken,
     });
-  });
-
-// ─── memlink stop ─────────────────────────────────────────────────────────
-
-program
-  .command('stop')
-  .description('Stop the Memlink daemon server')
-  .action(async () => {
-    const pid = readPid();
-    if (!pid) {
-      console.log(logoSmall());
-      console.log();
-      console.log(info('not running', 'No server PID file found.'));
-      console.log();
-      return;
-    }
-
-    if (!isProcessRunning(pid)) {
-      console.log(logoSmall());
-      console.log();
-      console.log(info('not running', `Server PID ${pid} is not active.`));
-      try {
-        fs.unlinkSync(daemonPidPath());
-      } catch {
-        /* ignore */
-      }
-      console.log();
-      return;
-    }
-
-    try {
-      process.kill(pid, 'SIGTERM');
-    } catch {
-      try {
-        process.kill(pid, 'SIGINT');
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const deadline = Date.now() + 3000;
-    while (Date.now() < deadline) {
-      if (!isProcessRunning(pid)) break;
-      await new Promise((r) => setTimeout(r, 100));
-    }
-
-    try {
-      fs.unlinkSync(daemonPidPath());
-    } catch {
-      /* ignore */
-    }
-
-    console.log(logoSmall());
-    console.log();
-    console.log(okBadge(`Server stopped (PID ${pid})`));
-    console.log();
   });
 
 // ─── memlink status ───────────────────────────────────────────────────────
@@ -560,8 +547,8 @@ program
   .command('pause')
   .description('Suspend a memory (data intact)')
   .option('--memory <name>', 'Memory name to pause', 'default')
-  .action((opts) => {
-    pauseCommand(opts.memory);
+  .action(async (opts) => {
+    await pauseCommand(opts.memory);
   });
 
 // ─── memlink resume ────────────────────────────────────────────────────────
@@ -570,8 +557,70 @@ program
   .command('resume')
   .description('Resume a paused memory')
   .option('--memory <name>', 'Memory name to resume', 'default')
-  .action((opts) => {
-    resumeCommand(opts.memory);
+  .action(async (opts) => {
+    await resumeCommand(opts.memory);
+  });
+
+// ─── memlink stop --memory <name> ─────────────────────────────────────────
+
+program
+  .command('stop')
+  .description('Stop daemon server or a specific memory')
+  .option('--memory <name>', 'Memory to stop (remove from routing)')
+  .action(async (opts) => {
+    if (opts.memory) {
+      await stopMemoryCommand(opts.memory);
+      return;
+    }
+    // Original stop behavior: stop the daemon
+    const pid = readPid();
+    if (!pid) {
+      console.log(logoSmall());
+      console.log();
+      console.log(info('not running', 'No server PID file found.'));
+      console.log();
+      return;
+    }
+
+    if (!isProcessRunning(pid)) {
+      console.log(logoSmall());
+      console.log();
+      console.log(info('not running', `Server PID ${pid} is not active.`));
+      try {
+        fs.unlinkSync(daemonPidPath());
+      } catch {
+        /* ignore */
+      }
+      console.log();
+      return;
+    }
+
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      try {
+        process.kill(pid, 'SIGINT');
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      if (!isProcessRunning(pid)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    try {
+      fs.unlinkSync(daemonPidPath());
+    } catch {
+      /* ignore */
+    }
+
+    console.log(logoSmall());
+    console.log();
+    console.log(okBadge(`Server stopped (PID ${pid})`));
+    console.log();
   });
 
 // ─── memlink delete <name-or-id> ──────────────────────────────────────────

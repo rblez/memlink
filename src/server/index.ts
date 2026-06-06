@@ -5,6 +5,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { nanoid } from 'nanoid';
 import path from 'path';
 import { renderChangelog } from './changelogs.ts';
 import { loadConfig } from '../core/memory.ts';
@@ -19,10 +20,18 @@ import {
   searchEntries,
   getStorageStats,
 } from '../core/storage.ts';
-import { initRouting, getRoute } from '../core/routing.ts';
+import {
+  initRouting,
+  getRoute,
+  registerMemoryRoute,
+  pauseMemory,
+  resumeMemory,
+  stopMemory,
+} from '../core/routing.ts';
 import { recordConnection, recordRead, recordWrite } from '../core/session.ts';
 import { startHealthTicker, stopHealthTicker } from '../core/health.ts';
-import { readMeta } from '../core/meta.ts';
+import { readMeta, createMemoryMeta, updateMetaStatus } from '../core/meta.ts';
+import { getLocalToken } from '../core/auth.ts';
 
 // ─── Server state ──────────────────────────────────────────────────────────────
 
@@ -409,6 +418,82 @@ export function createApp(): express.Express {
       version: MEMLINK_VERSION,
       uptime: process.uptime(),
     });
+  });
+
+  // ─── Admin endpoints (local token auth) ───────────────────────────────────
+
+  function adminAuth(req: Request, res: Response): boolean {
+    const localToken = getLocalToken();
+    if (!localToken) {
+      res.status(401).json({ error: 'No local token configured.' });
+      return false;
+    }
+    const header = req.header('Authorization') || '';
+    const prefix = 'Bearer ';
+    const token = header.startsWith(prefix) ? header.slice(prefix.length) : '';
+    if (!token || token !== localToken) {
+      res.status(401).json({ error: 'Invalid admin token.' });
+      return false;
+    }
+    return true;
+  }
+
+  app.post('/admin/register', express.json(), (req, res) => {
+    if (!adminAuth(req, res)) return;
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "name" in request body.' });
+      return;
+    }
+    const existing = readMeta(name);
+    if (existing) {
+      res.status(409).json({ error: `Memory "${name}" already exists.` });
+      return;
+    }
+    const token = nanoid(32);
+    const meta = createMemoryMeta(name, token);
+    registerMemoryRoute(name, token);
+    log('basic', `[admin]`, `Registered memory: ${name}`);
+    res.json({ name, memoryId: meta.id, token, status: meta.status });
+  });
+
+  app.post('/admin/pause', express.json(), (req, res) => {
+    if (!adminAuth(req, res)) return;
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "name" in request body.' });
+      return;
+    }
+    pauseMemory(name);
+    updateMetaStatus(name, 'paused');
+    log('basic', `[admin]`, `Paused memory: ${name}`);
+    res.json({ name, status: 'paused' });
+  });
+
+  app.post('/admin/resume', express.json(), (req, res) => {
+    if (!adminAuth(req, res)) return;
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "name" in request body.' });
+      return;
+    }
+    resumeMemory(name);
+    updateMetaStatus(name, 'active');
+    log('basic', `[admin]`, `Resumed memory: ${name}`);
+    res.json({ name, status: 'active' });
+  });
+
+  app.post('/admin/stop', express.json(), (req, res) => {
+    if (!adminAuth(req, res)) return;
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "name" in request body.' });
+      return;
+    }
+    stopMemory(name);
+    updateMetaStatus(name, 'stopped');
+    log('basic', `[admin]`, `Stopped memory: ${name}`);
+    res.json({ name, status: 'stopped' });
   });
 
   // Changelog
