@@ -200,56 +200,38 @@ function memlinkWindowsCommand(): string {
   return 'memlink';
 }
 
+function setWindowsRunKey(command: string, remove: boolean): boolean {
+  const ps = remove
+    ? `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'Memlink' -ErrorAction SilentlyContinue`
+    : `Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'Memlink' -Value '${command.replace(/'/g, "''")}'`;
+  try {
+    execSync(`powershell -NoProfile -Command "${ps}"`, { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function installWindows(): void {
   const bin = memlinkWindowsCommand();
-  const taskName = 'MemlinkDaemon';
-  const batPath = path.join(os.tmpdir(), 'memlink-install-task.bat');
+  const command = `${bin} serve --daemon`;
 
-  const bat = `@echo off
-schtasks /Create /SC ONLOGON /TN "${taskName}" /TR "${bin} serve --daemon" /F /IT
-schtasks /Run /TN "${taskName}"
-`;
-  fs.writeFileSync(batPath, bat, 'utf-8');
+  const installed = setWindowsRunKey(command, false);
 
-  try {
-    execSync(
-      `powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/c \"${batPath}\"' -Verb RunAs -Wait"`,
-      { stdio: 'pipe', timeout: 60000 }
-    );
-  } catch (e) {
-    console.log(err('Failed to create scheduled task', String(e)));
-    try { fs.unlinkSync(batPath); } catch { /* ignore */ }
-    console.log(dimLine('Open PowerShell as Administrator and run:'));
-    console.log(dimLine(`  schtasks /Create /SC ONLOGON /TN "${taskName}" /TR "${bin} serve --daemon" /F /IT`));
+  if (!installed) {
+    console.log(err('Failed to set auto-start entry.'));
+    console.log(dimLine('You can still run: memlink serve --daemon'));
     return;
   }
 
-  try { fs.unlinkSync(batPath); } catch { /* ignore */ }
-
-  console.log(ok('memlink installed as Windows Scheduled Task'));
-  console.log(info('Task', taskName));
-  console.log(dimLine('Manage: taskschd.msc → Task Scheduler Library → MemlinkDaemon'));
+  console.log(ok('memlink installed to auto-start on Windows logon'));
+  console.log(info('Command', command));
+  console.log(dimLine('Manage: Task Manager → Startup apps → Memlink'));
+  console.log(dimLine('Or remove with: memlink uninstall'));
 }
 
 function uninstallWindows(): void {
-  const taskName = 'MemlinkDaemon';
-  const batPath = path.join(os.tmpdir(), 'memlink-uninstall-task.bat');
-
-  const bat = `@echo off
-schtasks /End /TN "${taskName}" >nul 2>&1
-schtasks /Delete /TN "${taskName}" /F
-`;
-  fs.writeFileSync(batPath, bat, 'utf-8');
-
-  try {
-    execSync(
-      `powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/c \"${batPath}\"' -Verb RunAs -Wait"`,
-      { stdio: 'pipe', timeout: 30000 }
-    );
-  } catch {
-    // ignore (task may not exist)
-  }
-
-  try { fs.unlinkSync(batPath); } catch { /* ignore */ }
-  console.log(ok('memlink scheduled task removed'));
+  setWindowsRunKey('', true);
+  console.log(ok('memlink auto-start removed'));
+  console.log(dimLine('Note: any running daemon still needs memlink stop'));
 }

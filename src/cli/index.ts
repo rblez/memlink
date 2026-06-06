@@ -379,11 +379,34 @@ serveCmd
       if (opts.transport) childArgs.push('--transport', opts.transport);
       if (opts.memory) childArgs.push('--memory', opts.memory);
 
-      const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
-        stdio: 'ignore',
-        detached: true,
-        env: { ...process.env, MEMLINK_DAEMON_CHILD: '1' },
-      });
+      const childEnv = { ...process.env, MEMLINK_DAEMON_CHILD: '1' };
+      let child: ReturnType<typeof spawn>;
+
+      if (process.platform === 'win32') {
+        // On Windows, fully detach via VBScript WshShell.Run (no console, no parent job)
+        const vbsPath = path.join(os.tmpdir(), `memlink-daemon-${process.pid}.vbs`);
+        const quotedArgs = childArgs
+          .map((a) => `"${a.replace(/"/g, '""')}"`)
+          .join(' ');
+        const vbs = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run "" & "${process.execPath}" & "" & "${process.argv[1].replace(/\\/g, '\\\\')}" & " " & "${quotedArgs.replace(/"/g, '""')}", 0, False\n`;
+        fs.writeFileSync(vbsPath, vbs, 'utf-8');
+
+        child = spawn('wscript.exe', [vbsPath], {
+          stdio: 'ignore',
+          detached: true,
+          env: childEnv,
+          windowsHide: true,
+        });
+        setTimeout(() => {
+          try { fs.unlinkSync(vbsPath); } catch { /* ignore */ }
+        }, 5000);
+      } else {
+        child = spawn(process.execPath, [process.argv[1], ...childArgs], {
+          stdio: 'ignore',
+          detached: true,
+          env: childEnv,
+        });
+      }
 
       child.unref();
 
