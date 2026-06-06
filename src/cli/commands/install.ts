@@ -201,11 +201,13 @@ function memlinkWindowsCommand(): string {
 }
 
 function setWindowsRunKey(command: string, remove: boolean): boolean {
-  const ps = remove
-    ? `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'Memlink' -ErrorAction SilentlyContinue`
-    : `Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'Memlink' -Value '${command.replace(/'/g, "''")}'`;
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
   try {
-    execSync(`powershell -NoProfile -Command "${ps}"`, { stdio: 'pipe' });
+    if (remove) {
+      execSync(`reg delete "${key}" /v Memlink /f`, { stdio: 'pipe' });
+    } else {
+      execSync(`reg add "${key}" /v Memlink /t REG_SZ /d "${command}" /f`, { stdio: 'pipe' });
+    }
     return true;
   } catch {
     return false;

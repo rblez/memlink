@@ -1,6 +1,10 @@
 import { readMeta, updateMetaStatus } from '../../core/meta.ts';
 import { getRouteByMemoryName } from '../../core/routing.ts';
-import { pauseMemory as routingPause, resumeMemory as routingResume, stopMemory as routingStop } from '../../core/routing.ts';
+import {
+  pauseMemory as routingPause,
+  resumeMemory as routingResume,
+  stopMemory as routingStop,
+} from '../../core/routing.ts';
 import * as admin from '../admin.ts';
 import { ok, err, dimLine } from '../output.ts';
 

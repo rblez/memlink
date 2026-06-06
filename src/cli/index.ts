@@ -385,9 +385,7 @@ serveCmd
       if (process.platform === 'win32') {
         // On Windows, fully detach via VBScript WshShell.Run (no console, no parent job)
         const vbsPath = path.join(os.tmpdir(), `memlink-daemon-${process.pid}.vbs`);
-        const quotedArgs = childArgs
-          .map((a) => `"${a.replace(/"/g, '""')}"`)
-          .join(' ');
+        const quotedArgs = childArgs.map((a) => `"${a.replace(/"/g, '""')}"`).join(' ');
         const vbs = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run "" & "${process.execPath}" & "" & "${process.argv[1].replace(/\\/g, '\\\\')}" & " " & "${quotedArgs.replace(/"/g, '""')}", 0, False\n`;
         fs.writeFileSync(vbsPath, vbs, 'utf-8');
 
@@ -398,7 +396,11 @@ serveCmd
           windowsHide: true,
         });
         setTimeout(() => {
-          try { fs.unlinkSync(vbsPath); } catch { /* ignore */ }
+          try {
+            fs.unlinkSync(vbsPath);
+          } catch {
+            /* ignore */
+          }
         }, 5000);
       } else {
         child = spawn(process.execPath, [process.argv[1], ...childArgs], {
