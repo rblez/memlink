@@ -37,22 +37,13 @@ jobs:
         run: bun run format:check
 
   build:
-    name: build ${{ matrix.os }}-${{ matrix.arch }}
+    name: build ${{ matrix.target.os }}-${{ matrix.target.arch }}
     needs: ci
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.target.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os:   [linux, darwin, windows]
-        arch: [amd64, arm64]
-        exclude:
-          - os: darwin
-            arch: arm64
-            runner: macos-13
-          - os: darwin
-            arch: amd64
-            runner: macos-13
-        include:
+        target:
           - { os: linux,   arch: amd64, runner: ubuntu-latest,  ext: ""     }
           - { os: linux,   arch: arm64, runner: ubuntu-latest,  ext: ""     }
           - { os: darwin,  arch: amd64, runner: macos-13,       ext: ""     }
@@ -73,22 +64,22 @@ jobs:
 
       - name: Build binary
         env:
-          BUN_TARGET: bun-${{ matrix.os }}-${{ matrix.arch }}
+          BUN_TARGET: bun-${{ matrix.target.os }}-${{ matrix.target.arch }}
         run: |
           mkdir -p dist/binaries
           bun build --compile --minify \
             --target="${BUN_TARGET}" \
-            --outfile="dist/binaries/memlink-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}" \
+            --outfile="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}" \
             src/cli/index.ts
 
       - name: Smoke test
         shell: bash
         run: |
-          bin="dist/binaries/memlink-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
-          if [ -x "$bin" ] || [ "${{ matrix.os }}" = "windows" ]; then
+          bin="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
+          if [ -x "$bin" ] || [ "${{ matrix.target.os }}" = "windows" ]; then
             "$bin" --version || true
           fi
-          if [ "${{ matrix.os }}" != "windows" ]; then
+          if [ "${{ matrix.target.os }}" != "windows" ]; then
             file "$bin"
           fi
 
@@ -96,8 +87,8 @@ jobs:
         shell: bash
         run: |
           cd dist/binaries
-          bin="memlink-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          bin="memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
+          if [ "${{ matrix.target.os }}" = "windows" ]; then
             zip -j "${bin}.zip" "${bin}"
           else
             tar -czf "${bin}.tar.gz" "${bin}"
@@ -107,10 +98,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: memlink-${{ matrix.os }}-${{ matrix.arch }}
+          name: memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}
           path: |
-            dist/binaries/memlink-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
-            dist/binaries/memlink-${{ matrix.os }}-${{ matrix.arch }}.zip
+            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz
+            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.zip
 
   release:
     name: release
