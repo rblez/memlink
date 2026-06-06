@@ -123,8 +123,8 @@ function buildVersionString(): string {
     `  ${colors.dim('Data dir:')}   ${colors.white(dataDir)}`,
     `  ${colors.dim('Config:')}     ${colors.white(configPath)}`,
     '',
-    `  ${colors.dim('Homepage:')}   ${colors.muted('https://github.com/memlinkdotdev/cli')}`,
-    `  ${colors.dim('Issues:')}     ${colors.muted('https://github.com/memlinkdotdev/cli/issues')}`,
+    `  ${colors.dim('Homepage:')}   ${colors.muted('https://github.com/aiustantdotdev/memlink')}`,
+    `  ${colors.dim('Issues:')}     ${colors.muted('https://github.com/aiustantdotdev/memlink/issues')}`,
     '',
   ];
   return parts.join('\n');
@@ -227,7 +227,7 @@ function helpEnvVars(): string {
 }
 
 function helpFooter(): string {
-  return `\n  ${colors.dim('─'.repeat(64))}\n  ${colors.dim('Documentation:')} ${colors.muted('https://github.com/memlinkdotdev/cli')}\n`;
+  return `\n  ${colors.dim('─'.repeat(64))}\n  ${colors.dim('Documentation:')} ${colors.muted('https://github.com/aiustantdotdev/memlink')}\n`;
 }
 
 // ─── Program ──────────────────────────────────────────────────────────────────

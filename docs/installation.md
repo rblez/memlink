@@ -27,7 +27,7 @@ bun install -g @memlink/cli
 ## From source
 
 ```bash
-git clone https://github.com/memlinkdotdev/cli.git
+git clone https://github.com/aiustantdotdev/memlink.git
 cd memlink
 bun install
 npm run build

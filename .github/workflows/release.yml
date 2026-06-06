@@ -6,14 +6,14 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  check:
-    name: Check
+  ci:
+    name: ci
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Bun
@@ -21,14 +21,117 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies
+      - name: Install
         run: bun install
 
-      - name: Build
-        run: npm run build
+      - name: Typecheck
+        run: bunx tsc --noEmit
 
       - name: Test
         run: bun test
 
       - name: Lint
-        run: npm run lint
+        run: bun run lint
+
+      - name: Format check
+        run: bun run format:check
+
+  build:
+    name: build ${{ matrix.target.os }}-${{ matrix.target.arch }}
+    needs: ci
+    runs-on: ${{ matrix.target.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: amd64,  runner: ubuntu-latest,  ext: "" }
+          - { os: linux,   arch: arm64,  runner: ubuntu-latest,  ext: "" }
+          - { os: darwin,  arch: amd64,  runner: macos-13,       ext: "" }
+          - { os: darwin,  arch: arm64,  runner: macos-14,       ext: "" }
+          - { os: windows, arch: amd64,  runner: windows-latest, ext: ".exe" }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install
+
+      - name: Build binary
+        env:
+          BUN_TARGET: bun-${{ matrix.target.os }}-${{ matrix.target.arch }}
+        run: |
+          mkdir -p dist/binaries
+          bun build --compile --minify \
+            --target="${BUN_TARGET}" \
+            --outfile="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}" \
+            src/cli/index.ts
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          bin="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
+          if [ -x "$bin" ] || [ "${{ matrix.target.os }}" = "windows" ]; then
+            "$bin" --version || true
+          fi
+          if [ "${{ matrix.target.os }}" != "windows" ]; then
+            file "$bin"
+          fi
+
+      - name: Compress
+        shell: bash
+        run: |
+          cd dist/binaries
+          bin="memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
+          if [ "${{ matrix.target.os }}" = "windows" ]; then
+            (cd .. && zip -j "binaries/${bin}.zip" "binaries/${bin}") || cp "${bin}" "${bin}.zip"
+          else
+            tar -czf "${bin}.tar.gz" "${bin}"
+          fi
+          ls -lah
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}
+          path: |
+            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz
+            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.zip
+
+  release:
+    name: release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/binaries
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist/binaries
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/binaries/*.tar.gz
+            dist/binaries/*.zip
+            dist/binaries/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+          fail_on_unmatched_files: false

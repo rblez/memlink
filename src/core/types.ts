@@ -75,7 +75,7 @@ export interface AuthData {
   } | null;
 }
 
-export const MEMLINK_VERSION = '1.0.15';
+export const MEMLINK_VERSION = '1.1.0';
 export const DEFAULT_PORT = 4444;
 export const DEFAULT_HOST = 'localhost';
 export const CONFIG_DIR = '.memlink';

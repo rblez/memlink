@@ -1,6 +1,6 @@
 {
   "name": "@memlink/cli",
-  "version": "1.0.15",
+  "version": "1.1.0",
   "description": "Memlink — Universal memory async and organized for AI agents. Self hosted, Fast, Organized.",
   "keywords": [
     "mcp",
@@ -27,12 +27,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/memlinkdotdev/cli.git"
+    "url": "git+https://github.com/aiustantdotdev/memlink.git"
   },
   "bugs": {
-    "url": "https://github.com/memlinkdotdev/cli/issues"
+    "url": "https://github.com/aiustantdotdev/memlink/issues"
   },
-  "homepage": "https://github.com/memlinkdotdev/cli",
+  "homepage": "https://github.com/aiustantdotdev/memlink",
   "bin": {
     "memlink": "dist/cli/index.js"
   },
@@ -50,6 +50,12 @@
   },
   "scripts": {
     "build": "bun build src/cli/index.ts --outdir dist/cli --target node && bun build src/server/index.ts --outdir dist/server --target node",
+    "build:binary:linux-amd64": "bun build --compile --minify --target=bun-linux-x64 --outfile=dist/binaries/memlink-linux-amd64 src/cli/index.ts",
+    "build:binary:linux-arm64": "bun build --compile --minify --target=bun-linux-arm64 --outfile=dist/binaries/memlink-linux-arm64 src/cli/index.ts",
+    "build:binary:darwin-amd64": "bun build --compile --minify --target=bun-darwin-x64 --outfile=dist/binaries/memlink-darwin-amd64 src/cli/index.ts",
+    "build:binary:darwin-arm64": "bun build --compile --minify --target=bun-darwin-arm64 --outfile=dist/binaries/memlink-darwin-arm64 src/cli/index.ts",
+    "build:binary:windows-amd64": "bun build --compile --minify --target=bun-windows-x64 --outfile=dist/binaries/memlink-windows-amd64.exe src/cli/index.ts",
+    "build:binaries": "bun run build:binary:linux-amd64 && bun run build:binary:linux-arm64 && bun run build:binary:darwin-amd64 && bun run build:binary:darwin-arm64",
     "dev:server": "bun --watch src/server/index.ts",
     "dev:cli": "bun src/cli/index.ts",
     "start": "node dist/server/index.js",

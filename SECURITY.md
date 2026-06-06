@@ -45,7 +45,7 @@ All responses include:
 
 Report security issues via GitHub Issues:
 
-https://github.com/memlinkdotdev/cli/issues
+https://github.com/aiustantdotdev/memlink/issues
 
 Please include:
 - Description of the vulnerability
