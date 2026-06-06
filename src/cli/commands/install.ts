@@ -244,7 +244,9 @@ function installWindows(): void {
   </EnvironmentVariables>
 </Task>`;
 
-  fs.writeFileSync(xmlPath, Buffer.from(xml, 'utf-16le'));
+  const u16le = Buffer.from(xml, 'utf-16le');
+  const bom = Buffer.from([0xff, 0xfe]);
+  fs.writeFileSync(xmlPath, Buffer.concat([bom, u16le]));
 
   try {
     execSync(
