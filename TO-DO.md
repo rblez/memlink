@@ -121,3 +121,11 @@
 - [ ] `MemlinkAdapter` — Anthropic, OpenAI, DeepSeek, Anomalyco
 - [ ] `await memory.save(messages)`
 - [ ] `await memory.recall(query)`
+
+## ⬜ Distribución
+
+- [x] npm — `npm install -g @memlink/cli` (v1.0.12, necesita bump a 1.1.1)
+- [x] install.sh — Linux/macOS standalone
+- [x] install.ps1 — Windows standalone
+- [x] GitHub Releases — binarios cross-compile con Bun
+- [ ] Docker — `docker run rblez/memlink` (próximamente)

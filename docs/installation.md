@@ -1,28 +1,51 @@
 # Installation
 
-## Via npm
+## Standalone binary (recommended)
+
+No Node, Bun, or any runtime required. Self-contained executable with the Bun runtime embedded.
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
+```
+
+The installer:
+1. Detects OS and architecture
+2. Downloads the latest release from GitHub
+3. Installs to `~/.local/bin/memlink`
+4. Adds `~/.local/bin` to your PATH (if not already)
+5. Sends an anonymous install report (opt-out with `MEMLINK_NO_REPORT=1`)
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
+```
+
+The installer:
+1. Detects architecture (x64)
+2. Downloads the latest release from GitHub
+3. Installs to `%LOCALAPPDATA%\memlink\memlink.exe`
+4. Adds it to your user PATH
+
+### Supported platforms
+
+| OS | Architectures |
+|----|---------------|
+| Linux | amd64, arm64 |
+| macOS | amd64 (Intel), arm64 (Apple Silicon) |
+| Windows | amd64 |
+
+## npm
 
 ```bash
 npm install -g @memlink/cli
 ```
 
-## Via pnpm
+Also works with `pnpm`, `yarn`, and `bun`.
 
-```bash
-pnpm install -g @memlink/cli
-```
-
-## Via Yarn
-
-```bash
-yarn global add @memlink/cli
-```
-
-## Via Bun
-
-```bash
-bun install -g @memlink/cli
-```
+Requires Node.js 18+ (or Bun).
 
 ## From source
 
@@ -33,7 +56,13 @@ bun install
 npm run build
 ```
 
-The binary is then available as `memlink` from the command line.
+The binary is then available as `memlink` (via the `bin` field in `package.json`).
+
+## Docker (coming soon)
+
+```bash
+docker run -d -p 4444:4444 -v ~/.memlink:/root/.memlink rblez/memlink
+```
 
 ## Verify installation
 
@@ -41,34 +70,29 @@ The binary is then available as `memlink` from the command line.
 memlink --version
 ```
 
-## Standalone binary (no Node/Bun required)
+## Run as a permanent daemon
 
-### Linux / macOS
+### Linux (systemd)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
+memlink install    # Registers ~/.config/systemd/user/memlink.service
+memlink status     # systemctl --user status memlink
+memlink stop       # systemctl --user stop memlink
 ```
 
-### Windows (PowerShell)
+The service runs `memlink serve` (no `--daemon` flag needed — systemd handles backgrounding).
 
-```powershell
-irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
+### macOS (LaunchAgent)
+
+```bash
+memlink install    # Registers ~/Library/LaunchAgents/memlink.plist
 ```
 
-The installer downloads the latest release binary to `~/.local/bin/memlink` (Linux/macOS)
-or `%LOCALAPPDATA%\memlink\memlink.exe` (Windows) and adds it to your PATH.
+launchd keeps the server alive across reboots. Logs at `~/.memlink/memlink.log`.
 
-## Running the daemon 24/7
+### Windows
 
-| OS | Method | Command |
-|----|--------|---------|
-| Linux | systemd user service | `memlink install` |
-| macOS | LaunchAgent | `memlink install` |
-| Windows | supervisor (NSSM/pm2/Task Scheduler) | see below |
-
-### Windows 24/7
-
-Windows has no native user-daemon. Pick one:
+Windows has no native user-daemon. Pick an external supervisor:
 
 **NSSM** (recommended, no admin):
 ```powershell
@@ -84,10 +108,15 @@ pm2 startup
 ```
 
 **Task Scheduler** (GUI):
-1. Open `taskschd.msc`
-2. Create Basic Task → "Memlink"
-3. Trigger: "When the computer starts"
-4. Action: Start a program → `memlink.exe` with arguments `serve --daemon`
+1. `taskschd.msc` → Create Basic Task → "Memlink"
+2. Trigger: "When the computer starts"
+3. Action: Start `memlink.exe` with arguments `serve --daemon`
 
-**Persistent terminal** (simplest):
-Run `memlink serve --daemon` in Windows Terminal / ConEmu / WSL.
+## Uninstall
+
+| Method | Command |
+|--------|---------|
+| Standalone binary | `rm ~/.local/bin/memlink` (or `%LOCALAPPDATA%\memlink\memlink.exe`) |
+| npm | `npm uninstall -g @memlink/cli` |
+| System service | `memlink uninstall` |
+| Windows supervisor | `nssm remove Memlink confirm` / `pm2 delete memlink` |

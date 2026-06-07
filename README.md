@@ -9,40 +9,39 @@
   Self-hosted · Fast · Organized
 </p>
 
+<p align="center">
+  <a href="https://github.com/rblez/memlink/releases/latest"><img src="https://img.shields.io/github/v/release/rblez/memlink?style=flat-square" alt="Release"/></a>
+  <a href="https://github.com/rblez/memlink/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rblez/memlink?style=flat-square" alt="License"/></a>
+  <a href="https://www.npmjs.com/package/@memlink/cli"><img src="https://img.shields.io/npm/v/@memlink/cli?style=flat-square" alt="npm"/></a>
+</p>
+
 ---
 
 Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
 
 ## Installation
 
-[![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)](#npm)
-[![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](#pnpm)
-[![yarn](https://img.shields.io/badge/yarn-2C8EBB?style=for-the-badge&logo=yarn&logoColor=white)](#yarn)
-[![bun](https://img.shields.io/badge/bun-000000?style=for-the-badge&logo=bun&logoColor=white)](#bun)
+### Standalone binary (recommended, no runtime required)
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
+```
+
+Binaries are available for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`. See [releases](https://github.com/rblez/memlink/releases).
 
 ### npm
 
 ```bash
-npm install -g @memlink/cli
+npm install -g @memlink/cli   # or pnpm / yarn / bun
 ```
 
-### pnpm
-
-```bash
-pnpm install -g @memlink/cli
-```
-
-### Yarn
-
-```bash
-yarn global add @memlink/cli
-```
-
-### bun
-
-```bash
-bun install -g @memlink/cli
-```
+Requires Node 18+ (or Bun).
 
 ### From source
 
@@ -56,54 +55,91 @@ npm run build
 ## Quick Start
 
 ```bash
-memlink                              # Show system overview
-memlink init my-project              # Create a memory
-memlink serve                        # Start MCP server
+memlink                                # System overview
+memlink add "First note" "Hello world"  # Write to default memory
+memlink entries                        # List entries
+memlink search "hello"                 # Search entries
+memlink serve --daemon                 # Start MCP server in background
+memlink url                            # Show MCP config for your agent
 ```
+
+## Run as a permanent daemon (24/7)
+
+| OS | Method | Command |
+|----|--------|---------|
+| **Linux** | systemd user service | `memlink install` |
+| **macOS** | LaunchAgent | `memlink install` |
+| **Windows** | external supervisor (NSSM/pm2/Task Scheduler) | see below |
+
+### Linux / macOS
+
+`memlink install` registers a system service that auto-starts on login and restarts on failure:
+
+- **Linux**: `~/.config/systemd/user/memlink.service` (no root needed)
+  - Status: `systemctl --user status memlink`
+  - Logs: `journalctl --user -u memlink -f`
+- **macOS**: `~/Library/LaunchAgents/memlink.plist`
+  - Status: `launchctl list memlink`
+  - Logs: `tail -f ~/.memlink/memlink.log`
+
+### Windows
+
+Windows has no native user-daemon. Pick one:
+
+**NSSM** (recommended, no admin):
+```powershell
+nssm.exe install Memlink "$env:LOCALAPPDATA\memlink\memlink.exe" "serve --daemon"
+nssm.exe start Memlink
+```
+
+**pm2** (requires Node):
+```bash
+pm2 start memlink -- serve --daemon
+pm2 save
+pm2 startup
+```
+
+**Task Scheduler** (GUI):
+1. Open `taskschd.msc` → Create Basic Task → "Memlink"
+2. Trigger: "When the computer starts"
+3. Action: Start `memlink.exe` with arguments `serve --daemon`
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `memlink` | System overview: server, memories, entries, size |
-| `memlink init <name>` | Create a memory (alias: `create`). `--serve` auto-start server |
+| `memlink add "<title>" "<content>"` | Write entry to default memory (`--tags`, `--memory`) |
+| `memlink entries` | List entries in default memory (`--memory`, `--limit`) |
+| `memlink search <query>` | Search entries by title/tags (`--memory`, `--limit`) |
+| `memlink url` | Show MCP config JSON for the agent |
+| `memlink token [list\|revoke]` | Manage memory tokens |
+| `memlink pause --memory <name>` | Suspend a memory in the daemon |
+| `memlink resume --memory <name>` | Resume a paused memory |
+| `memlink stop [--memory <name>]` | Stop daemon (or remove a memory) |
+| `memlink serve` | Start MCP server (`--port`, `--host`, `--daemon`, `--memory`) |
+| `memlink status` | Daemon + memory stats |
+| `memlink install` | Install system daemon (Linux/macOS) |
+| `memlink uninstall` | Remove system daemon |
+| `memlink info <name\|id>` | Memory details |
 | `memlink delete <name\|id>` | Permanently delete a memory |
-| `memlink ls` | List all memories (name, ID, size) |
-| `memlink show <name\|id>` | Show full memory as Markdown + export to formats |
-| `memlink serve` | Start MCP server. `--port`, `--host`, `--cors`, `--read-only`, `--daemon`, `--transport`, `--memory`, `--watch` |
-| `memlink stop` | Stop the daemon server |
-| `memlink status` | Check daemon server status |
-| `memlink connect <name\|id>` | Show MCP config JSON + agent setup instructions |
-| `memlink info <name\|id>` | Show memory details (name, ID, URL, stats) |
-| `memlink export <name\|id>` | Export memory to configured formats (md/txt/html/json) |
-| `memlink import <name\|id> <file>` | Import entries from a JSON file |
+| `memlink export [name\|id]` | Export to `.md` / `.json` / `.txt` |
+| `memlink import <name\|id> <file>` | Import entries from JSON |
 | `memlink config` | View or modify config (`get`, `set`) |
-| `memlink skill` | Install agent skill. `--global` or `-g` for all projects |
-| `memlink bug` | Open GitHub issue with pre-filled template |
-| `memlink changelog` | Open changelog in browser (`localhost:4444/changelogs`) |
+| `memlink skill` | Install agent skill (use `--global` for all projects) |
 
 ## Documentation
 
-Full documentation in [/docs](/docs):
-
 | Document | Description |
 |----------|-------------|
-| [Installation](/docs/installation.md) | npm, pnpm, yarn, bun, from source |
+| [Installation](/docs/installation.md) | All install methods + daemon setup |
 | [Quick Start](/docs/quickstart.md) | Get running in 2 minutes |
 | [CLI Reference](/docs/cli.md) | All commands and flags |
-| [MCP Server](/docs/server.md) | Server configuration, auth, transports |
+| [MCP Server](/docs/server.md) | Server config, auth, transports |
 | [MCP Tools](/docs/mcp-tools.md) | All MCP tool details |
 | [Agent Setup](/docs/agent-setup.md) | Connect Claude, Cursor, Windsurf, etc. |
 | [Skill](/docs/skill.md) | Agent skill installation |
 | [Backups](/docs/backups.md) | Backup and restore |
 | [Architecture](/docs/architecture.md) | How it works |
-
-### Global flags
-
-| Flag | Description |
-|------|-------------|
-| `-v, --version` | Show version with runtime info |
-| `-h, --help` | Show help with examples and env vars |
 
 ## Environment Variables
 
@@ -112,52 +148,54 @@ Full documentation in [/docs](/docs):
 | `MEMLINK_DIR` | Data directory | `~/.memlink` |
 | `MEMLINK_PORT` / `PORT` | Server port | `4444` |
 | `MEMLINK_HOST` / `HOST` | Server host | `localhost` |
-
-## Architecture
-
-```
-~/.memlink/
-├── settings.json              # Global config (memories, port, host)
-├── .serve.pid                 # Daemon PID (hidden)
-│
-└── test-memory/               # Per-memory directory
-    ├── .lock                  # Write lock (hidden)
-    ├── index.json             # Index (titles only, no content)
-    ├── 1.json                 # Entry 1
-    ├── 2.json                 # Entry 2
-    │
-    └── .backups/              # Auto-backups on every write
-        └── 1_1717112345.json
-```
-
-Agents connect via MCP:
-
-```
-http://localhost:4444/mcp?id=MEMORY_ID
-```
+| `MEMLINK_NO_REPORT` | Opt out of anonymous install reports | unset |
 
 ## MCP Tools
 
 | Tool | Description | Params |
 |------|-------------|--------|
-| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?` |
-| `memory_edit` | Create or update an entry | `title`, `content`, `tags?` |
-| `memory_search` | Search by query | `query` |
-| `memory_sync` | Memory stats | — |
+| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?`, `memory?` |
+| `memory_edit` | Create or update an entry | `title`, `content`, `tags?`, `memory?` |
+| `memory_search` | Search by query | `query`, `memory?`, `limit?` |
+| `memory_delete` | Delete an entry | `id?`, `title?`, `memory?` |
+| `memory_sync` | Memory stats | `memory?` |
+| `memory_token` | List, create, or revoke tokens | `action?`, `label?`, `token?` |
+
+Agents connect via:
+```
+http://localhost:4444/mcp?t=<TOKEN>      # named memory
+http://localhost:4444/mcp                 # default memory
+```
+
+## Architecture
+
+```
+~/.memlink/
+├── settings.json              # Global config
+├── auth.json                  # Local + cloud tokens
+├── default/                   # Default memory (auto-created)
+│   ├── meta.json
+│   ├── index.json
+│   ├── 1.md, 2.md, ...        # Entries with YAML frontmatter
+│   └── .backups/
+├── my-project/                # Named memory
+│   └── ...
+```
 
 ## Robustness
 
-- **Atomic writes**: files written to `.tmp` then renamed — no corruption on crash
+- **Atomic writes**: files written to `.tmp` then renamed
 - **Auto-backups**: every edit creates a backup in `.backups/`
-- **File lock**: concurrent writes serialized via `.lock` with 10s TTL + retry
-- **TTY detection**: ASCII art and clipboard disabled in non-TTY (CI, Docker, pipes)
-- **Safe clipboard**: clipboard failures handled silently
+- **File lock**: concurrent writes serialized via `.lock` with TTL + retry
+- **Token routing**: in-memory `Map<token, MemoryRoute>` (no IPC)
+- **Health ticker**: 30s heartbeat in `.health`
+- **TTY detection**: ASCII art disabled in non-TTY (CI, Docker)
 
 ## Development
 
 ```bash
 bun install              # Install deps
-npm run build            # Build + type check
+npm run build            # Build + typecheck
 npm run dev:server       # Server with hot reload
 npm run dev:cli          # CLI dev mode
 npm run test             # Run tests
@@ -169,28 +207,25 @@ npm run format           # Prettier
 
 ```
 src/
-├── cli/index.ts       # CLI entrypoint (commands)
+├── cli/index.ts       # CLI entrypoint (commander)
 ├── cli/output.ts      # Output formatting, colors, branding, skill template
 ├── server/index.ts    # MCP server (Express + @modelcontextprotocol/sdk)
-├── server/changelogs.ts  # Changelog HTML renderer
 ├── core/
-│   ├── storage.ts     # Index+N.json CRUD, auto-backups, migration (new)
-│   ├── lock.ts        # .lock with TTL + withLock helper (new)
+│   ├── storage.ts     # Index+N.json CRUD, auto-backups, migration
+│   ├── lock.ts        # .lock with TTL + withLock helper
 │   ├── memory.ts      # Legacy CRUD, CLI helpers, config
 │   └── types.ts       # Types, constants, getMemlinkDir
 tests/
 ├── memory.test.ts     # Core memory unit tests
 ├── server.test.ts     # MCP server integration tests
-└── unit.test.ts       # Additional unit tests
+└── unit.test.ts       # Edge cases
 ```
 
-## CI/CD
+## Distribution
 
-```
-bun test → bun run build → bun run format:check → bun run lint
-```
-
-Releases trigger on `v*` tags via PRs to `main` from `beta`. Publish manually: `npm publish --access public`.
+- **npm** — `npm install -g @memlink/cli`
+- **Standalone binaries** — `install.sh` (Unix) / `install.ps1` (Windows) from GitHub Releases
+- **Docker** — coming soon
 
 ## License
 
