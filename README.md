@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/aiustantdotdev/memlink/main/public/memlink.png" alt="Memlink Logo" width="200" />
+  <img src="https://raw.githubusercontent.com/aiustantt/memlink/main/public/memlink.png" alt="Memlink Logo" width="200" />
 </p>
 
 <h1 align="center">Memlink</h1>
@@ -47,7 +47,7 @@ bun install -g @memlink/cli
 ### From source
 
 ```bash
-git clone https://github.com/aiustantdotdev/memlink.git
+git clone https://github.com/aiustantt/memlink.git
 cd memlink
 bun install
 npm run build

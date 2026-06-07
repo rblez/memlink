@@ -1,14 +1,14 @@
 # memlink installer (Windows PowerShell)
-# https://github.com/aiustantdotdev/memlink
+# https://github.com/aiustantt/memlink
 #
-# irm https://raw.githubusercontent.com/aiustantdotdev/memlink/main/install.ps1 | iex
+# irm https://raw.githubusercontent.com/aiustantt/memlink/main/install.ps1 | iex
 #
 # Opt-out of anonymous install reports: $env:MEMLINK_NO_REPORT = "1"
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
-$Repo       = 'aiustantdotdev/memlink'
+$Repo       = 'aiustantt/memlink'
 $BinName    = 'memlink.exe'
 $ReportUrl  = $env:MEMLINK_REPORT_URL
 if (-not $ReportUrl) { $ReportUrl = 'https://api.memlink.cloud/v1/install/report' }
@@ -159,7 +159,11 @@ Write-Cyan ""
 Write-Dim "Try it:"
 Write-Dim "  memlink --version"
 Write-Dim "  memlink serve --daemon"
-Write-Dim "  memlink install    # auto-start on Windows logon"
+Write-Dim ""
+Write-Dim "Note: Windows has no native user daemon. To run 24/7 use one of:"
+Write-Dim "  - NSSM:  nssm install Memlink `"$InstallDir\memlink.exe`" `"serve --daemon`""
+Write-Dim "  - pm2:   pm2 start memlink -- serve --daemon"
+Write-Dim "  - Task Scheduler: create a task with trigger AtStartup"
 Write-Cyan ""
 
 Send-Report -Event 'success'
