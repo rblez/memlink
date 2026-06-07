@@ -65,6 +65,19 @@ memlink url                            # Show MCP config for your agent
 
 ## Run as a permanent daemon (24/7)
 
+```mermaid
+flowchart TD
+    A[memlink install] --> B{Platform?}
+    B -->|Linux| C[systemd --user service<br/>~/.config/systemd/user/memlink.service<br/>✅ 24/7, no admin]
+    B -->|macOS| D[LaunchAgent<br/>~/Library/LaunchAgents/memlink.plist<br/>✅ 24/7, no admin]
+    B -->|Windows| E[Print guidance only<br/>❌ Nothing installed]
+    E --> F{User picks}
+    F -->|NSSM| G[nssm install Memlink<br/>✅ 24/7, no admin]
+    F -->|pm2| H[pm2 start memlink -- serve --daemon<br/>✅ 24/7, requires Node]
+    F -->|Task Scheduler| I[GUI: AtStartup trigger<br/>✅ 24/7, no admin]
+    F -->|Skip| J[memlink serve --daemon<br/>❌ Dies on reboot]
+```
+
 | OS | Method | Command |
 |----|--------|---------|
 | **Linux** | systemd user service | `memlink install` |
