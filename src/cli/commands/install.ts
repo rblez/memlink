@@ -183,57 +183,27 @@ function uninstallMacOS(): void {
   console.log(ok('memlink LaunchAgent removed'));
 }
 
-function memlinkWindowsCommand(): string {
-  if (process.argv[1]?.includes('src/cli/index.ts')) {
-    return `bun ${process.argv[1]}`;
-  }
-  try {
-    const result = execSync('where memlink 2>nul || where memlink.cmd 2>nul', {
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    });
-    const line = result.trim().split('\n')[0];
-    if (line) return `"${line}"`;
-  } catch {
-    // not found
-  }
-  return 'memlink';
-}
-
-function setWindowsRunKey(command: string, remove: boolean): boolean {
-  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
-  try {
-    if (remove) {
-      execSync(`reg delete "${key}" /v Memlink /f`, { stdio: 'pipe' });
-    } else {
-      execSync(`reg add "${key}" /v Memlink /t REG_SZ /d "${command}" /f`, { stdio: 'pipe' });
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function installWindows(): void {
-  const bin = memlinkWindowsCommand();
-  const command = `${bin} serve --daemon`;
-
-  const installed = setWindowsRunKey(command, false);
-
-  if (!installed) {
-    console.log(err('Failed to set auto-start entry.'));
-    console.log(dimLine('You can still run: memlink serve --daemon'));
-    return;
-  }
-
-  console.log(ok('memlink installed to auto-start on Windows logon'));
-  console.log(info('Command', command));
-  console.log(dimLine('Manage: Task Manager → Startup apps → Memlink'));
-  console.log(dimLine('Or remove with: memlink uninstall'));
+  console.log(ok('memlink installed'));
+  console.log('');
+  console.log(info('To start the daemon', ''));
+  console.log('  memlink serve --daemon');
+  console.log('');
+  console.log(info('For 24/7 background on Windows', ''));
+  console.log('  Windows has no native user-daemon. Run `memlink serve --daemon`');
+  console.log('  in a persistent terminal (Windows Terminal, ConEmu, or screen/tmux),');
+  console.log('  or use an external supervisor:');
+  console.log(
+    '    • NSSM:  nssm.exe install Memlink "%LOCALAPPDATA%\\memlink\\memlink.exe" "serve --daemon"'
+  );
+  console.log('    • pm2:   pm2 start memlink -- serve --daemon');
+  console.log('    • Task Scheduler: create a basic task that runs on logon');
+  console.log('');
+  console.log(dimLine('Status: memlink status'));
+  console.log(dimLine('Stop:   memlink stop'));
 }
 
 function uninstallWindows(): void {
-  setWindowsRunKey('', true);
-  console.log(ok('memlink auto-start removed'));
-  console.log(dimLine('Note: any running daemon still needs memlink stop'));
+  console.log(ok('memlink uninstalled (no service was registered)'));
+  console.log(dimLine('Stop any running daemon: memlink stop'));
 }
