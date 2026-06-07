@@ -90,7 +90,8 @@ jobs:
           cd dist/binaries
           bin="memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
           if [ "${{ matrix.target.os }}" = "windows" ]; then
-            zip -j "${bin}.zip" "${bin}"
+            # Windows runners don't have zip in Git Bash; use tar with -a (auto-detect zip from .zip extension)
+            tar -a -cf "${bin}.zip" "${bin}"
           else
             tar -czf "${bin}.tar.gz" "${bin}"
           fi
