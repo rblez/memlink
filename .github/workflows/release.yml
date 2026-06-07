@@ -63,6 +63,7 @@ jobs:
         run: bun install
 
       - name: Build binary
+        shell: bash
         env:
           BUN_TARGET: bun-${{ matrix.target.os }}-${{ matrix.target.arch }}
         run: |
