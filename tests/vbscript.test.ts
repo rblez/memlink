@@ -2,7 +2,7 @@ import { describe, test, expect } from 'bun:test';
 import { buildVbscript } from '../src/cli/daemon.ts';
 
 describe('buildVbscript', () => {
-  test('npm install: includes argv[1] as .js entry between execPath and args', () => {
+  test('includes execPath, argv1, and args in that order', () => {
     const vbs = buildVbscript('C:\\path\\bun.exe', 'C:\\path\\index.js', [
       'serve',
       '--port',
@@ -11,7 +11,6 @@ describe('buildVbscript', () => {
     expect(vbs).toContain('Set WshShell = CreateObject("WScript.Shell")');
     expect(vbs).toContain('WshShell.Run');
     expect(vbs).toContain('"C:\\\\path\\\\bun.exe"');
-    // backslashes escaped
     expect(vbs).toContain('"C:\\\\path\\\\index.js"');
     expect(vbs).toMatch(/chr\(34\) & "serve" & chr\(34\)/);
     expect(vbs).toMatch(/chr\(34\) & "--port" & chr\(34\)/);
@@ -22,17 +21,17 @@ describe('buildVbscript', () => {
     expect(vbs).toContain(', 0, False');
   });
 
-  test('standalone (Bun --compile): skips argv[1], no double-args', () => {
+  test('argv[1] is always included (even if it is a subcommand like "serve")', () => {
     const vbs = buildVbscript('C:\\path\\memlink.exe', 'serve', ['serve', '--port', '4444']);
-    // Only one "serve" occurrence (no double-args bug)
+    // argv[1] is "serve", first childArg is also "serve" → 2 occurrences
     const matches = vbs.match(/"serve"/g);
-    expect(matches).toHaveLength(1);
+    expect(matches).toHaveLength(2);
   });
 
-  test('argv[1] undefined: treated as standalone', () => {
-    const vbs = buildVbscript('C:\\path\\memlink.exe', undefined, ['serve', '--daemon-child']);
-    const matches = vbs.match(/"serve"/g);
-    expect(matches).toHaveLength(1);
+  test('.ts entry file (bun cli serve --daemon) is included', () => {
+    const vbs = buildVbscript('C:\\bun.exe', 'src/cli/index.ts', ['serve', '--daemon-child']);
+    expect(vbs).toContain('"src/cli/index.ts"');
+    expect(vbs).toContain('"--daemon-child"');
   });
 
   test('escapes embedded quotes in tokens', () => {
@@ -54,9 +53,7 @@ describe('buildVbscript', () => {
     expect(lines[1]).toMatch(/^WshShell\.Run/);
   });
 
-  test('appended --daemon-child is included when passed via buildVbscript caller (sanity)', () => {
-    // The function does NOT auto-add --daemon-child; caller passes it explicitly.
-    // This test documents that contract.
+  test('appended --daemon-child is included when passed via args', () => {
     const vbs = buildVbscript('bun.exe', 'index.js', ['serve', '--daemon-child']);
     expect(vbs).toContain('"--daemon-child"');
   });

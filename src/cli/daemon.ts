@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 
 export interface DaemonSpawnOptions {
   execPath: string;
-  argv1: string | undefined;
+  argv1: string;
   childArgs: string[];
   env: NodeJS.ProcessEnv;
   debug?: boolean;
@@ -14,7 +14,6 @@ export interface DaemonSpawnOptions {
 export interface DaemonSpawnResult {
   child: ReturnType<typeof spawn>;
   vbsPath: string;
-  isStandalone: boolean;
 }
 
 /**
@@ -27,9 +26,8 @@ export interface DaemonSpawnResult {
  * (where argv[1] is already the first user arg like "serve") to avoid
  * double-args.
  */
-export function buildVbscript(execPath: string, argv1: string | undefined, args: string[]): string {
-  const isStandalone = !argv1?.endsWith('.js');
-  const tokens = isStandalone ? [execPath, ...args] : [execPath, argv1!, ...args];
+export function buildVbscript(execPath: string, argv1: string, args: string[]): string {
+  const tokens = [execPath, argv1, ...args];
 
   const vbsCmd = tokens
     .map((t) => {
@@ -85,6 +83,5 @@ export function spawnDetached(opts: DaemonSpawnOptions): DaemonSpawnResult {
   }
 
   child.unref();
-  const isStandalone = !argv1?.endsWith('.js');
-  return { child, vbsPath, isStandalone };
+  return { child, vbsPath };
 }
