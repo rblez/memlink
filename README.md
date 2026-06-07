@@ -63,6 +63,25 @@ memlink serve --daemon                 # Start MCP server in background
 memlink url                            # Show MCP config for your agent
 ```
 
+## Connect an AI agent
+
+```mermaid
+flowchart LR
+    A[memlink serve --daemon] --> B[memlink url]
+    B --> C[Copy MCP config JSON]
+    C --> D{Which agent?}
+    D -->|Claude Desktop| E[claude_desktop_config.json]
+    D -->|Cursor| F[Cursor MCP settings]
+    D -->|Windsurf| G[~/.codeium/windsurf/mcp_config.json]
+    D -->|Other| H[Custom MCP client]
+    E --> I[Restart agent]
+    F --> I
+    G --> I
+    H --> I
+    I --> J[Agent calls memory_read<br/>on session start]
+    J --> K[Memlink serves entries<br/>from default memory]
+```
+
 ## Run as a permanent daemon (24/7)
 
 ```mermaid

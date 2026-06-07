@@ -1,10 +1,63 @@
 # Architecture
 
-## Data flow
+## System overview
 
+```mermaid
+flowchart LR
+    subgraph Users
+        U1[User / shell]
+        U2[AI Agent<br/>Claude · Cursor · Windsurf]
+    end
+
+    subgraph Memlink["Memlink daemon (single process)"]
+        CLI[CLI<br/>commander]
+        MCP[MCP Server<br/>Express + SDK]
+        subgraph Core["Core layer"]
+            RT[Token router<br/>Map<token, MemoryRoute>]
+            STG[Storage<br/>atomic writes]
+            LCK[Lock<br/>TTL + retry]
+            BKP[Auto-backup<br/>.backups/]
+            HT[Health ticker<br/>30s]
+        end
+    end
+
+    subgraph FS["~/.memlink/"]
+        IDX[index.json]
+        ENT[1.md · 2.md · ...<br/>YAML frontmatter]
+        META[meta.json]
+        AUTH[auth.json]
+        HLTH[.health]
+    end
+
+    U1 -->|memlink add / serve / etc| CLI
+    U2 -->|MCP tool call| MCP
+    CLI --> Core
+    MCP --> RT
+    RT --> STG
+    STG --> LCK
+    STG --> BKP
+    STG --> IDX
+    STG --> ENT
+    CLI --> META
+    CLI --> AUTH
+    HT --> HLTH
 ```
-User → CLI → Core → ~/.memlink/<name>/index.json + N.json
-Agent → MCP Server → Core → ~/.memlink/<name>/index.json + N.json
+
+## Daemon lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Stopped
+    Stopped --> Starting: memlink serve
+    Starting --> Running: PID written, .serve.pid
+    Starting --> Failed: port in use
+    Failed --> [*]
+    Running --> Running: health tick (30s → .health)
+    Running --> Running: MCP request → token lookup → tool handler
+    Running --> Stopped: SIGINT / SIGTERM / memlink stop
+    Running --> Detached: serve --daemon (Win: VBScript)
+    Detached --> Running
+    Stopped --> [*]
 ```
 
 ## Directory structure
