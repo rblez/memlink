@@ -70,47 +70,23 @@ docker run -d -p 4444:4444 -v ~/.memlink:/root/.memlink rblez/memlink
 memlink --version
 ```
 
-## Run as a permanent daemon
+## Running the server
 
-### Linux (systemd)
-
-```bash
-memlink install    # Registers ~/.config/systemd/user/memlink.service
-memlink status     # systemctl --user status memlink
-memlink stop       # systemctl --user stop memlink
-```
-
-The service runs `memlink serve` (no `--daemon` flag needed — systemd handles backgrounding).
-
-### macOS (LaunchAgent)
+Memlink runs as a per-session daemon:
 
 ```bash
-memlink install    # Registers ~/Library/LaunchAgents/memlink.plist
+memlink serve --daemon
 ```
 
-launchd keeps the server alive across reboots. Logs at `~/.memlink/memlink.log`.
+`--daemon` detaches the process from the terminal (Unix: `detached: true` + `unref()`. Windows: VBScript `WshShell.Run 0, False`). The daemon dies when the session ends. This is by design — we don't try to compete with systemd, launchd, or NSSM.
 
-### Windows
+**Want it permanent?** Use the OS-native service manager of your choice:
 
-Windows has no native user-daemon. Pick an external supervisor:
+- **Linux**: `systemd --user` unit, `pm2`, or `tmux`/`screen` in a long-lived session
+- **macOS**: `launchd` user agent, `pm2`, or `tmux`/`screen`
+- **Windows**: `pm2`, `NSSM`, or Task Scheduler
 
-**NSSM** (recommended, no admin):
-```powershell
-nssm.exe install Memlink "$env:LOCALAPPDATA\memlink\memlink.exe" "serve --daemon"
-nssm.exe start Memlink
-```
-
-**pm2** (requires Node):
-```bash
-pm2 start memlink -- serve --daemon
-pm2 save
-pm2 startup
-```
-
-**Task Scheduler** (GUI):
-1. `taskschd.msc` → Create Basic Task → "Memlink"
-2. Trigger: "When the computer starts"
-3. Action: Start `memlink.exe` with arguments `serve --daemon`
+The daemon PID is at `~/.memlink/.serve.pid`. Health heartbeat at `~/.memlink/.health` (30s ticks).
 
 ## Uninstall
 
@@ -118,5 +94,3 @@ pm2 startup
 |--------|---------|
 | Standalone binary | `rm ~/.local/bin/memlink` (or `%LOCALAPPDATA%\memlink\memlink.exe`) |
 | npm | `npm uninstall -g @memlink/cli` |
-| System service | `memlink uninstall` |
-| Windows supervisor | `nssm remove Memlink confirm` / `pm2 delete memlink` |

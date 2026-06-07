@@ -1,6 +1,6 @@
 {
   "name": "@memlink/cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Memlink — Universal memory layer for AI agents. Self-hosted, fast, organized. One memory, one URL, any agent connects.",
   "keywords": [
     "mcp",

@@ -1,28 +1,22 @@
 # Quick Start
 
-## 1. Create a memory
+## 1. Start the server
 
 ```bash
-memlink init my-project
+memlink serve --daemon
 ```
 
-This creates a memory called "my-project" and prints its unique 12-character ID and connection URL.
+Server runs at `http://localhost:4444/mcp` and serves the **default** memory (auto-created at `~/.memlink/default/`).
 
-## 2. Start the MCP server
+## 2. Connect an agent
+
+Get the MCP config for your agent:
 
 ```bash
-memlink serve
+memlink url
 ```
 
-The server serves two MCP transport endpoints:
-- **Streamable HTTP** (modern): `http://localhost:4444/mcp?id=YOUR_MEMORY_ID`
-- **SSE** (legacy): `http://localhost:4444/sse?id=YOUR_MEMORY_ID`
-
-Each memory you created gets its own URL with the memory ID.
-
-## 3. Connect an agent
-
-Add the MCP URL to your agent's configuration. Choose the transport that matches your agent:
+Paste the JSON into your agent's MCP settings.
 
 **Streamable HTTP** (modern — preferred):
 ```json
@@ -30,43 +24,65 @@ Add the MCP URL to your agent's configuration. Choose the transport that matches
   "mcpServers": {
     "memlink": {
       "type": "http",
-      "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+      "url": "http://localhost:4444/mcp"
     }
   }
 }
 ```
 
-**SSE** (legacy — for older agents that don't support Streamable HTTP):
+**SSE** (legacy — for older agents):
 ```json
 {
   "mcpServers": {
     "memlink": {
       "type": "remote",
-      "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+      "url": "http://localhost:4444/sse",
       "enabled": true
     }
   }
 }
 ```
 
-The agent can now read, write, search, and delete memory entries using MCP tools.
+## 3. Write and read
 
-## 4. View memories
-
+Via CLI:
 ```bash
-memlink ls               # List all memories
-memlink show <id>        # View memory contents as Markdown
+memlink add "First note" "Hello world"
+memlink entries
+memlink search "hello"
 ```
 
-## 5. Delete a memory
+Via MCP (from the agent):
+```json
+{ "tool": "memory_edit", "args": { "title": "First note", "content": "Hello world" } }
+{ "tool": "memory_read", "args": {} }
+```
+
+## 4. Create more memories
+
+Memories are created implicitly on first use:
 
 ```bash
-memlink delete <id>      # Permanently delete a memory and its data
+memlink add "Project goals" "..." --memory my-project
+memlink entries --memory my-project
+```
+
+Each memory gets a unique token. Connect to it with:
+```
+http://localhost:4444/mcp?t=<token>
+```
+
+## 5. Manage
+
+```bash
+memlink status      # Is the daemon running?
+memlink token list  # Show all memory tokens
+memlink stop        # Stop the daemon
 ```
 
 ## What's next?
 
 - Learn all [CLI commands](cli.md)
-- Set up the [MCP server](server.md) with custom port/host
+- Configure the [MCP server](server.md) (port, host, CORS, read-only)
 - Explore all [MCP tools](mcp-tools.md)
 - Configure [specific agents](agent-setup.md)

@@ -3,25 +3,31 @@
 ## Starting the server
 
 ```bash
-memlink serve
+memlink serve --daemon
 ```
 
-This starts an Express-based MCP server at `http://localhost:4444/mcp`.
+This starts an Express-based MCP server at `http://localhost:4444`. On startup it auto-creates the default memory (`~/.memlink/default/`) and registers it with the in-memory token router.
+
+The server exposes:
+- `GET /health` — health check
+- `POST /mcp?t=<token>` — Streamable HTTP transport
+- `GET /sse?t=<token>` — SSE transport (legacy)
+- `POST /admin/{register,pause,resume,stop}` — admin API (local token required)
 
 ## MCP request flow
 
 ```mermaid
 flowchart TD
     A[Agent sends<br/>JSON-RPC 2.0] --> B{Transport?}
-    B -->|Streamable HTTP| C[POST /mcp]
-    B -->|SSE| D[GET /sse]
+    B -->|Streamable HTTP| C[POST /mcp?t=... or /mcp]
+    B -->|SSE| D[GET /sse?t=... or /sse]
     B -->|Stdio| E[stdin/stdout]
     C --> F[Parse JSON-RPC]
     D --> F
     E --> F
     F --> G{Method?}
-    G -->|initialize| H[Send capabilities]
-    G -->|tools/list| I[Return tool list]
+    G -->|initialize| H[Send capabilities<br/>server name: memlink]
+    G -->|tools/list| I[Return 4-tool list]
     G -->|tools/call| J[Extract params:<br/>name, arguments]
     H --> K[JSON-RPC response]
     I --> K
@@ -29,14 +35,16 @@ flowchart TD
     L --> M{Route found?}
     M -->|No + no token| N[Route to default memory]
     M -->|No + token| O[401 Unauthorized]
-    M -->|Yes| P[Memory locked<br/>TTL 10s]
-    N --> P
-    P --> Q[Execute tool handler<br/>memory_read / edit / search / etc]
-    Q --> R[Atomic write → index.json + N.md]
-    R --> S[Auto-backup → .backups/]
-    S --> T[Unlock]
-    T --> K
+    M -->|Yes + paused| P[503 Service Unavailable]
+    M -->|Yes + active| Q[Memory locked<br/>TTL 10s]
+    N --> Q
+    Q --> R[Execute tool handler<br/>memory_read / edit / search / sync]
+    R --> S[Atomic write → index.json + N.md]
+    S --> T[Auto-backup → .backups/]
+    T --> U[Unlock]
+    U --> K
     O --> K
+    P --> K
 ```
 
 ## Token routing
@@ -44,23 +52,24 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Request: /mcp?t=abc123] --> B[Parse query string]
-    A2[Request: /mcp] --> B2[No token]
+    A2[Request: /mcp<br/>no token] --> B2[Token = null]
     B --> C[Look up in Map<token, MemoryRoute>]
     C --> D{Match?}
-    D -->|Yes| E[route.token = abc123]
-    D -->|No| F[401 Unauthorized]
-    B2 --> G[route.token = null]
-    E --> H[Use route's memory<br/>name, dir, lock, status]
-    G --> I[Use 'default' memory<br/>auto-created at ~/.memlink/default/]
-    H --> J[Continue to tool handler]
-    I --> J
+    D -->|Yes + active| E[route.token = abc123]
+    D -->|Yes + paused| F[503]
+    D -->|No| G[401 Unauthorized]
+    B2 --> H[Token = null → default memory]
+    E --> I[Use route's memory<br/>name, dir, lock, status]
+    H --> I
+    I --> J[Continue to tool handler]
     F --> K[Error response]
+    G --> K
 ```
 
 Token registration happens via:
-- `memlink token create <name>` — generates token, stores in `meta.json`
-- `memlink serve --memory <name>` — registers `Map<token, route>` at startup
+- Daemon startup — auto-registers the default memory with token from `meta.json`
 - `POST /admin/register` (admin API) — registers a memory with the running daemon
+- `memlink pause --memory <name>` / `memlink resume` — toggles status without daemon restart
 
 ## Transports
 
@@ -68,14 +77,14 @@ Memlink supports three MCP transport protocols:
 
 | Transport | URL / Config | Type |
 |-----------|-------------|------|
-| **Streamable HTTP** (modern) | `http://localhost:4444/mcp?id=MEMORY_ID` | `"type": "http"` |
-| **SSE** (legacy) | `http://localhost:4444/sse?id=MEMORY_ID` | `"type": "remote"` |
+| **Streamable HTTP** (modern) | `http://localhost:4444/mcp?t=TOKEN` | `"type": "http"` |
+| **SSE** (legacy) | `http://localhost:4444/sse?t=TOKEN` | `"type": "remote"` |
 | **Stdio** (subprocess) | `memlink serve --transport stdio --memory MEMORY` | `"type": "stdio"` |
 
 Select transport with `--transport`:
 
 ```bash
-memlink serve                           # Default: all HTTP transports
+memlink serve                           # Default: both HTTP transports
 memlink serve --transport http          # Streamable HTTP only
 memlink serve --transport sse           # SSE only
 memlink serve --transport http,sse      # Both HTTP transports
@@ -108,13 +117,18 @@ memlink serve --read-only             # Disable all write operations
 
 ## Authentication
 
-Authentication uses the memory ID in the query string:
+Authentication uses the memory token in the query string:
 
 ```
-http://localhost:4444/mcp?id=abc123def456
+http://localhost:4444/mcp?t=<token>
 ```
 
-Both `?id=` (preferred) and `?mem_id=` (legacy) are accepted.
+When no token is provided, requests are routed to the default memory (auto-created on first run). For optional Bearer auth, use `--bearer-token`:
+
+```bash
+memlink serve --bearer-token <secret>
+# Client sends: Authorization: Bearer <secret>
+```
 
 ## Health check
 
@@ -122,21 +136,38 @@ Both `?id=` (preferred) and `?mem_id=` (legacy) are accepted.
 GET http://localhost:4444/health
 ```
 
-Returns `200 OK` if the server is running.
+Returns `200 OK` if the server is running. The daemon also writes `~/.memlink/.health` every 30 seconds; the existence and freshness of this file indicates the daemon is alive.
 
-## MCP transport
+## Admin API
 
-Memlink supports two MCP transport protocols:
+Localhost-only endpoints for runtime control (token in `~/.memlink/settings.json` → `auth.localToken`):
 
-1. **Streamable HTTP** (modern — preferred): Uses the [Streamable HTTP](https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/transports/) transport from the Model Context Protocol SDK. Efficient, supports long-lived connections for streaming responses.
-2. **SSE** (legacy): Uses standard Server-Sent Events for agents that don't yet support Streamable HTTP. Configured with `"type": "remote"` and `"enabled": true`.
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/admin/register` | Register a new memory route (body: `{name, token, status?}`) |
+| `POST` | `/admin/pause` | Pause a memory (body: `{name}`) |
+| `POST` | `/admin/resume` | Resume a paused memory (body: `{name}`) |
+| `POST` | `/admin/stop` | Remove a memory from routing (body: `{name}`) |
 
-Both transports serve the same MCP tools.
+The CLI wraps these:
+
+```bash
+memlink token list
+memlink token revoke <token>
+memlink pause --memory <name>
+memlink resume --memory <name>
+memlink stop --memory <name>   # remove from routing, not kill daemon
+```
 
 ## Programmatic usage
 
 ```typescript
 import { startServer } from '@memlink/cli/server';
 
-await startServer(4444, 'localhost', { cors: '*', readOnly: false });
+await startServer(4444, 'localhost', {
+  cors: '*',
+  readOnly: false,
+  logLevel: 'verbose',
+  bearerToken: undefined,
+});
 ```

@@ -30,7 +30,6 @@ memlink serve --read-only
 memlink serve --daemon
 memlink serve --daemon --log-level verbose
 memlink serve --transport stdio --memory my-memory
-memlink serve --watch                 # Auto-export on file changes
 ```
 
 Options:
@@ -39,92 +38,130 @@ Options:
 - `--host <host>` — Host to bind to (default: localhost, env: `MEMLINK_HOST` or `HOST`)
 - `--cors <origins>` — CORS allowed origins (comma-separated or `*`)
 - `--read-only` — Disable write operations
-- `--daemon` — Run server in background. Use `memlink stop` to stop
+- `--daemon` — Run server in background (cross-OS: Unix `detached: true` + `unref()`, Windows VBScript detach)
 - `--log-level <level>` — Log level: `none`, `basic` (default in TTY), or `verbose`
 - `--transport <transports>` — Transports: `auto`, `http`, `sse`, `stdio` (comma-separated)
 - `--memory <name-or-id>` — Memory to serve (required for stdio transport)
-- `--watch` — Watch memory files for changes and auto-export to formats
+- `--bearer-token <token>` — Require `Authorization: Bearer <token>` for MCP endpoints
 
-### `memlink init <name>`
+### `memlink add <title> <content>`
 
-Create a new memory. Alias: `create`.
+Write an entry to the default memory (or `--memory`).
 
 ```bash
-memlink init my-project
-memlink init my-project --serve
-memlink init my-project --serve --port 4444
+memlink add "First note" "Hello world"
+memlink add "Project goals" "..." --tags project,goals --memory my-project
 ```
-
-Name restrictions: only letters, numbers, `-`, `_`, `.`. No duplicates allowed.
 
 Options:
 
-- `--serve` — Auto-start the MCP server after creation
-- `--port <port>` — Port for auto-start server
+- `--memory <name>` — Target memory (default: `default`)
+- `--tags <tags>` — Comma-separated tags
 
-### `memlink ls`
+### `memlink entries`
 
-List all memories with name, ID, and size.
+List entries in the default memory (or `--memory`).
 
 ```bash
-memlink ls
+memlink entries
+memlink entries --memory my-project --limit 20
 ```
 
-### `memlink show <name-or-id>`
+### `memlink search <query>`
 
-Show memory contents as consolidated Markdown. Also exports to configured formats.
+Search entries by title, content, or tags.
 
 ```bash
-memlink show my-project
-memlink show abc123def456
+memlink search "project"
+memlink search "goals" --memory my-project --limit 10
+```
+
+### `memlink url`
+
+Show MCP config JSON for connecting agents to the default memory or a specific one.
+
+```bash
+memlink url
+memlink url --memory my-project
+```
+
+### `memlink token [list|revoke]`
+
+Manage memory tokens.
+
+```bash
+memlink token list
+memlink token list --memory my-project
+memlink token revoke <token>
+```
+
+### `memlink pause --memory <name>`
+
+Suspend a memory in the running daemon (no restart needed).
+
+```bash
+memlink pause --memory my-project
+```
+
+### `memlink resume --memory <name>`
+
+Resume a paused memory.
+
+```bash
+memlink resume --memory my-project
+```
+
+### `memlink stop [--memory <name>]`
+
+Stop the daemon, or remove a specific memory from the running daemon.
+
+```bash
+memlink stop             # Stop the daemon
+memlink stop --memory my-project  # Remove my-project from routing
+```
+
+### `memlink status`
+
+Check if the Memlink daemon server is running.
+
+```bash
+memlink status
 ```
 
 ### `memlink info <name-or-id>`
 
-Show memory details: name, ID, MCP URL, entries count, size, tags, dates.
+Show memory details: name, ID, MCP URL, entries count, size, status, dates.
 
 ```bash
 memlink info my-project
 memlink info abc123def456
 ```
 
-### `memlink export <name-or-id>`
+### `memlink delete <name-or-id>`
 
-Export memory to configured formats (md, txt, html, json) without showing content.
+Permanently delete a memory and its data.
+
+```bash
+memlink delete my-project
+memlink delete abc123def456
+```
+
+### `memlink export [name-or-id]`
+
+Export memory to `.md` / `.json` / `.txt` formats.
 
 ```bash
 memlink export my-project
 ```
 
-Formats are written to `~/.memlink/formats/`. Configurable via `exportFormats` in config.
-
 ### `memlink import <name-or-id> <file>`
 
-Import entries from a JSON file. The file can be an array of entries or an object with an `entries` key.
+Import entries from a JSON file.
 
 ```bash
 memlink import my-project ./backup.json
 memlink import my-project ./entries.json --overwrite
 ```
-
-Each entry must have `title` and `content`. Optional: `tags`. Existing entries with the same title are skipped unless `--overwrite` is used.
-
-Options:
-
-- `--overwrite` — Replace existing entries with matching titles
-
-### `memlink connect <name-or-id>`
-
-Show MCP config JSON and setup instructions for all major agents.
-
-```bash
-memlink connect my-project
-memlink connect my-project --all
-```
-
-Options:
-
-- `--all` — Show all known agents, not just detected ones
 
 ### `memlink config`
 
@@ -136,47 +173,29 @@ memlink config get exportFormats  # Get a specific key
 memlink config set exportFormats '["md","html"]'  # Set a value
 ```
 
-### `memlink delete <name-or-id>`
-
-Permanently delete a memory and its data file.
-
-```bash
-memlink delete my-project
-memlink delete abc123def456
-```
-
-### `memlink stop`
-
-Stop the Memlink daemon server running in the background.
-
-```bash
-memlink stop
-```
-
-### `memlink status`
-
-Check if the Memlink daemon server is running.
-
-```bash
-memlink status
-```
-
 ### `memlink skill`
 
-Install the Memlink agent skill for OpenCode.
+Install the Memlink agent skill (e.g. for OpenCode).
 
 ```bash
 memlink skill                  # Install in .agents/skills/memlink/
 memlink skill --global         # Install globally in ~/.agents/
-memlink skill -g               # Short flag for global
 ```
 
-### `memlink bug`
+### `memlink connect`
 
-Open GitHub to report a bug or send feedback.
+Link CLI with memlink.cloud (Phase 2 — stub).
 
 ```bash
-memlink bug
+memlink connect
+```
+
+### `memlink disconnect`
+
+Unlink from memlink.cloud (Phase 2 — stub).
+
+```bash
+memlink disconnect
 ```
 
 ## Configuration
@@ -185,19 +204,32 @@ Config file at `~/.memlink/settings.json`:
 
 ```json
 {
-  "version": "1.0.12",
+  "version": "1.2.1",
   "baseDir": "/home/user/.memlink",
-  "universalMemories": [...],
   "serverPort": 4444,
   "serverHost": "localhost"
 }
 ```
 
+Per-memory metadata in `~/.memlink/<name>/meta.json`:
+
+```json
+{
+  "memoryId": "abc123def456",
+  "memoryName": "my-project",
+  "token": "...",
+  "status": "active",
+  "createdAt": "...",
+  "lastServedAt": "..."
+}
+```
+
 ## Environment Variables
 
-| Variable                | Description            | Default      |
-| ----------------------- | ---------------------- | ------------ |
-| `MEMLINK_DIR`           | Data directory         | `~/.memlink` |
-| `MEMLINK_PORT` / `PORT` | Server port            | `4444`       |
-| `MEMLINK_HOST` / `HOST` | Server host            | `localhost`  |
-| `MEMLINK_NO_COLOR`      | Disable colored output | —            |
+| Variable                | Description                     | Default      |
+| ----------------------- | ------------------------------- | ------------ |
+| `MEMLINK_DIR`           | Data directory                  | `~/.memlink` |
+| `MEMLINK_PORT` / `PORT` | Server port                     | `4444`       |
+| `MEMLINK_HOST` / `HOST` | Server host                     | `localhost`  |
+| `MEMLINK_NO_COLOR`      | Disable colored output          | —            |
+| `MEMLINK_NO_REPORT`     | Opt out of anonymous install reports | —        |

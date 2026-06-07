@@ -4,7 +4,14 @@ Memlink works with any MCP-compatible agent. Here's how to configure each one.
 
 ## Configuration format
 
-All agents accept an MCP server configuration. Choose the transport matching your agent:
+The default memory is always served at `http://localhost:4444/mcp` (no token). For named memories, use the token in the query string.
+
+Get the right URL for any memory with:
+
+```bash
+memlink url                 # default memory
+memlink url --memory my-project   # named memory
+```
 
 **Streamable HTTP** (modern — preferred):
 ```json
@@ -12,7 +19,7 @@ All agents accept an MCP server configuration. Choose the transport matching you
   "mcpServers": {
     "memlink": {
       "type": "http",
-      "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+      "url": "http://localhost:4444/mcp?t=YOUR_TOKEN"
     }
   }
 }
@@ -24,39 +31,33 @@ All agents accept an MCP server configuration. Choose the transport matching you
   "mcpServers": {
     "memlink": {
       "type": "remote",
-      "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+      "url": "http://localhost:4444/sse?t=YOUR_TOKEN",
       "enabled": true
     }
   }
 }
 ```
 
-Get your memory ID and URL with:
-
-```bash
-memlink connect <id>
-```
-
 ## Claude (Claude Desktop)
 
 1. Open Claude Desktop
 2. Go to Settings → Developer → MCP Servers
-3. Add a new server with the URL from `memlink connect`
+3. Add a new server with the URL from `memlink url`
 
 ## Cursor
 
 1. Open Cursor Settings → Features → MCP
 2. Add a new MCP server:
    - Name: `memlink`
-   - URL: `http://localhost:4444/mcp?id=YOUR_MEMORY_ID` (preferred, type: http)
-   - Or URL: `http://localhost:4444/sse?id=YOUR_MEMORY_ID` (legacy, type: remote)
+   - URL: `http://localhost:4444/mcp?t=YOUR_TOKEN` (preferred, type: http)
+   - Or URL: `http://localhost:4444/sse?t=YOUR_TOKEN` (legacy, type: remote)
 
 ## Windsurf
 
 1. Open Windsurf settings
 2. Navigate to MCP Server configuration
-3. Use Streamable HTTP URL: `http://localhost:4444/mcp?id=YOUR_MEMORY_ID`
-4. Or SSE URL for older configs: `http://localhost:4444/sse?id=YOUR_MEMORY_ID`
+3. Use Streamable HTTP URL: `http://localhost:4444/mcp?t=YOUR_TOKEN`
+4. Or SSE URL for older configs: `http://localhost:4444/sse?t=YOUR_TOKEN`
 
 ## Codex
 
@@ -79,7 +80,7 @@ memlink connect <id>
      "mcpServers": {
        "memlink": {
          "type": "http",
-         "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+         "url": "http://localhost:4444/mcp?t=YOUR_TOKEN"
        }
      }
    }
@@ -91,7 +92,7 @@ memlink connect <id>
      "mcpServers": {
        "memlink": {
          "type": "remote",
-         "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+         "url": "http://localhost:4444/sse?t=YOUR_TOKEN",
          "enabled": true
        }
      }
@@ -114,7 +115,7 @@ Claude Code supports MCP servers. Add the URL to your Claude Code configuration.
      "mcpServers": {
        "memlink": {
          "type": "http",
-         "url": "http://localhost:4444/mcp?id=YOUR_MEMORY_ID"
+         "url": "http://localhost:4444/mcp?t=YOUR_TOKEN"
        }
      }
    }
@@ -126,7 +127,7 @@ Claude Code supports MCP servers. Add the URL to your Claude Code configuration.
      "mcpServers": {
        "memlink": {
          "type": "remote",
-         "url": "http://localhost:4444/sse?id=YOUR_MEMORY_ID",
+         "url": "http://localhost:4444/sse?t=YOUR_TOKEN",
          "enabled": true
        }
      }
@@ -139,10 +140,11 @@ LangChain supports MCP tool integrations. Use the memlink tools within your Lang
 
 ## Running the server
 
-Before connecting any agent, start the Memlink server:
+Before connecting any agent, start the Memlink daemon:
 
 ```bash
-memlink serve
+memlink serve --daemon
+memlink status     # confirm it's running
 ```
 
-For production use, consider running it as a system service or in Docker.
+The daemon is per-session (dies when the session ends). For a permanent setup, use your OS service manager — see [installation.md](installation.md#running-the-server).

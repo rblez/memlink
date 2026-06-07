@@ -58,7 +58,7 @@ function Send-Report {
     Invoke-RestMethod -Uri $ReportUrl `
       -Method Post `
       -ContentType 'application/json' `
-      -UserAgent 'memlink-install/1.2.0' `
+      -UserAgent 'memlink-install/1.2.1' `
       -Body $payload `
       -TimeoutSec 5 | Out-Null
   } catch {

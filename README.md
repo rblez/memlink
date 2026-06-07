@@ -138,12 +138,10 @@ Same on Linux, macOS, and Windows. Runs as long as your session is active (or un
 
 | Tool | Description | Params |
 |------|-------------|--------|
-| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?`, `memory?` |
-| `memory_edit` | Create or update an entry | `title`, `content`, `tags?`, `memory?` |
-| `memory_search` | Search by query | `query`, `memory?`, `limit?` |
-| `memory_delete` | Delete an entry | `id?`, `title?`, `memory?` |
-| `memory_sync` | Memory stats | `memory?` |
-| `memory_token` | List, create, or revoke tokens | `action?`, `label?`, `token?` |
+| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?` |
+| `memory_edit` | Create or update an entry | `title`, `content`, `tags?` |
+| `memory_search` | Search by query | `query` |
+| `memory_sync` | Memory stats (count, size, last updated) | — |
 
 Agents connect via:
 ```
@@ -156,7 +154,6 @@ http://localhost:4444/mcp                 # default memory
 ```
 ~/.memlink/
 ├── settings.json              # Global config
-├── auth.json                  # Local + cloud tokens
 ├── default/                   # Default memory (auto-created)
 │   ├── meta.json
 │   ├── index.json
@@ -191,18 +188,23 @@ npm run format           # Prettier
 
 ```
 src/
-├── cli/index.ts       # CLI entrypoint (commander)
-├── cli/output.ts      # Output formatting, colors, branding, skill template
-├── server/index.ts    # MCP server (Express + @modelcontextprotocol/sdk)
+├── cli/index.ts        # CLI entrypoint (commander)
+├── cli/output.ts       # Output formatting, colors, branding, skill template
+├── cli/admin.ts        # CLI client for daemon admin API
+├── server/index.ts     # MCP server (Express + @modelcontextprotocol/sdk)
 ├── core/
-│   ├── storage.ts     # Index+N.json CRUD, auto-backups, migration
-│   ├── lock.ts        # .lock with TTL + withLock helper
-│   ├── memory.ts      # Legacy CRUD, CLI helpers, config
-│   └── types.ts       # Types, constants, getMemlinkDir
+│   ├── storage.ts      # .md entries with YAML frontmatter, atomic writes
+│   ├── meta.ts         # Per-memory meta.json CRUD, status tracking
+│   ├── routing.ts      # Token → MemoryRoute map
+│   ├── health.ts       # .health heartbeat
+│   ├── auth.ts         # Local token (admin API)
+│   ├── lock.ts         # .lock with TTL + withLock helper
+│   ├── memory.ts       # Legacy CRUD, CLI helpers, config
+│   └── types.ts        # Types, constants, getMemlinkDir
 tests/
-├── memory.test.ts     # Core memory unit tests
-├── server.test.ts     # MCP server integration tests
-└── unit.test.ts       # Edge cases
+├── memory.test.ts      # Core memory unit tests
+├── server.test.ts      # MCP server integration tests
+└── unit.test.ts        # Edge cases
 ```
 
 ## Distribution

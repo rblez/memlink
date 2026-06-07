@@ -424,7 +424,7 @@ serveCmd
       if (process.platform !== 'win32' && child.pid) {
         writePid(child.pid);
       }
-      const realPid = process.platform === 'win32' ? readPid() ?? child.pid : child.pid;
+      const realPid = process.platform === 'win32' ? (readPid() ?? child.pid) : child.pid;
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
       console.log(okBadge(`Server started (PID ${realPid})`));

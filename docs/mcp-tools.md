@@ -1,121 +1,85 @@
 # MCP Tools Reference
 
-Memlink exposes a set of MCP tools that agents can call to manage memory.
+Memlink exposes 4 MCP tools per memory. Each MCP server instance is bound to a single memory (via `?t=<token>` or the default memory).
 
-## Core Tools
+## memory_read
 
-### memory_read
-
-Read all memory entries or a specific one by title. Always call at the start of a session to load context.
+Read memory entries. Always call at the start of a session to load context.
 
 **Parameters:**
-- `title` (string, optional) — Specific memory title to read. If omitted, returns all entries.
+- `id` (number, optional) — Read a specific entry by ID
+- `title` (string, optional) — Read a specific entry by exact title
+- `full` (boolean, optional) — When reading all, include full content (default: index only)
 
-**Returns:** Formatted Markdown with all entries or a specific entry.
+**Returns:** Formatted Markdown. Index view shows id, title, tags, updatedAt. `full: true` adds content.
 
-### memory_edit
+**Examples:**
+```json
+{ "tool": "memory_read", "args": {} }
+{ "tool": "memory_read", "args": { "title": "ProjectGoals" } }
+{ "tool": "memory_read", "args": { "id": 7 } }
+{ "tool": "memory_read", "args": { "full": true } }
+```
 
-Create or update a memory entry. Use whenever the user says "save X", "remember that", "store this".
+## memory_edit
 
-**Parameters:**
-- `title` (string, required) — Short, descriptive title. Use PascalCase or Title Case. Max 200 chars.
-- `content` (string, required) — Full content for this memory block. Max 100K chars.
-- `tags` (string[], optional) — Tags for categorization. Max 20 tags, each max 50 chars.
-
-**Returns:** Confirmation with entry title and timestamp.
-
-### memory_delete
-
-Delete a memory entry by title. Use when the user says "forget X", "remove X".
-
-**Parameters:**
-- `title` (string, required) — Title of the memory entry to delete.
-
-**Returns:** Confirmation or not-found message.
-
-### memory_search
-
-Search memory entries by query. Searches in title, content, and tags.
+Create or update an entry. Use whenever the user says "save X", "remember that", "store this".
 
 **Parameters:**
-- `query` (string, required) — Search query to find matching entries.
+- `title` (string, required) — Short descriptive title, 1-200 chars. PascalCase or Title Case recommended
+- `content` (string, required) — Full content, plain text, 1-100K chars
+- `tags` (string[], optional) — Categorical tags, max 20 tags, each max 50 chars
 
-**Returns:** Formatted search results with match count.
+**Behavior:** Creates if no entry with that title exists; updates if one does. Atomic write, auto-backup created.
 
-### memory_sync
+**Returns:** Confirmation with title and timestamp.
 
-Sync and validate memory integrity. Returns current stats.
+**Examples:**
+```json
+{ "tool": "memory_edit", "args": { "title": "ProjectGoals", "content": "Build X, Y, Z by Q3", "tags": ["project", "goals"] } }
+```
+
+## memory_search
+
+Search entries by query. Matches in title, content, and tags (case-insensitive substring).
+
+**Parameters:**
+- `query` (string, required) — Search query
+
+**Returns:** Formatted Markdown with all matching entries and match count.
+
+**Examples:**
+```json
+{ "tool": "memory_search", "args": { "query": "typescript" } }
+```
+
+## memory_sync
+
+Validate memory integrity and return stats.
 
 **Parameters:** None.
 
 **Returns:** Entry count, file size, last updated timestamp, status.
 
-## Batch & Bulk Tools
+**Examples:**
+```json
+{ "tool": "memory_sync", "args": {} }
+```
 
-### memory_batch
+## Deleting entries
 
-Create or update multiple memory entries at once.
+There is no `memory_delete` MCP tool in v1.2.1. To delete entries, use the CLI directly:
 
-**Parameters:**
-- `entries` (array, required) — Array of `{title, content, tags?}` objects.
+```bash
+memlink delete-entry --memory my-project "ProjectGoals"
+```
 
-**Returns:** Summary of processed entries.
+Or delete the entire memory:
 
-### bulk_delete
+```bash
+memlink delete my-project
+```
 
-Delete multiple entries using titles, tags, or patterns.
+## Tool count
 
-**Parameters:**
-- `method` (enum: `titles` | `tags` | `pattern`, required) — Deletion method.
-- `value` (string, required) — Comma-separated titles/tags or search pattern.
-- `use_regex` (boolean, optional) — Use pattern as regex.
-- `dry_run` (boolean, optional) — Preview without deleting.
-
-**Returns:** Summary of deleted entries, or dry-run preview.
-
-## Backup Tools
-
-### backup_create
-
-Create a backup of the current memory.
-
-**Parameters:**
-- `include_deleted` (boolean, optional) — Include deleted entries.
-
-**Returns:** Path to the backup file.
-
-### backup_restore
-
-Restore memory from a backup file.
-
-**Parameters:**
-- `backup_path` (string, required) — Path to backup file.
-- `overwrite` (boolean, optional) — Overwrite existing entries.
-
-**Returns:** Restore summary with entry count and memory ID.
-
-### backup_list
-
-List available backup files.
-
-**Parameters:** None.
-
-**Returns:** List of backups with entry count and size.
-
-### backup_delete
-
-Delete a backup file.
-
-**Parameters:**
-- `backup_path` (string, required) — Path to backup file.
-
-**Returns:** Confirmation.
-
-### backup_cleanup
-
-Clean up old backups, keeping only the most recent ones.
-
-**Parameters:**
-- `keep_count` (number, optional) — Number of backups to keep (default: 10).
-
-**Returns:** Summary of kept and deleted backups.
+Each memory registered with the daemon exposes exactly these 4 tools. The tools are bound to a single memory, so an agent connected via `?t=token123` only sees tools that operate on that memory.
