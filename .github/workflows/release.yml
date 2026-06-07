@@ -85,13 +85,14 @@ jobs:
       - name: Compress
         run: |
           cd dist/binaries
-          for bin in memlink-*; do
-            case "$bin" in
-              *.exe) tar -a -cf "${bin}.zip" "$bin" ;;
-              *)     tar -czf "${bin}.tar.gz" "$bin" ;;
-            esac
-          done
-          rm -f memlink-linux-* memlink-darwin-* memlink-windows-*
+          # Compress each binary
+          tar -a -cf memlink-windows-amd64.exe.zip memlink-windows-amd64.exe
+          tar -czf memlink-linux-amd64.tar.gz      memlink-linux-amd64
+          tar -czf memlink-linux-arm64.tar.gz      memlink-linux-arm64
+          tar -czf memlink-darwin-amd64.tar.gz     memlink-darwin-amd64
+          tar -czf memlink-darwin-arm64.tar.gz     memlink-darwin-arm64
+          # Remove raw binaries, keep only archives
+          rm -f memlink-windows-amd64.exe memlink-linux-amd64 memlink-linux-arm64 memlink-darwin-amd64 memlink-darwin-arm64
           ls -lah
 
       - name: Generate checksums
