@@ -18,16 +18,22 @@ function memlinkBinaryPath(): string {
     return `bun ${process.argv[1]}`;
   }
 
-  // Try which
+  // Try which, then resolve symlinks (fnm/nvm shims have unstable per-shell paths)
   try {
     const which = execSync('which memlink', { encoding: 'utf-8' }).trim();
-    if (which) return which;
+    if (which) {
+      try {
+        return fs.realpathSync(which);
+      } catch {
+        return which;
+      }
+    }
   } catch {
     // not found
   }
 
   for (const p of paths) {
-    if (fs.existsSync(p)) return p;
+    if (fs.existsSync(p)) return fs.realpathSync(p);
   }
 
   return 'memlink'; // fallback — assume in PATH

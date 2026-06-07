@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/rblez/memlink/releases/latest"><img src="https://img.shields.io/github/v/release/rblez/memlink?style=flat-square" alt="Release"/></a>
-  <a href="https://github.com/rblez/memlink/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rblez/memlink?style=flat-square" alt="License"/></a>
+  <a href="https://github.com/rblez/memlink/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" alt="License"/></a>
   <a href="https://www.npmjs.com/package/@memlink/cli"><img src="https://img.shields.io/npm/v/@memlink/cli?style=flat-square" alt="npm"/></a>
 </p>
 
@@ -258,3 +258,7 @@ tests/
 - **npm** — `npm install -g @memlink/cli`
 - **Standalone binaries** — `install.sh` (Unix) / `install.ps1` (Windows) from GitHub Releases
 - **Docker** — coming soon
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) for details.

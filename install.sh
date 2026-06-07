@@ -70,7 +70,7 @@ EOF
   # Best-effort, no fail
   curl -fsSL -X POST "$REPORT_URL" \
     -H "Content-Type: application/json" \
-    -H "User-Agent: memlink-install/1.1.1" \
+    -H "User-Agent: memlink-install/1.1.3" \
     --data-raw "$payload" \
     --connect-timeout 3 \
     --max-time 5 \
