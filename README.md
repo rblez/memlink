@@ -82,59 +82,13 @@ flowchart LR
     J --> K[Memlink serves entries<br/>from default memory]
 ```
 
-## Run as a permanent daemon (24/7)
+## Run the server
 
-```mermaid
-flowchart TD
-    A[memlink install] --> B{Platform?}
-    B -->|Linux| C[systemd --user service<br/>~/.config/systemd/user/memlink.service<br/>✅ 24/7, no admin]
-    B -->|macOS| D[LaunchAgent<br/>~/Library/LaunchAgents/memlink.plist<br/>✅ 24/7, no admin]
-    B -->|Windows| E[Print guidance only<br/>❌ Nothing installed]
-    E --> F{User picks}
-    F -->|NSSM| G[nssm install Memlink<br/>✅ 24/7, no admin]
-    F -->|pm2| H[pm2 start memlink -- serve --daemon<br/>✅ 24/7, requires Node]
-    F -->|Task Scheduler| I[GUI: AtStartup trigger<br/>✅ 24/7, no admin]
-    F -->|Skip| J[memlink serve --daemon<br/>❌ Dies on reboot]
-```
-
-| OS | Method | Command |
-|----|--------|---------|
-| **Linux** | systemd user service | `memlink install` |
-| **macOS** | LaunchAgent | `memlink install` |
-| **Windows** | external supervisor (NSSM/pm2/Task Scheduler) | see below |
-
-### Linux / macOS
-
-`memlink install` registers a system service that auto-starts on login and restarts on failure:
-
-- **Linux**: `~/.config/systemd/user/memlink.service` (no root needed)
-  - Status: `systemctl --user status memlink`
-  - Logs: `journalctl --user -u memlink -f`
-- **macOS**: `~/Library/LaunchAgents/memlink.plist`
-  - Status: `launchctl list memlink`
-  - Logs: `tail -f ~/.memlink/memlink.log`
-
-### Windows
-
-Windows has no native user-daemon. Pick one:
-
-**NSSM** (recommended, no admin):
-```powershell
-nssm.exe install Memlink "$env:LOCALAPPDATA\memlink\memlink.exe" "serve --daemon"
-nssm.exe start Memlink
-```
-
-**pm2** (requires Node):
 ```bash
-pm2 start memlink -- serve --daemon
-pm2 save
-pm2 startup
+memlink serve --daemon
 ```
 
-**Task Scheduler** (GUI):
-1. Open `taskschd.msc` → Create Basic Task → "Memlink"
-2. Trigger: "When the computer starts"
-3. Action: Start `memlink.exe` with arguments `serve --daemon`
+Same on Linux, macOS, and Windows. Runs as long as your session is active (or until `memlink stop`).
 
 ## Commands
 
@@ -150,8 +104,6 @@ pm2 startup
 | `memlink stop [--memory <name>]` | Stop daemon (or remove a memory) |
 | `memlink serve` | Start MCP server (`--port`, `--host`, `--daemon`, `--memory`) |
 | `memlink status` | Daemon + memory stats |
-| `memlink install` | Install system daemon (Linux/macOS) |
-| `memlink uninstall` | Remove system daemon |
 | `memlink info <name\|id>` | Memory details |
 | `memlink delete <name\|id>` | Permanently delete a memory |
 | `memlink export [name\|id]` | Export to `.md` / `.json` / `.txt` |

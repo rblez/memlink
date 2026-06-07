@@ -185,12 +185,6 @@ function helpExamples(): string {
     `                   ${colors.dim('memlink config get serverPort')}`,
     `                   ${colors.dim('memlink config set serverPort 4444')}`,
     '',
-    `    ${colors.white('install')}       Install system daemon`,
-    `                   ${colors.dim('memlink install')}`,
-    '',
-    `    ${colors.white('uninstall')}     Remove system daemon`,
-    `                   ${colors.dim('memlink uninstall')}`,
-    '',
     `    ${colors.white('skill')}         Install Memlink agent skill globally`,
     `                   ${colors.dim('memlink skill')}`,
     '',
@@ -821,24 +815,6 @@ program
   .description('Unlink from memlink.cloud')
   .action(() => {
     disconnectCommand();
-  });
-
-// ─── memlink install / uninstall ──────────────────────────────────────────
-
-program
-  .command('install')
-  .description('Install system daemon')
-  .action(async () => {
-    const { installCommand } = await import('./commands/install.ts');
-    installCommand();
-  });
-
-program
-  .command('uninstall')
-  .description('Remove system daemon')
-  .action(async () => {
-    const { uninstallCommand } = await import('./commands/install.ts');
-    uninstallCommand();
   });
 
 // ─── memlink skill ──────────────────────────────────────────────────────

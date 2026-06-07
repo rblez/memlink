@@ -26,11 +26,12 @@
 - [x] `memlink url` — muestra URL MCP + JSON config
 - [x] `memlink token [list|revoke]` — gestiona tokens
 - [x] `memlink pause --memory <name>` — suspende memoria
-- [x] `memlink install` — daemon systemd user / launchd
-- [x] `memlink uninstall` — remueve daemon
 - [x] `memlink connect` — stub cloud (Phase 2)
 - [x] `memlink disconnect` — stub cloud (Phase 2)
-- [x] `memlink install` en Windows — solo documenta `--daemon` (no auto-start nativo)
+
+### CLI — Comandos removidos
+- [x] `memlink install` — era daemon systemd/launchd; ahora se usa `memlink serve --daemon`
+- [x] `memlink uninstall` — sin servicio que remover
 
 ### CLI — Comandos eliminados
 - [x] `init`, `create` → se crean implícitamente
