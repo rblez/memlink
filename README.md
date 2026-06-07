@@ -21,27 +21,11 @@ Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agent
 
 ## Installation
 
-### Standalone binary (recommended, no runtime required)
-
-**Linux / macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
-```
-
-Binaries are available for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`. See [releases](https://github.com/rblez/memlink/releases).
-
-### npm
+### npm (requires Node 18+ or Bun)
 
 ```bash
 npm install -g @memlink/cli   # or pnpm / yarn / bun
 ```
-
-Requires Node 18+ (or Bun).
 
 ### From source
 
@@ -132,7 +116,7 @@ Same on Linux, macOS, and Windows. Runs as long as your session is active (or un
 | `MEMLINK_DIR` | Data directory | `~/.memlink` |
 | `MEMLINK_PORT` / `PORT` | Server port | `4444` |
 | `MEMLINK_HOST` / `HOST` | Server host | `localhost` |
-| `MEMLINK_NO_REPORT` | Opt out of anonymous install reports | unset |
+| `MEMLINK_DEBUG` | Log VBScript path for debugging on Windows | unset |
 
 ## MCP Tools
 
@@ -206,12 +190,6 @@ tests/
 ├── server.test.ts      # MCP server integration tests
 └── unit.test.ts        # Edge cases
 ```
-
-## Distribution
-
-- **npm** — `npm install -g @memlink/cli`
-- **Standalone binaries** — `install.sh` (Unix) / `install.ps1` (Windows) from GitHub Releases
-- **Docker** — coming soon
 
 ## License
 

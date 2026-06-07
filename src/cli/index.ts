@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync, spawn } from 'child_process';
+import { execSync } from 'child_process';
 import { Command } from 'commander';
 import { ok as okBadge, err, info, dimLine, colors, printLogo, SKILL_MD, kv } from './output.ts';
 import {
@@ -23,6 +23,7 @@ import { tokenGenerateCommand, tokenListCommand, tokenRevokeCommand } from './co
 import { pauseCommand, resumeCommand, stopMemoryCommand } from './commands/pause.ts';
 import { connectCommand, disconnectCommand } from './commands/cloud.ts';
 import { isDaemonAlive } from '../core/health.ts';
+import { spawnDetached } from './daemon.ts';
 import { ensureDefaultMemory, readMeta, createMemoryMeta } from '../core/meta.ts';
 import { registerMemoryRoute } from '../core/routing.ts';
 import { ensureLocalToken } from '../core/auth.ts';
@@ -377,39 +378,14 @@ serveCmd
       if (opts.memory) childArgs.push('--memory', opts.memory);
 
       const childEnv = { ...process.env, MEMLINK_DAEMON_CHILD: '1' };
-      let child: ReturnType<typeof spawn>;
-
-      if (process.platform === 'win32') {
-        // On Windows, fully detach via VBScript WshShell.Run (no console, no parent job).
-        // Pass MEMLINK_DAEMON_CHILD as an explicit arg to avoid VBScript env inheritance quirks.
-        const vbsPath = path.join(os.tmpdir(), `memlink-daemon-${process.pid}.vbs`);
-        const allArgs = [...childArgs, '--daemon-child'];
-        const quotedArgs = allArgs.map((a) => `"${a.replace(/"/g, '""')}"`).join(' ');
-        const vbs = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run "" & "${process.execPath}" & "" & "${process.argv[1].replace(/\\/g, '\\\\')}" & " " & "${quotedArgs.replace(/"/g, '""')}", 0, False\n`;
-        fs.writeFileSync(vbsPath, vbs, 'utf-8');
-
-        child = spawn('wscript.exe', [vbsPath], {
-          stdio: 'ignore',
-          detached: true,
-          env: childEnv,
-          windowsHide: true,
-        });
-        setTimeout(() => {
-          try {
-            fs.unlinkSync(vbsPath);
-          } catch {
-            /* ignore */
-          }
-        }, 5000);
-      } else {
-        child = spawn(process.execPath, [process.argv[1], ...childArgs], {
-          stdio: 'ignore',
-          detached: true,
-          env: childEnv,
-        });
-      }
-
-      child.unref();
+      const debug = process.env.MEMLINK_DEBUG === '1';
+      const { child } = spawnDetached({
+        execPath: process.execPath,
+        argv1: process.argv[1],
+        childArgs,
+        env: childEnv,
+        debug,
+      });
 
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
 

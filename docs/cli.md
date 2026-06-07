@@ -232,4 +232,4 @@ Per-memory metadata in `~/.memlink/<name>/meta.json`:
 | `MEMLINK_PORT` / `PORT` | Server port                     | `4444`       |
 | `MEMLINK_HOST` / `HOST` | Server host                     | `localhost`  |
 | `MEMLINK_NO_COLOR`      | Disable colored output          | —            |
-| `MEMLINK_NO_REPORT`     | Opt out of anonymous install reports | —        |
+| `MEMLINK_DEBUG`         | Log VBScript path for debugging on Windows | —        |

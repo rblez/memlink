@@ -108,7 +108,7 @@ stateDiagram-v2
 
 ```json
 {
-  "version": "1.2.1",
+  "version": "1.3.0",
   "baseDir": "/home/user/.memlink",
   "serverPort": 4444,
   "serverHost": "localhost",

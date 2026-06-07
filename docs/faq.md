@@ -31,7 +31,7 @@ All agents running in WSL (OpenCode, Devin, etc.) use `localhost:4444` with zero
 npm update -g @memlink/cli
 ```
 
-Or re-run the standalone installer (`install.sh` / `install.ps1`).
+Or re-run `npm update -g @memlink/cli`.
 
 ### How do I run memlink as a permanent service?
 
