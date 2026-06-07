@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # memlink installer (Linux / macOS)
-# https://github.com/aiustantt/memlink
+# https://github.com/rblez/memlink
 #
-# curl -fsSL https://raw.githubusercontent.com/aiustantt/memlink/main/install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
 #
 # Opt-out of anonymous install reports: MEMLINK_NO_REPORT=1
 
 set -e
 
-REPO="aiustantt/memlink"
+REPO="rblez/memlink"
 BIN_NAME="memlink"
 REPORT_URL="${MEMLINK_REPORT_URL:-https://api.memlink.cloud/v1/install/report}"
 INSTALL_DIR="${MEMLINK_INSTALL_DIR:-$HOME/.local/bin}"

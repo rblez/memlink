@@ -51,7 +51,7 @@
 - [x] `memlink skill` (SKILL.md mejor documentado)
 
 ### Devops
-- [x] Repo migrado: `rblez/memlink` → `aiustantt/memlink`
+- [x] Repo migrado: `rblez/memlink` → `aiustantt/memlink` → `rblez/memlink` (final)
 - [x] Remote actualizado
 - [x] Version bump: 1.0.12 → 1.0.15
 - [x] Tag `v1.0.15` + GitHub Release
@@ -68,14 +68,14 @@
 - [ ] `memlink serve --memory <name>` — generar token y registrar en daemon runtime
 - [ ] Comunicación runtime daemon ↔ CLI para registro de memorias sin reinicio
 
-### wslink (repo: `aiustantt/wslink`)
+### wslink (repo: `pyrofast/wslink`)
 - [ ] Binario Go `wslink` Linux
 - [ ] `wslink forward 4444` — proxy WSL:4444 → Windows:4444
 - [ ] CI cross-compile Go + C#
 
 ---
 
-## ⬜ Fase 2 — Cloud (repo: `aiustantt/memlink-cloud`)
+## ⬜ Fase 2 — Cloud (repo: `rblez/memlink-cloud`)
 
 ### Stack
 - [ ] Vercel → `memlink.cloud` + `mcp.memlink.cloud`

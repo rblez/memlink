@@ -27,7 +27,7 @@ bun install -g @memlink/cli
 ## From source
 
 ```bash
-git clone https://github.com/aiustantt/memlink.git
+git clone https://github.com/rblez/memlink.git
 cd memlink
 bun install
 npm run build
@@ -46,13 +46,13 @@ memlink --version
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aiustantt/memlink/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rblez/memlink/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/aiustantt/memlink/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
 ```
 
 The installer downloads the latest release binary to `~/.local/bin/memlink` (Linux/macOS)

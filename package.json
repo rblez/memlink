@@ -27,12 +27,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aiustantt/memlink.git"
+    "url": "git+https://github.com/rblez/memlink.git"
   },
   "bugs": {
-    "url": "https://github.com/aiustantt/memlink/issues"
+    "url": "https://github.com/rblez/memlink/issues"
   },
-  "homepage": "https://github.com/aiustantt/memlink",
+  "homepage": "https://github.com/rblez/memlink",
   "bin": {
     "memlink": "dist/cli/index.js"
   },

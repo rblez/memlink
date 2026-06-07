@@ -1,14 +1,14 @@
 # memlink installer (Windows PowerShell)
-# https://github.com/aiustantt/memlink
+# https://github.com/rblez/memlink
 #
-# irm https://raw.githubusercontent.com/aiustantt/memlink/main/install.ps1 | iex
+# irm https://raw.githubusercontent.com/rblez/memlink/main/install.ps1 | iex
 #
 # Opt-out of anonymous install reports: $env:MEMLINK_NO_REPORT = "1"
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
-$Repo       = 'aiustantt/memlink'
+$Repo       = 'rblez/memlink'
 $BinName    = 'memlink.exe'
 $ReportUrl  = $env:MEMLINK_REPORT_URL
 if (-not $ReportUrl) { $ReportUrl = 'https://api.memlink.cloud/v1/install/report' }
