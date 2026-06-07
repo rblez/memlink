@@ -320,12 +320,13 @@ serveCmd
   )
   .option('--memory <name-or-id>', 'Memory to serve (required for stdio)')
   .option('--port <port>', 'Port to listen on', String(DEFAULT_PORT))
-  .option('--host <host>', 'Host to bind to', DEFAULT_HOST)
+  .option('--host <host>', 'Host to bind on', DEFAULT_HOST)
   .option('--cors <origins>', 'CORS allowed origins (comma-separated or *)')
   .option('--read-only', 'Disable write operations')
   .option('--log-level <level>', 'Log level: none, basic, verbose')
   .option('--bearer-token <token>', 'Require Authorization: Bearer <token> for MCP endpoints')
   .option('--daemon', 'Run server in background as a daemon')
+  .option('--daemon-child', 'Internal: this process is the daemon child (writes PID)')
   .action(async (opts) => {
     const port = parseInt(opts.port);
     const host = opts.host;
@@ -344,8 +345,10 @@ serveCmd
       return;
     }
 
-    // Internal: child of daemon spawn — write PID and start server
-    if (process.env.MEMLINK_DAEMON_CHILD) {
+    // Internal: child of daemon spawn — write our own PID and start the server.
+    // We detect this via the explicit --daemon-child flag (set by the parent's VBScript wrapper),
+    // not via env var, because VBScript WshShell.Run can be inconsistent with env inheritance.
+    if (opts.daemonChild || process.env.MEMLINK_DAEMON_CHILD) {
       writePid(process.pid);
       await startServer(port, host, {
         cors: opts.cors,
@@ -377,9 +380,11 @@ serveCmd
       let child: ReturnType<typeof spawn>;
 
       if (process.platform === 'win32') {
-        // On Windows, fully detach via VBScript WshShell.Run (no console, no parent job)
+        // On Windows, fully detach via VBScript WshShell.Run (no console, no parent job).
+        // Pass MEMLINK_DAEMON_CHILD as an explicit arg to avoid VBScript env inheritance quirks.
         const vbsPath = path.join(os.tmpdir(), `memlink-daemon-${process.pid}.vbs`);
-        const quotedArgs = childArgs.map((a) => `"${a.replace(/"/g, '""')}"`).join(' ');
+        const allArgs = [...childArgs, '--daemon-child'];
+        const quotedArgs = allArgs.map((a) => `"${a.replace(/"/g, '""')}"`).join(' ');
         const vbs = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run "" & "${process.execPath}" & "" & "${process.argv[1].replace(/\\/g, '\\\\')}" & " " & "${quotedArgs.replace(/"/g, '""')}", 0, False\n`;
         fs.writeFileSync(vbsPath, vbs, 'utf-8');
 
@@ -413,10 +418,16 @@ serveCmd
         process.exit(1);
       }
 
-      if (child.pid) writePid(child.pid);
+      // On Windows, child.pid is the wscript.exe wrapper, not the real memlink.exe.
+      // The grandchild writes the real PID itself via the MEMLINK_DAEMON_CHILD branch.
+      // On Unix, child IS the real memlink process, so we can use child.pid directly.
+      if (process.platform !== 'win32' && child.pid) {
+        writePid(child.pid);
+      }
+      const realPid = process.platform === 'win32' ? readPid() ?? child.pid : child.pid;
       const small = logoSmall();
       if (small) console.log('\n' + small + '\n');
-      console.log(okBadge(`Server started (PID ${child.pid})`));
+      console.log(okBadge(`Server started (PID ${realPid})`));
       const url = transports.includes('stdio') ? 'stdio' : `http://${host}:${port}/mcp`;
       console.log(info('Transport', transports.join(', ')));
       console.log(info('URL', url));
