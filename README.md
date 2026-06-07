@@ -258,7 +258,3 @@ tests/
 - **npm** — `npm install -g @memlink/cli`
 - **Standalone binaries** — `install.sh` (Unix) / `install.ps1` (Windows) from GitHub Releases
 - **Docker** — coming soon
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
