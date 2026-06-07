@@ -37,19 +37,9 @@ jobs:
         run: bun run format:check
 
   build:
-    name: build ${{ matrix.target.os }}-${{ matrix.target.arch }}
+    name: build
     needs: ci
-    runs-on: ${{ matrix.target.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - { os: linux,   arch: amd64, runner: ubuntu-latest,  ext: ""     }
-          - { os: linux,   arch: arm64, runner: ubuntu-latest,  ext: ""     }
-          - { os: darwin,  arch: amd64, runner: macos-13,       ext: ""     }
-          - { os: darwin,  arch: arm64, runner: macos-14,       ext: ""     }
-          - { os: windows, arch: amd64, runner: windows-latest, ext: ".exe" }
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,69 +52,51 @@ jobs:
       - name: Install
         run: bun install
 
-      - name: Build binary
-        shell: bash
-        env:
-          BUN_TARGET: bun-${{ matrix.target.os }}-${{ matrix.target.arch }}
+      - name: Cross-compile binaries
         run: |
           mkdir -p dist/binaries
-          bun build --compile --minify \
-            --target="${BUN_TARGET}" \
-            --outfile="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}" \
-            src/cli/index.ts
+          cd dist/binaries
 
-      - name: Smoke test
-        shell: bash
+          targets=(
+            "linux:amd64:"
+            "linux:arm64:"
+            "darwin:amd64:"
+            "darwin:arm64:"
+            "windows:amd64:.exe"
+          )
+
+          for t in "${targets[@]}"; do
+            IFS=':' read -r os arch ext <<< "$t"
+            name="memlink-${os}-${arch}${ext}"
+            echo "Building $name (bun-${os}-${arch})..."
+            bun build --compile --minify \
+              --target="bun-${os}-${arch}" \
+              --outfile="$name" \
+              ../../src/cli/index.ts
+            echo "  → $(ls -lah "$name" | awk '{print $5}')"
+          done
+
+      - name: Smoke test linux/amd64
+        working-directory: dist/binaries
         run: |
-          bin="dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
-          if [ -x "$bin" ] || [ "${{ matrix.target.os }}" = "windows" ]; then
-            "$bin" --version || true
-          fi
-          if [ "${{ matrix.target.os }}" != "windows" ]; then
-            file "$bin"
-          fi
+          chmod +x memlink-linux-amd64
+          ./memlink-linux-amd64 --version
 
       - name: Compress
-        shell: bash
         run: |
           cd dist/binaries
-          bin="memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}${{ matrix.target.ext }}"
-          if [ "${{ matrix.target.os }}" = "windows" ]; then
-            # Windows runners don't have zip in Git Bash; use tar with -a (auto-detect zip from .zip extension)
-            tar -a -cf "${bin}.zip" "${bin}"
-          else
-            tar -czf "${bin}.tar.gz" "${bin}"
-          fi
+          for bin in memlink-*; do
+            case "$bin" in
+              *.exe) tar -a -cf "${bin}.zip" "$bin" ;;
+              *)     tar -czf "${bin}.tar.gz" "$bin" ;;
+            esac
+          done
+          rm -f memlink-linux-* memlink-darwin-* memlink-windows-*
           ls -lah
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}
-          path: |
-            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz
-            dist/binaries/memlink-${{ matrix.target.os }}-${{ matrix.target.arch }}.zip
-
-  release:
-    name: release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/binaries
-          merge-multiple: true
-
       - name: Generate checksums
-        shell: bash
-        run: |
-          cd dist/binaries
-          sha256sum * > checksums.txt
-          cat checksums.txt
+        working-directory: dist/binaries
+        run: sha256sum * > checksums.txt && cat checksums.txt
 
       - name: Create release
         uses: softprops/action-gh-release@v2
