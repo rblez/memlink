@@ -26,6 +26,10 @@ export interface MemlinkConfig {
   serverHost: string;
   cors?: string;
   readOnly?: boolean;
+  cloud?: {
+    token: string;
+    email?: string;
+  };
 }
 
 export interface StorageEntry {

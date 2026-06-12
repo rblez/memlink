@@ -189,7 +189,7 @@ function helpExamples(): string {
     `    ${colors.white('skill')}         Install Memlink agent skill globally`,
     `                   ${colors.dim('memlink skill')}`,
     '',
-    `    ${colors.white('connect')}       Link CLI with memlink.cloud (Phase 2)`,
+    `    ${colors.white('connect')}       Link CLI with memlink.cloud`,
     `                   ${colors.dim('memlink connect')}`,
     '',
     `    ${colors.white('disconnect')}    Unlink from memlink.cloud`,
@@ -792,9 +792,12 @@ configCmd
 
 program
   .command('connect')
-  .description('Link CLI with memlink.cloud (Phase 2)')
+  .description('Link CLI with memlink.cloud')
   .action(() => {
-    connectCommand();
+    connectCommand().catch((e: unknown) => {
+      console.log(err(String(e)));
+      process.exit(1);
+    });
   });
 
 program
