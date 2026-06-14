@@ -24,7 +24,7 @@ import { searchCommand } from './commands/search.ts';
 import { urlCommand } from './commands/url.ts';
 import { tokenGenerateCommand, tokenListCommand, tokenRevokeCommand } from './commands/token.ts';
 import { pauseCommand, resumeCommand, stopMemoryCommand } from './commands/pause.ts';
-import { connectCommand, disconnectCommand, cloudStatusCommand } from './commands/cloud.ts';
+import { connectCommand, disconnectCommand, cloudStatusCommand, syncCommand } from './commands/cloud.ts';
 import { isDaemonAlive } from '../core/health.ts';
 import { spawnDetached } from './daemon.ts';
 import { ensureDefaultMemory, readMeta, createMemoryMeta } from '../core/meta.ts';
@@ -208,6 +208,11 @@ function helpExamples(): string {
     '',
     `    ${colors.white('cloud')}         Check memlink.cloud status and latency`,
     `                   ${colors.dim('memlink cloud')}`,
+    '',
+    `    ${colors.white('sync')}          Sync memory with memlink.cloud`,
+    `                   ${colors.dim('memlink sync')}`,
+    `                   ${colors.dim('memlink sync --push')}`,
+    `                   ${colors.dim('memlink sync --pull --memory my-project')}`,
     '',
     `    ${colors.dim('Use -v, --version to show system overview')}`,
     '',
@@ -868,6 +873,18 @@ program
   .description('Check memlink.cloud status and connection')
   .action(async () => {
     await cloudStatusCommand();
+  });
+
+// ─── memlink sync ─────────────────────────────────────────────────────────────
+
+program
+  .command('sync')
+  .description('Sync memory with memlink.cloud (bidirectional by default)')
+  .option('--memory <name>', 'Memory to sync (default: default)')
+  .option('--push', 'Push local → cloud only')
+  .option('--pull', 'Pull cloud → local only')
+  .action(async (opts) => {
+    await syncCommand(opts);
   });
 
 // ─── memlink skill ──────────────────────────────────────────────────────

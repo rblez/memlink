@@ -1,5 +1,8 @@
 import { ok, info, err, dimLine, kv } from '../output.ts';
 import { loadConfig, saveConfig } from '../../core/memory.ts';
+import { readAllEntries, readIndex, createEntry, updateEntry } from '../../core/storage.ts';
+import { ensureDefaultMemory, readMeta } from '../../core/meta.ts';
+import type { StorageEntry } from '../../core/types.ts';
 
 const CLOUD_URL = process.env.MEMLINK_CLOUD_URL || 'https://memlink.up.railway.app';
 
@@ -95,6 +98,126 @@ export function disconnectCommand(): void {
   delete cfg.cloud;
   saveConfig(cfg);
   console.log(ok('Disconnected from memlink.cloud'));
+}
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
+
+type SyncDirection = 'push' | 'pull' | 'both';
+
+async function syncPush(memoryName: string, memoryId: string): Promise<number> {
+  const entries = readAllEntries(memoryName);
+  const res = await apiPost('/api/sync/push', {
+    memory: memoryName,
+    memoryId,
+    entries,
+  });
+  if (!res.ok) throw new Error(`Push failed: HTTP ${res.status}`);
+  const data = (await res.json()) as { received?: number };
+  return data.received ?? entries.length;
+}
+
+async function syncPull(
+  memoryName: string,
+  memoryId: string
+): Promise<{ applied: number; skipped: number }> {
+  const res = await apiGet(`/api/sync/pull?memory=${encodeURIComponent(memoryName)}`);
+  if (!res.ok) throw new Error(`Pull failed: HTTP ${res.status}`);
+  const data = (await res.json()) as { entries?: StorageEntry[] };
+  const remote = data.entries ?? [];
+
+  if (remote.length === 0) return { applied: 0, skipped: 0 };
+
+  const localEntries = readAllEntries(memoryName);
+  const localByTitle = new Map(localEntries.map((e) => [e.title.toLowerCase(), e]));
+
+  let applied = 0;
+  let skipped = 0;
+
+  for (const remote_entry of remote) {
+    const local = localByTitle.get(remote_entry.title.toLowerCase());
+
+    if (!local) {
+      // New entry — create locally
+      createEntry(memoryName, memoryId, remote_entry.title, remote_entry.content, remote_entry.tags);
+      applied++;
+    } else {
+      // Existing — apply only if remote is newer
+      const remoteTs = new Date(remote_entry.updatedAt).getTime();
+      const localTs = new Date(local.updatedAt).getTime();
+      if (remoteTs > localTs) {
+        updateEntry(memoryName, local.id, {
+          content: remote_entry.content,
+          tags: remote_entry.tags,
+        });
+        applied++;
+      } else {
+        skipped++;
+      }
+    }
+  }
+
+  return { applied, skipped };
+}
+
+export async function syncCommand(opts: {
+  memory?: string;
+  push?: boolean;
+  pull?: boolean;
+}): Promise<void> {
+  const cfg = loadConfig();
+  if (!cfg.cloud?.token) {
+    console.log(err('Not connected to memlink.cloud'));
+    console.log(dimLine('Run memlink connect to link your account'));
+    process.exit(1);
+  }
+
+  const memoryName = opts.memory || 'default';
+  let memoryId: string;
+
+  if (memoryName === 'default') {
+    const meta = ensureDefaultMemory();
+    if (!meta) {
+      console.log(err('Default memory not found'));
+      process.exit(1);
+    }
+    memoryId = meta.id;
+  } else {
+    const meta = readMeta(memoryName);
+    if (!meta) {
+      console.log(err(`Memory "${memoryName}" not found`));
+      process.exit(1);
+    }
+    memoryId = meta.id;
+  }
+
+  const direction: SyncDirection = opts.push ? 'push' : opts.pull ? 'pull' : 'both';
+
+  console.log(info('sync', `${memoryName} → memlink.cloud`));
+  console.log(kv('Direction', direction));
+  console.log();
+
+  try {
+    if (direction === 'pull' || direction === 'both') {
+      process.stdout.write('  Pulling from cloud…');
+      const { applied, skipped } = await syncPull(memoryName, memoryId);
+      process.stdout.write(`\r  ${ok(`Pull complete — ${applied} applied, ${skipped} already up-to-date`)}\n`);
+    }
+
+    if (direction === 'push' || direction === 'both') {
+      process.stdout.write('  Pushing to cloud…');
+      const received = await syncPush(memoryName, memoryId);
+      process.stdout.write(`\r  ${ok(`Push complete — ${received} entries sent`)}\n`);
+    }
+  } catch (e) {
+    console.log();
+    console.log(err(String(e)));
+    console.log(dimLine('Check your connection: memlink cloud'));
+    process.exit(1);
+  }
+
+  console.log();
+  console.log(ok('Sync done'));
+  console.log();
 }
 
 export async function cloudStatusCommand(): Promise<void> {

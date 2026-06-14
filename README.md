@@ -99,6 +99,8 @@ Restart the agent after adding the config. On the next session it will call `mem
 | `memlink config get <key>` | Get a config value |
 | `memlink config set <key> <val>` | Set a config value |
 | `memlink skill` | Install agent skill (`SKILL.md`) |
+| `memlink sync` | Sync memory with memlink.cloud (`--push`, `--pull`, `--memory`) |
+| `memlink cloud` | Check cloud status and latency |
 | `memlink connect` | Link with memlink.cloud |
 | `memlink disconnect` | Unlink from memlink.cloud |
 
