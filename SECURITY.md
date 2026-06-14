@@ -4,60 +4,70 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.5.x   | Yes       |
-| < 0.5   | No        |
+| 1.3.x   | ✅ Yes    |
+| < 1.3   | ❌ No     |
 
 ## Security Model
 
-### Authentication
+### Authentication & Access Control
 
-Memlink uses a simple URL-based connection model:
+Memlink uses token-based routing for named memories and open access for the default memory:
 
 ```
-http://localhost:4444/mcp?id=MEMORY_ID
+http://localhost:4444/mcp                  # default memory (no token required)
+http://localhost:4444/mcp?t=<TOKEN>        # named memory (token required)
 ```
 
-The memory ID (12-character nanoid) acts as the only access key. No tokens, bearer auth, or OAuth.
+Tokens are 32-character nanoids (~192 bits of entropy). An invalid or missing token returns `401 Unauthorized`. The admin API (`/admin/*`) is protected by a separate local token stored in `~/.memlink/settings.json`.
 
 ### Threat Model
 
-- **Localhost only**: By default, the server binds to `localhost`. Remote access requires changing the host via `-H` flag or `HOST`/`MEMLINK_HOST` env var.
-- **Memory ID secrecy**: The 12-character ID provides ~72 bits of entropy. Keep it private.
-- **File-based storage**: Memory files are stored in `~/.memlink/` (or `$MEMLINK_DIR`) with standard user permissions.
-- **Atomic writes**: All file writes go through a `.tmp` + `renameSync()` cycle, eliminating data corruption on crash.
-- **Auto-backups**: Every mutation creates a timestamped backup in `backups/` (last 3 kept). Enables recovery from accidental agent edits.
-- **Rate limiting**: Built-in rate limiter (1000 req/min) prevents abuse.
-- **TTY detection**: In non-interactive environments (CI, Docker, pipes), ASCII banners and clipboard operations are automatically disabled, preventing information leaks in logs.
+| Surface | Mitigation |
+|---------|------------|
+| Network exposure | Binds to `localhost` by default. Remote access requires explicit `--host 0.0.0.0` or `MEMLINK_HOST`. |
+| Unauthorized memory access | Per-memory tokens with ~192-bit entropy. Never logged or returned after creation. |
+| Data corruption | All writes use `.tmp` + atomic `renameSync()`. No partial writes reach disk. |
+| Concurrent writes | File-level lock (`.lock` with TTL + retry) serializes all mutations. |
+| Accidental data loss | Every mutation creates a timestamped backup in `.backups/`. |
+| Abuse / DoS | Built-in rate limiter: 1000 requests/min per IP. |
+| Log leakage | TTY detection disables banners, clipboard ops, and ASCII art in CI/Docker/pipe environments. |
 
 ### Security Headers
 
-All responses include:
+All HTTP responses include:
 
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-XSS-Protection: 1; mode=block`
-- `Strict-Transport-Security: max-age=31536000`
-- `Content-Security-Policy: default-src 'self'`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: geolocation=(), microphone=(), camera=()`
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000
+Content-Security-Policy: default-src 'self'
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=()
+```
 
-## Reporting a Vulnerability
+### File Permissions
 
-Report security issues via GitHub Issues:
-
-https://github.com/rblez/memlink/issues
-
-Please include:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
+Memory data is stored in `~/.memlink/` (or `$MEMLINK_DIR`) under standard user-level permissions. For sensitive workloads, point `MEMLINK_DIR` to an encrypted volume.
 
 ## Best Practices
 
-1. **Never expose the server to the public internet** without a reverse proxy and additional auth
-2. **Keep memory IDs private** — they are the only access key
-3. **Use firewall rules** to restrict access to localhost or trusted networks
-4. **Set `MEMLINK_DIR`** to an encrypted volume for sensitive data
-5. **Regularly backup** your memory files from `~/.memlink/`
-6. **Update regularly** — `npm update -g memlink`
+1. **Never expose the server publicly** without a reverse proxy (nginx, Caddy) with TLS and additional auth.
+2. **Keep tokens private** — treat them like API keys. Revoke and regenerate if compromised: `memlink token revoke <label>`.
+3. **Restrict port access** — use firewall rules to limit port 4444 to localhost or trusted networks.
+4. **Encrypt at rest** — set `MEMLINK_DIR` to an encrypted volume for sensitive agent memories.
+5. **Update regularly** — `npm update -g @memlink/cli`.
+
+## Reporting a Vulnerability
+
+Report security vulnerabilities via **GitHub Security Advisories** (preferred — keeps the report private until patched):
+
+👉 https://github.com/rblez/memlink/security/advisories/new
+
+Or open a GitHub Issue for non-sensitive findings:
+
+👉 https://github.com/rblez/memlink/issues
+
+Please include: description, steps to reproduce, potential impact, and a suggested fix if possible.
+
+Response target: within 72 hours for critical issues.

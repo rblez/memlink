@@ -16,6 +16,7 @@ import {
 import { startServer, startStdioServer } from '../server/index.ts';
 import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, getMemlinkDir } from '../core/types.ts';
 import { addCommand } from './commands/add.ts';
+import { editCommand } from './commands/edit.ts';
 import { entriesCommand } from './commands/entries.ts';
 import { searchCommand } from './commands/search.ts';
 import { urlCommand } from './commands/url.ts';
@@ -145,6 +146,10 @@ function helpExamples(): string {
     '',
     `    ${colors.white('add')}           Write an entry to default memory`,
     `                   ${colors.dim('memlink add "My Title" "My content"')}`,
+    '',
+    `    ${colors.white('edit')}          Edit an existing entry by ID`,
+    `                   ${colors.dim('memlink edit 3 --content "Updated content"')}`,
+    `                   ${colors.dim('memlink edit 3 --title "New title" --tags ai,notes')}`,
     '',
     `    ${colors.white('entries')}       List entries in default memory`,
     `                   ${colors.dim('memlink entries')}`,
@@ -493,6 +498,19 @@ program
   .description('Write an entry to default memory')
   .action((title: string, content: string) => {
     addCommand(title, content);
+  });
+
+// ─── memlink edit <id> ────────────────────────────────────────────────────────
+
+program
+  .command('edit <id>')
+  .description('Edit an existing entry by ID')
+  .option('--title <title>', 'New title')
+  .option('--content <content>', 'New content')
+  .option('--tags <tags>', 'Comma-separated tags')
+  .option('--memory <name>', 'Memory name (default: default)')
+  .action((id: string, opts) => {
+    editCommand(id, opts);
   });
 
 // ─── memlink entries ───────────────────────────────────────────────────────

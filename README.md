@@ -17,180 +17,177 @@
 
 ---
 
-Memlink is a self-hosted MCP (Model Context Protocol) server that gives AI agents persistent, organized memory. One memory, one URL, any agent connects.
+Memlink is a self-hosted [MCP](https://modelcontextprotocol.io) server that gives AI agents persistent, organized memory. One install, one URL, any agent connects — Claude, Cursor, Windsurf, or any MCP-compatible client.
 
 ## Installation
 
-### npm (requires Node 18+ or Bun)
-
 ```bash
-npm install -g @memlink/cli   # or pnpm / yarn / bun
+npm install -g @memlink/cli
 ```
 
-### From source
+Requires Node.js 18+ or Bun 1.0+. Also works with `pnpm`, `yarn`, and `bun`.
+
+**From source:**
 
 ```bash
 git clone https://github.com/rblez/memlink.git
-cd memlink
-bun install
-npm run build
+cd memlink && bun install && npm run build
 ```
 
 ## Quick Start
 
 ```bash
-memlink                                # System overview
-memlink add "First note" "Hello world"  # Write to default memory
-memlink entries                        # List entries
-memlink search "hello"                 # Search entries
-memlink serve --daemon                 # Start MCP server in background
-memlink url                            # Show MCP config for your agent
+memlink serve --daemon                  # Start MCP server in background
+memlink url                             # Copy MCP config JSON for your agent
+memlink add "My note" "Hello world"     # Write an entry
+memlink entries                         # List entries
+memlink search "hello"                  # Search entries
+memlink edit 1 --content "Updated"      # Edit an entry by ID
 ```
 
-## Connect an AI agent
+## Connecting an Agent
 
-```mermaid
-flowchart LR
-    A[memlink serve --daemon] --> B[memlink url]
-    B --> C[Copy MCP config JSON]
-    C --> D{Which agent?}
-    D -->|Claude Desktop| E[claude_desktop_config.json]
-    D -->|Cursor| F[Cursor MCP settings]
-    D -->|Windsurf| G[~/.codeium/windsurf/mcp_config.json]
-    D -->|Other| H[Custom MCP client]
-    E --> I[Restart agent]
-    F --> I
-    G --> I
-    H --> I
-    I --> J[Agent calls memory_read<br/>on session start]
-    J --> K[Memlink serves entries<br/>from default memory]
-```
+Run `memlink url` after starting the server — it prints the exact JSON block to paste into your agent's MCP config:
 
-## Run the server
+**Claude Desktop** → `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Cursor** → Settings → MCP
+**Windsurf** → `~/.codeium/windsurf/mcp_config.json`
 
-```bash
-memlink serve --daemon
-```
-
-Same on Linux, macOS, and Windows. Runs as long as your session is active (or until `memlink stop`).
+Restart the agent after adding the config. On the next session it will call `memory_read` automatically and load your entries.
 
 ## Commands
 
+### Memory
+
 | Command | Description |
 |---------|-------------|
-| `memlink add "<title>" "<content>"` | Write entry to default memory (`--tags`, `--memory`) |
-| `memlink entries` | List entries in default memory (`--memory`, `--limit`) |
-| `memlink search <query>` | Search entries by title/tags (`--memory`, `--limit`) |
-| `memlink url` | Show MCP config JSON for the agent |
-| `memlink token [list\|revoke]` | Manage memory tokens |
-| `memlink pause --memory <name>` | Suspend a memory in the daemon |
+| `memlink add "<title>" "<content>"` | Write an entry (`--tags`, `--memory`) |
+| `memlink edit <id>` | Edit an entry by ID (`--title`, `--content`, `--tags`, `--memory`) |
+| `memlink entries` | List entries (`--memory`) |
+| `memlink search <query>` | Search by title, content, or tags (`--memory`) |
+
+### Server
+
+| Command | Description |
+|---------|-------------|
+| `memlink serve` | Start MCP server (`--port`, `--host`, `--daemon`, `--transport`, `--memory`) |
+| `memlink serve --daemon` | Run server in background |
+| `memlink status` | Check if daemon is running |
+| `memlink stop` | Stop the daemon |
+| `memlink url` | Show MCP URL and config JSON |
+
+### Memories
+
+| Command | Description |
+|---------|-------------|
+| `memlink info <name>` | Stats and metadata for a memory |
+| `memlink pause --memory <name>` | Suspend a memory (data intact) |
 | `memlink resume --memory <name>` | Resume a paused memory |
-| `memlink stop [--memory <name>]` | Stop daemon (or remove a memory) |
-| `memlink serve` | Start MCP server (`--port`, `--host`, `--daemon`, `--memory`) |
-| `memlink status` | Daemon + memory stats |
-| `memlink info <name\|id>` | Memory details |
-| `memlink delete <name\|id>` | Permanently delete a memory |
-| `memlink export [name\|id]` | Export to `.md` / `.json` / `.txt` |
-| `memlink import <name\|id> <file>` | Import entries from JSON |
-| `memlink config` | View or modify config (`get`, `set`) |
-| `memlink skill` | Install agent skill (use `--global` for all projects) |
+| `memlink stop --memory <name>` | Remove a memory from active routing |
+| `memlink delete <name>` | Permanently delete a memory |
+| `memlink export <name>` | Export memory to JSON |
+| `memlink import <name> <file>` | Import entries from JSON |
 
-## Documentation
+### Tokens & Config
 
-| Document | Description |
-|----------|-------------|
-| [Installation](/docs/installation.md) | All install methods + daemon setup |
-| [Quick Start](/docs/quickstart.md) | Get running in 2 minutes |
-| [CLI Reference](/docs/cli.md) | All commands and flags |
-| [MCP Server](/docs/server.md) | Server config, auth, transports |
-| [MCP Tools](/docs/mcp-tools.md) | All MCP tool details |
-| [Agent Setup](/docs/agent-setup.md) | Connect Claude, Cursor, Windsurf, etc. |
-| [Skill](/docs/skill.md) | Agent skill installation |
-| [Backups](/docs/backups.md) | Backup and restore |
-| [Architecture](/docs/architecture.md) | How it works |
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMLINK_DIR` | Data directory | `~/.memlink` |
-| `MEMLINK_PORT` / `PORT` | Server port | `4444` |
-| `MEMLINK_HOST` / `HOST` | Server host | `localhost` |
-| `MEMLINK_DEBUG` | Log VBScript path for debugging on Windows | unset |
+| Command | Description |
+|---------|-------------|
+| `memlink token` | Generate a new token |
+| `memlink token list` | List active tokens |
+| `memlink token revoke <label>` | Revoke a token |
+| `memlink config` | View configuration |
+| `memlink config get <key>` | Get a config value |
+| `memlink config set <key> <val>` | Set a config value |
+| `memlink skill` | Install agent skill (`SKILL.md`) |
+| `memlink connect` | Link with memlink.cloud |
+| `memlink disconnect` | Unlink from memlink.cloud |
 
 ## MCP Tools
 
-| Tool | Description | Params |
-|------|-------------|--------|
-| `memory_read` | Read index or specific entry | `id?`, `title?`, `full?` |
-| `memory_edit` | Create or update an entry | `title`, `content`, `tags?` |
-| `memory_search` | Search by query | `query` |
-| `memory_sync` | Memory stats (count, size, last updated) | — |
+Agents interact via these MCP tools:
 
-Agents connect via:
+| Tool | Description |
+|------|-------------|
+| `memory_read` | Read index or a specific entry (`id?`, `title?`, `full?`) |
+| `memory_edit` | Create or update an entry (`title`, `content`, `tags?`) |
+| `memory_search` | Search entries by query |
+| `memory_sync` | Memory stats (count, size, last updated) |
+
+Connection URLs:
+
 ```
+http://localhost:4444/mcp                # default memory
 http://localhost:4444/mcp?t=<TOKEN>      # named memory
-http://localhost:4444/mcp                 # default memory
 ```
 
-## Architecture
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEMLINK_DIR` | `~/.memlink` | Data directory |
+| `MEMLINK_PORT` / `PORT` | `4444` | Server port |
+| `MEMLINK_HOST` / `HOST` | `localhost` | Server host |
+| `MEMLINK_CLOUD_URL` | `https://memlink.up.railway.app` | Cloud endpoint |
+| `MEMLINK_DEBUG` | — | Enable VBScript debug logging (Windows) |
+
+## Data Layout
 
 ```
 ~/.memlink/
-├── settings.json              # Global config
-├── default/                   # Default memory (auto-created)
-│   ├── meta.json
-│   ├── index.json
-│   ├── 1.md, 2.md, ...        # Entries with YAML frontmatter
-│   └── .backups/
-├── my-project/                # Named memory
-│   └── ...
+├── settings.json          # Global config + admin token
+├── .serve.pid             # Daemon PID
+├── default/               # Default memory (auto-created)
+│   ├── meta.json          # Memory metadata + status
+│   ├── index.json         # Entry index (titles, tags, timestamps)
+│   ├── 1.md, 2.md, ...    # Entries with YAML frontmatter
+│   └── .backups/          # Timestamped backups on every write
+└── my-project/            # Named memory
+    └── ...
 ```
 
 ## Robustness
 
-- **Atomic writes**: files written to `.tmp` then renamed
-- **Auto-backups**: every edit creates a backup in `.backups/`
-- **File lock**: concurrent writes serialized via `.lock` with TTL + retry
-- **Token routing**: in-memory `Map<token, MemoryRoute>` (no IPC)
-- **Health ticker**: 30s heartbeat in `.health`
-- **TTY detection**: ASCII art disabled in non-TTY (CI, Docker)
+- **Atomic writes** — `.tmp` + `renameSync()`, no partial writes
+- **Auto-backups** — every mutation backed up to `.backups/`
+- **File lock** — concurrent writes serialized via `.lock` with TTL + retry
+- **Token routing** — in-memory `Map<token, MemoryRoute>`, no IPC overhead
+- **Health ticker** — 30s heartbeat written to `.health`
+- **Rate limiting** — 1000 req/min per IP
+- **TTY detection** — banners and clipboard ops disabled in CI/Docker
 
 ## Development
 
 ```bash
-bun install              # Install deps
-npm run build            # Build + typecheck
-npm run dev:server       # Server with hot reload
-npm run dev:cli          # CLI dev mode
-npm run test             # Run tests
-npm run lint             # ESLint
-npm run format           # Prettier
+bun install          # Install dependencies
+npm run build        # Build CLI + server
+npm run dev:server   # Server with hot reload
+npm run dev:cli      # CLI dev mode
+npm run test         # Run tests
+npm run lint         # ESLint
+npm run format       # Prettier
 ```
 
 ## Project Structure
 
 ```
 src/
-├── cli/index.ts        # CLI entrypoint (commander)
-├── cli/output.ts       # Output formatting, colors, branding, skill template
-├── cli/admin.ts        # CLI client for daemon admin API
-├── server/index.ts     # MCP server (Express + @modelcontextprotocol/sdk)
-├── core/
-│   ├── storage.ts      # .md entries with YAML frontmatter, atomic writes
-│   ├── meta.ts         # Per-memory meta.json CRUD, status tracking
-│   ├── routing.ts      # Token → MemoryRoute map
-│   ├── health.ts       # .health heartbeat
-│   ├── auth.ts         # Local token (admin API)
-│   ├── lock.ts         # .lock with TTL + withLock helper
-│   ├── memory.ts       # Legacy CRUD, CLI helpers, config
-│   └── types.ts        # Types, constants, getMemlinkDir
-tests/
-├── memory.test.ts      # Core memory unit tests
-├── server.test.ts      # MCP server integration tests
-└── unit.test.ts        # Edge cases
+├── cli/
+│   ├── index.ts          # CLI entrypoint (commander)
+│   ├── output.ts         # Colors, badges, branding
+│   ├── admin.ts          # Daemon admin API client
+│   └── commands/         # One file per command
+├── server/index.ts       # MCP server (Express + MCP SDK)
+└── core/
+    ├── storage.ts        # Entry CRUD, atomic writes, backups
+    ├── meta.ts           # Per-memory meta.json
+    ├── routing.ts        # Token → MemoryRoute map
+    ├── health.ts         # Daemon heartbeat
+    ├── auth.ts           # Admin token
+    ├── lock.ts           # File lock with TTL
+    ├── memory.ts         # Config + CLI helpers
+    └── types.ts          # Shared types and constants
 ```
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE).

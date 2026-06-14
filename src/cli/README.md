@@ -1,129 +1,63 @@
 # CLI
 
-Command-line interface for memlink. Built with Commander.js.
+Command-line interface for Memlink. Built with [Commander.js](https://github.com/tj/commander.js).
 
-## Entry Point
+## Entry Points
 
-`index.ts` — all command definitions, output formatting.
-`output.ts` — color palette, badge helpers, ASCII art, skill templates.
+- `index.ts` — all command definitions and registration
+- `output.ts` — color palette, badge helpers, ASCII branding
+- `admin.ts` — HTTP client for the daemon admin API
+- `commands/` — one file per command
 
 ## Commands
 
-### `memlink init <name>` (alias `create`)
+| Command | File | Description |
+|---------|------|-------------|
+| `memlink` (default) | `index.ts` | System overview |
+| `memlink serve` | `index.ts` | Start MCP server (foreground or daemon) |
+| `memlink status` | `index.ts` | Check daemon health |
+| `memlink stop` | `index.ts` | Stop daemon or remove memory from routing |
+| `memlink add` | `commands/add.ts` | Write entry to default memory |
+| `memlink edit` | `commands/edit.ts` | Edit an existing entry by ID |
+| `memlink entries` | `commands/entries.ts` | List entries |
+| `memlink search` | `commands/search.ts` | Search entries |
+| `memlink url` | `commands/url.ts` | Show MCP URL and config JSON |
+| `memlink token` | `commands/token.ts` | Generate, list, or revoke tokens |
+| `memlink pause` | `commands/pause.ts` | Suspend a memory |
+| `memlink resume` | `commands/pause.ts` | Resume a paused memory |
+| `memlink connect` | `commands/cloud.ts` | Link with memlink.cloud |
+| `memlink disconnect` | `commands/cloud.ts` | Unlink from memlink.cloud |
 
-Create a new memory.
+## Daemon Architecture
 
-- `<name>` is **required**
-- Creates `~/.memlink/<name>/index.json` (per-memory directory)
-- Flags: `--serve` auto-start server, `--port <port>` for auto-started server
+`memlink serve --daemon` spawns a detached child process:
 
-### `memlink serve`
+- **Unix**: `child_process.spawn` with `detached: true` + `unref()`
+- **Windows**: VBScript wrapper via `spawnDetached()` in `daemon.ts`
 
-Start the MCP server.
-
-- Default: `http://localhost:4444/mcp`
-- Flags: `--port <port>`, `--host <host>`, `--daemon`, `--cors <origins>`, `--read-only`, `--log-level <level>`, `--bearer-token <token>`, `--transport <transports>`, `--memory <name-or-id>`
-- Daemon mode: `memlink serve --daemon` runs in background, managed via `memlink stop` / `memlink status`
-
-### `memlink ls`
-
-List all memories: Name, ID, Size.
-
-### `memlink show <name-or-id>`
-
-Show memory contents as Markdown.
-
-### `memlink info <name-or-id>`
-
-Show memory details: entries, tags, created/last-seen timestamps.
-
-### `memlink export <name-or-id>`
-
-Export memory as JSON to `~/.memlink/exports/<name>.json`.
-
-### `memlink import <name-or-id> <file>`
-
-Import entries from a JSON file.
-
-- Flags: `--overwrite` overwrite existing entries with the same title
-
-### `memlink delete <name-or-id>`
-
-Delete an entire memory (config entry + storage directory).
-
-### `memlink connect <name-or-id>`
-
-Show MCP connection details for an agent. Supports streamable HTTP, SSE, and stdio.
-
-### `memlink config [get/set]`
-
-View or modify `settings.json`.
-
-- Example: `memlink config get serverPort`, `memlink config set serverPort 5555`.
-
-### `memlink doctor`
-
-Run diagnostics: config file, data directory, server health, Node version, platform.
-
-### `memlink skill`
-
-Install memlink agent skill to `~/.agents/skills/memlink/SKILL.md`.
-
-### `memlink stop` / `memlink status`
-
-Stop the daemon or check if it's running.
-
-### `memlink bug`
-
-Opens GitHub issue form.
+The child writes its own PID to `.serve.pid` after startup (via `--daemon-child` flag). The admin API (`/admin/*`) is protected by a local token and used by CLI commands (`pause`, `resume`, `stop --memory`) to communicate with the running daemon without a restart.
 
 ## TTY Detection
 
-The CLI detects non-TTY environments:
-
-- ASCII art banners are skipped
-- Clipboard operations are skipped
-- Interactive prompts are skipped
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `MEMLINK_DIR` | Override data directory (`~/.memlink`) |
-| `MEMLINK_PORT` / `PORT` | Server port (4444) |
-| `MEMLINK_HOST` / `HOST` | Server host (localhost) |
-| `MEMLINK_BEARER_TOKEN` | Bearer token for MCP endpoints |
-
-## Data Layout
-
-```
-~/.memlink/
-├── settings.json          # Global config
-├── .serve.pid             # Daemon PID (hidden)
-│
-└── my-memory/             # Per-memory directory
-    ├── index.json         # Index (titles, tags, timestamps)
-    ├── 1.json             # Entry 1 (full content)
-    ├── 2.json             # Entry 2
-    │
-    └── .backups/          # Auto-backups on every write
+```ts
+const isTTY = process.stdout.isTTY && process.stdin.isTTY;
 ```
 
-## Output
+When `false` (CI, Docker, pipes): ASCII banners, clipboard operations, and braille art are all suppressed.
 
-### Branding
+## Output Helpers (`output.ts`)
 
-- Logo: braille art with gradient (`#00E5A0 → #FFFFFF → #CC00CC`)
-- Symbols: `● ○ ❯  ─` (no emojis)
-- Colors: `primary (#00E5A0)`, `accent (#CC00CC)`, `muted (#66B8A0)`, `white (#e8e8e8)`, `dim (#444)`
+```ts
+ok(label, value?)    // green badge
+err(msg)             // red badge
+info(label, value)   // cyan label
+kv(key, value)       // dim key + white value
+dimLine(msg)         // muted single line
+```
 
-## Usage
+## Dev Usage
 
 ```bash
-# Dev
-bun run dev:cli
-
-# Build
-npm run build
-node dist/cli/index.js --help
+bun run dev:cli              # run CLI in dev mode
+node dist/cli/index.js --help  # run built CLI
 ```
