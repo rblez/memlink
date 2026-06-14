@@ -1,7 +1,6 @@
 import { loadConfig } from '../../core/memory.ts';
 import { DEFAULT_PORT, DEFAULT_HOST } from '../../core/types.ts';
 import { info, ok, err, dimLine, kv } from '../output.ts';
-import { ensureDefaultMemory, readMeta } from '../../core/meta.ts';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -87,31 +86,18 @@ export function urlCommand(opts: { cloud?: boolean; memory?: string } = {}): voi
 }
 
 function cloudUrlCommand(memoryName?: string): void {
-  const name = memoryName || 'default';
+  const cfg = loadConfig();
 
-  let token: string | undefined;
-
-  if (name === 'default') {
-    const meta = ensureDefaultMemory();
-    if (!meta) {
-      console.log(err('Default memory not found'));
-      process.exit(1);
-    }
-    token = meta.token;
-  } else {
-    const meta = readMeta(name);
-    if (!meta) {
-      console.log(err(`Memory "${name}" not found`));
-      console.log(dimLine(`Start it with: memlink serve --memory ${name}`));
-      process.exit(1);
-    }
-    token = meta.token;
+  if (!cfg.cloud?.token) {
+    console.log(err('Not connected to memlink.cloud'));
+    console.log(dimLine('Run: memlink connect'));
+    process.exit(1);
   }
 
-  const mcpUrl = token
-    ? `${CLOUD_URL}/mcp?t=${token}`
-    : `${CLOUD_URL}/mcp`;
+  const cloudToken = cfg.cloud.token;
+  const name = memoryName || 'default';
 
+  const mcpUrl = `${CLOUD_URL}/mcp?t=${cloudToken}`;
   const mcpJson = JSON.stringify(
     { mcpServers: { memlink: { type: 'http', url: mcpUrl } } },
     null,
@@ -120,9 +106,6 @@ function cloudUrlCommand(memoryName?: string): void {
 
   console.log(kv('Memory', name));
   console.log(kv('Cloud', CLOUD_URL));
-  if (!token) {
-    console.log(dimLine('No token — this memory is public (default)'));
-  }
   console.log();
   console.log(info('MCP URL', mcpUrl));
   console.log();
