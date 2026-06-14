@@ -1,7 +1,7 @@
 import { ok, info, err, dimLine, kv } from '../output.ts';
 import { loadConfig, saveConfig } from '../../core/memory.ts';
 
-const CLOUD_URL = process.env.MEMLINK_CLOUD_URL || 'https://memlink.vercel.app';
+const CLOUD_URL = process.env.MEMLINK_CLOUD_URL || 'https://memlink.up.railway.app';
 
 async function apiPost(path: string, body?: Record<string, unknown>): Promise<Response> {
   const cfg = loadConfig();
