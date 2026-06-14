@@ -164,6 +164,8 @@ function helpExamples(): string {
     '',
     `    ${colors.white('url')}           Show MCP URL for agents`,
     `                   ${colors.dim('memlink url')}`,
+    `                   ${colors.dim('memlink url --cloud')}`,
+    `                   ${colors.dim('memlink url --cloud --memory my-project')}`,
     '',
     `    ${colors.white('token')}         Generate or manage tokens`,
     `                   ${colors.dim('memlink token')}`,
@@ -553,9 +555,11 @@ program
 
 program
   .command('url')
-  .description('Show MCP URL for agents')
-  .action(() => {
-    urlCommand();
+  .description('Show MCP URL for agents (local or cloud)')
+  .option('--cloud', 'Show cloud URL (memlink.up.railway.app) instead of localhost')
+  .option('--memory <name>', 'Memory name (default: default)')
+  .action((opts) => {
+    urlCommand(opts);
   });
 
 // ─── memlink token ────────────────────────────────────────────────────────

@@ -1,9 +1,12 @@
 import { loadConfig } from '../../core/memory.ts';
 import { DEFAULT_PORT, DEFAULT_HOST } from '../../core/types.ts';
-import { info, ok, dimLine } from '../output.ts';
+import { info, ok, err, dimLine, kv } from '../output.ts';
+import { ensureDefaultMemory, readMeta } from '../../core/meta.ts';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import fs from 'fs';
+
+const CLOUD_URL = process.env.MEMLINK_CLOUD_URL || 'https://memlink.up.railway.app';
 
 function envHost(): string | undefined {
   return process.env.MEMLINK_HOST || process.env.HOST || undefined;
@@ -29,32 +32,41 @@ function copyToClipboard(text: string): boolean {
         stdio: 'ignore',
       });
     } else {
-      for (const tool of ['wl-copy', 'xclip', 'xsel']) {
-        try {
-          execSync(`which ${tool}`, { stdio: 'ignore' });
-          if (tool === 'wl-copy') execSync(`cat '${tmpfile}' | ${tool}`, { stdio: 'ignore' });
-          else if (tool === 'xclip')
-            execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
-          else execSync(`cat '${tmpfile}' | ${tool} --clipboard --input`, { stdio: 'ignore' });
-          return true;
-        } catch {
-          continue;
+      try {
+        execSync('which termux-clipboard-set', { stdio: 'ignore' });
+        execSync(`cat '${tmpfile}' | termux-clipboard-set`, { stdio: 'ignore' });
+        fs.unlinkSync(tmpfile);
+        return true;
+      } catch {
+        for (const tool of ['wl-copy', 'xclip', 'xsel']) {
+          try {
+            execSync(`which ${tool}`, { stdio: 'ignore' });
+            if (tool === 'wl-copy') execSync(`cat '${tmpfile}' | ${tool}`, { stdio: 'ignore' });
+            else if (tool === 'xclip')
+              execSync(`cat '${tmpfile}' | ${tool} -selection clipboard`, { stdio: 'ignore' });
+            else execSync(`cat '${tmpfile}' | ${tool} --clipboard --input`, { stdio: 'ignore' });
+            fs.unlinkSync(tmpfile);
+            return true;
+          } catch {
+            continue;
+          }
         }
       }
     }
     fs.unlinkSync(tmpfile);
     return true;
   } catch {
-    try {
-      fs.unlinkSync(tmpfile);
-    } catch {
-      /* ignore */
-    }
+    try { fs.unlinkSync(tmpfile); } catch { /* ignore */ }
     return false;
   }
 }
 
-export function urlCommand(): void {
+export function urlCommand(opts: { cloud?: boolean; memory?: string } = {}): void {
+  if (opts.cloud) {
+    cloudUrlCommand(opts.memory);
+    return;
+  }
+
   const config = loadConfig();
   const host = envHost() || config.serverHost || DEFAULT_HOST;
   const port = envPort() || config.serverPort || DEFAULT_PORT;
@@ -71,5 +83,53 @@ export function urlCommand(): void {
   console.log();
 
   const copied = copyToClipboard(defaultUrl);
+  if (copied) console.log(ok('URL copied to clipboard'));
+}
+
+function cloudUrlCommand(memoryName?: string): void {
+  const name = memoryName || 'default';
+
+  let token: string | undefined;
+
+  if (name === 'default') {
+    const meta = ensureDefaultMemory();
+    if (!meta) {
+      console.log(err('Default memory not found'));
+      process.exit(1);
+    }
+    token = meta.token;
+  } else {
+    const meta = readMeta(name);
+    if (!meta) {
+      console.log(err(`Memory "${name}" not found`));
+      console.log(dimLine(`Start it with: memlink serve --memory ${name}`));
+      process.exit(1);
+    }
+    token = meta.token;
+  }
+
+  const mcpUrl = token
+    ? `${CLOUD_URL}/mcp?t=${token}`
+    : `${CLOUD_URL}/mcp`;
+
+  const mcpJson = JSON.stringify(
+    { mcpServers: { memlink: { type: 'http', url: mcpUrl } } },
+    null,
+    2
+  );
+
+  console.log(kv('Memory', name));
+  console.log(kv('Cloud', CLOUD_URL));
+  if (!token) {
+    console.log(dimLine('No token — this memory is public (default)'));
+  }
+  console.log();
+  console.log(info('MCP URL', mcpUrl));
+  console.log();
+  console.log(dimLine('MCP config JSON (paste into your agent):'));
+  console.log(`  ${mcpJson.split('\n').join('\n  ')}`);
+  console.log();
+
+  const copied = copyToClipboard(mcpUrl);
   if (copied) console.log(ok('URL copied to clipboard'));
 }
