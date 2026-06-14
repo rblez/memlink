@@ -1,18 +1,34 @@
 import { table } from 'table';
-import { readAllEntries } from '../../core/storage.ts';
+import { readAllEntries, readIndex } from '../../core/storage.ts';
 import { ensureDefaultMemory } from '../../core/meta.ts';
-import { colors, info } from '../output.ts';
+import { colors, info, err, dimLine } from '../output.ts';
 
-export function entriesCommand(): void {
-  const meta = ensureDefaultMemory();
-  if (!meta) {
-    console.log(info('no entries', 'Default memory not found.'));
-    return;
+export function entriesCommand(opts: { memory?: string } = {}): void {
+  const memoryName = opts.memory || 'default';
+
+  if (memoryName === 'default') {
+    const meta = ensureDefaultMemory();
+    if (!meta) {
+      console.log(info('no entries', 'Default memory not found.'));
+      return;
+    }
+  } else {
+    const index = readIndex(memoryName);
+    if (!index) {
+      console.log(err(`Memory "${memoryName}" not found or empty`));
+      console.log(dimLine(`Start it with: memlink serve --memory ${memoryName}`));
+      return;
+    }
   }
 
-  const entries = readAllEntries('default');
+  const entries = readAllEntries(memoryName);
   if (entries.length === 0) {
-    console.log(info('empty', 'Default memory is empty. Use memlink add to write an entry.'));
+    console.log(
+      info(
+        'empty',
+        `Memory "${memoryName}" is empty. Use memlink add --memory ${memoryName} to write an entry.`
+      )
+    );
     return;
   }
 
@@ -25,6 +41,11 @@ export function entriesCommand(): void {
       e.updatedAt.slice(0, 10),
     ]),
   ];
+
+  if (opts.memory) {
+    console.log(info('memory', memoryName));
+    console.log();
+  }
 
   console.log(table(rows));
 }

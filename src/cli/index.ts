@@ -12,6 +12,8 @@ import {
   importFromFile,
   getExportsDir,
   saveConfig,
+  renderMemoryAsMarkdown,
+  renderMemoryAsText,
 } from '../core/memory.ts';
 import { startServer, startStdioServer } from '../server/index.ts';
 import { MEMLINK_VERSION, DEFAULT_PORT, DEFAULT_HOST, getMemlinkDir } from '../core/types.ts';
@@ -22,7 +24,7 @@ import { searchCommand } from './commands/search.ts';
 import { urlCommand } from './commands/url.ts';
 import { tokenGenerateCommand, tokenListCommand, tokenRevokeCommand } from './commands/token.ts';
 import { pauseCommand, resumeCommand, stopMemoryCommand } from './commands/pause.ts';
-import { connectCommand, disconnectCommand } from './commands/cloud.ts';
+import { connectCommand, disconnectCommand, cloudStatusCommand } from './commands/cloud.ts';
 import { isDaemonAlive } from '../core/health.ts';
 import { spawnDetached } from './daemon.ts';
 import { ensureDefaultMemory, readMeta, createMemoryMeta } from '../core/meta.ts';
@@ -144,18 +146,21 @@ function helpExamples(): string {
     `                   ${colors.dim('memlink serve --port 4444 --cors *')}`,
     `                   ${colors.dim('memlink serve --daemon')}`,
     '',
-    `    ${colors.white('add')}           Write an entry to default memory`,
+    `    ${colors.white('add')}           Write an entry to memory`,
     `                   ${colors.dim('memlink add "My Title" "My content"')}`,
+    `                   ${colors.dim('memlink add "Note" "..." --tags ai,notes --memory my-project')}`,
     '',
     `    ${colors.white('edit')}          Edit an existing entry by ID`,
     `                   ${colors.dim('memlink edit 3 --content "Updated content"')}`,
     `                   ${colors.dim('memlink edit 3 --title "New title" --tags ai,notes')}`,
     '',
-    `    ${colors.white('entries')}       List entries in default memory`,
+    `    ${colors.white('entries')}       List entries in a memory`,
     `                   ${colors.dim('memlink entries')}`,
+    `                   ${colors.dim('memlink entries --memory my-project')}`,
     '',
-    `    ${colors.white('search')}        Search entries in default memory`,
+    `    ${colors.white('search')}        Search entries`,
     `                   ${colors.dim('memlink search query')}`,
+    `                   ${colors.dim('memlink search query --memory my-project')}`,
     '',
     `    ${colors.white('url')}           Show MCP URL for agents`,
     `                   ${colors.dim('memlink url')}`,
@@ -180,8 +185,9 @@ function helpExamples(): string {
     `    ${colors.white('delete')}        Delete a memory permanently`,
     `                   ${colors.dim('memlink delete <name-or-id>')}`,
     '',
-    `    ${colors.white('export')}        Export memory as JSON`,
-    `                   ${colors.dim('memlink export <name-or-id>')}`,
+    `    ${colors.white('export')}        Export memory (json / markdown / text)`,
+    `                   ${colors.dim('memlink export <name>')}`,
+    `                   ${colors.dim('memlink export <name> --format markdown')}`,
     '',
     `    ${colors.white('import')}        Import entries from a JSON file`,
     `                   ${colors.dim('memlink import <name-or-id> ./backup.json')}`,
@@ -199,6 +205,9 @@ function helpExamples(): string {
     '',
     `    ${colors.white('disconnect')}    Unlink from memlink.cloud`,
     `                   ${colors.dim('memlink disconnect')}`,
+    '',
+    `    ${colors.white('cloud')}         Check memlink.cloud status and latency`,
+    `                   ${colors.dim('memlink cloud')}`,
     '',
     `    ${colors.dim('Use -v, --version to show system overview')}`,
     '',
@@ -496,8 +505,10 @@ program
 program
   .command('add <title> <content>')
   .description('Write an entry to default memory')
-  .action((title: string, content: string) => {
-    addCommand(title, content);
+  .option('--tags <tags>', 'Comma-separated tags')
+  .option('--memory <name>', 'Target memory (default: default)')
+  .action((title: string, content: string, opts) => {
+    addCommand(title, content, opts);
   });
 
 // ─── memlink edit <id> ────────────────────────────────────────────────────────
@@ -518,8 +529,9 @@ program
 program
   .command('entries')
   .description('List entries in default memory')
-  .action(() => {
-    entriesCommand();
+  .option('--memory <name>', 'Memory name (default: default)')
+  .action((opts) => {
+    entriesCommand(opts);
   });
 
 // ─── memlink search <query> ────────────────────────────────────────────────
@@ -527,8 +539,9 @@ program
 program
   .command('search <query>')
   .description('Search entries in default memory')
-  .action((query: string) => {
-    searchCommand(query);
+  .option('--memory <name>', 'Memory name (default: default)')
+  .action((query: string, opts) => {
+    searchCommand(query, opts);
   });
 
 // ─── memlink url ──────────────────────────────────────────────────────────
@@ -718,22 +731,47 @@ program
 
 program
   .command('export <name>')
-  .description('Export memory as JSON')
-  .action((name: string) => {
+  .description('Export memory (JSON by default, or --format markdown)')
+  .option('--format <fmt>', 'Output format: json, markdown, text (default: json)')
+  .action((name: string, opts: { format?: string }) => {
     const metaPath = path.join(getMemlinkDir(), name, 'meta.json');
     if (!fs.existsSync(metaPath)) {
       console.error(err(`Memory not found: ${name}`));
-      console.log(dimLine('List memories with: memlink info <name>'));
+      console.log(dimLine('Check name with: memlink info <name>'));
       process.exit(1);
     }
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    const exported = exportMemoryFormats(meta.id);
-    const shortFiles = exported.map((f) => path.relative(getMemlinkDir(), f));
-    const small = logoSmall();
-    if (small) console.log('\n' + small + '\n');
-    console.log(okBadge(`Exported: ${shortFiles.join(', ')}`));
-    console.log(dimLine(`Exports dir: ${getExportsDir()}`));
-    console.log();
+    const fmt = (opts.format || 'json').toLowerCase();
+
+    if (fmt === 'markdown' || fmt === 'md') {
+      const content = renderMemoryAsMarkdown(meta.id);
+      const exportsDir = getExportsDir();
+      const outPath = path.join(exportsDir, `${name}.md`);
+      fs.writeFileSync(outPath, content, 'utf-8');
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Exported: exports/${name}.md`));
+      console.log(dimLine(`Exports dir: ${exportsDir}`));
+      console.log();
+    } else if (fmt === 'text' || fmt === 'txt') {
+      const content = renderMemoryAsText(meta.id);
+      const exportsDir = getExportsDir();
+      const outPath = path.join(exportsDir, `${name}.txt`);
+      fs.writeFileSync(outPath, content, 'utf-8');
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Exported: exports/${name}.txt`));
+      console.log(dimLine(`Exports dir: ${exportsDir}`));
+      console.log();
+    } else {
+      const exported = exportMemoryFormats(meta.id);
+      const shortFiles = exported.map((f) => path.relative(getMemlinkDir(), f));
+      const small = logoSmall();
+      if (small) console.log('\n' + small + '\n');
+      console.log(okBadge(`Exported: ${shortFiles.join(', ')}`));
+      console.log(dimLine(`Exports dir: ${getExportsDir()}`));
+      console.log();
+    }
   });
 
 // ─── memlink import <name> <file> ─────────────────────────────────────
@@ -823,6 +861,13 @@ program
   .description('Unlink from memlink.cloud')
   .action(() => {
     disconnectCommand();
+  });
+
+program
+  .command('cloud')
+  .description('Check memlink.cloud status and connection')
+  .action(async () => {
+    await cloudStatusCommand();
   });
 
 // ─── memlink skill ──────────────────────────────────────────────────────

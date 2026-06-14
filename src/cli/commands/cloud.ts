@@ -96,3 +96,31 @@ export function disconnectCommand(): void {
   saveConfig(cfg);
   console.log(ok('Disconnected from memlink.cloud'));
 }
+
+export async function cloudStatusCommand(): Promise<void> {
+  const cfg = loadConfig();
+  const connected = !!cfg.cloud?.token;
+
+  console.log(kv('Cloud URL', CLOUD_URL));
+  console.log(kv('Linked', connected ? 'yes' : 'no'));
+  if (!connected) {
+    console.log(dimLine('Run memlink connect to link with memlink.cloud'));
+  }
+  console.log();
+
+  const start = Date.now();
+  try {
+    const res = await fetch(`${CLOUD_URL}/api/health`, { signal: AbortSignal.timeout(5000) });
+    const latency = Date.now() - start;
+    if (res.ok) {
+      console.log(ok(`Cloud reachable — ${latency}ms`));
+    } else {
+      console.log(err(`Cloud responded with HTTP ${res.status} — ${latency}ms`));
+    }
+  } catch (e) {
+    const latency = Date.now() - start;
+    console.log(err(`Cloud unreachable after ${latency}ms`));
+    console.log(dimLine(String(e)));
+  }
+  console.log();
+}
